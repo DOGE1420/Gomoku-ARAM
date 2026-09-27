@@ -73,13 +73,14 @@
   .hand-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 10px; border-radius: 12px; }
   .hand-row.active-turn { background: rgba(169, 128, 68, 0.15); }
   .hand-label { font-size: 12px; font-weight: 700; opacity: 0.75; min-width: 34px; padding-top: 30px; }
-  .hand-cards-grid { display: grid; grid-template-columns: repeat(4, 92px); gap: 10px; }
+  .hand-cards-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .hand-card {
-    width: 92px;
+    width: 100%;
+    min-width: 0;
     display: flex; flex-direction: column; align-items: center; gap: 5px;
     border: 1px solid rgba(201,162,39,0.5);
     border-radius: 10px;
-    padding: 10px 6px;
+    padding: 10px 4px;
     background: linear-gradient(160deg, #2a2333, #1a1520);
     cursor: pointer;
     transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
@@ -87,12 +88,27 @@
   .hand-card:hover:not(.disabled) { transform: translateY(-4px); border-color: var(--gold); }
   .hand-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .hand-card .hc-icon { font-size: 24px; }
-  .hand-card .hc-name { color: #f2e9d8; font-size: 12px; font-weight: 700; text-align: center; }
-  .hand-card .hc-desc { color: #cfc5b8; font-size: 9.5px; line-height: 1.35; text-align: center; }
+  .hand-card .hc-name { color: #f2e9d8; font-size: 12px; font-weight: 700; text-align: center; overflow-wrap: break-word; }
+  .hand-card .hc-desc { color: #cfc5b8; font-size: 9.5px; line-height: 1.35; text-align: center; overflow-wrap: break-word; }
   .hand-card.disabled { opacity: 0.4; cursor: not-allowed; }
   .hand-card.disabled:hover { transform: none; border-color: rgba(201,162,39,0.5); }
   .hand-empty { font-size: 12px; opacity: 0.45; font-style: italic; padding-top: 30px; }
   .log-panel { width: 100%; max-width: 460px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; opacity: 0.75; min-height: 18px; text-align: center; }
+
+  @media (max-width: 430px) {
+    body { padding: 14px 10px calc(14px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
+    .hand-row { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 6px; }
+    .hand-label { padding-top: 0; min-width: 0; }
+    .hand-cards-grid { gap: 6px; }
+    .hand-card { padding: 7px 3px; gap: 3px; }
+    .hand-card .hc-icon { font-size: 19px; }
+    .hand-card .hc-name { font-size: 10px; }
+    .hand-card .hc-desc { display: none; }
+    .aug-card { width: 108px; padding: 10px 6px; }
+    .aug-desc { font-size: 10px; }
+    .code-input { font-size: 16px; letter-spacing: 2px; }
+    .mode-btn { padding: 14px; }
+  }
 
   .menu-screen, .lobby-screen, .game-screen { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .mode-btn {
@@ -473,6 +489,7 @@
       }
       const canUse = player === current && !gameOver && !draftOpen && !pendingTarget && !usedCardThisTurn[player] && !alk && (mode === 'local' || player === myColor);
       btn.className = 'hand-card' + (canUse ? '' : ' disabled');
+      btn.title = card.desc;
       btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${card.name}</div><div class="hc-desc">${card.desc}</div>`;
       if (canUse) btn.addEventListener('click', () => {
         useCard(player, idx);
