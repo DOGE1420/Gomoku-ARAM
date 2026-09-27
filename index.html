@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>증강 오목</title>
+<style>
+  :root {
+    --wood-light: #d9b98a;
+    --wood-dark: #b8925c;
+    --line: #5c3a21;
+    --ink: #2b2118;
+    --paper: #f2e9d8;
+    --accent: #a13c3c;
+    --gold: #c9a227;
+    --purple: #6b4fa0;
+    --teal: #2f8f7a;
+    --stone-black-1: #4a4a4a;
+    --stone-black-2: #0a0a0a;
+    --stone-white-1: #ffffff;
+    --stone-white-2: #d8d2c4;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --paper: #1c1712; --ink: #ece3d4; }
+  }
+  :root[data-theme="dark"] { --paper: #1c1712; --ink: #ece3d4; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--paper); color: var(--ink);
+    font-family: "Noto Serif KR", Georgia, "Nanum Myeongjo", serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+  }
+  h1 { font-size: clamp(22px, 5vw, 28px); font-weight: 600; letter-spacing: 0.02em; margin: 2px 0 0 0; }
+  .sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12.5px; opacity: 0.65; margin: 0; text-align: center; max-width: 460px; line-height: 1.5; }
+  .status-row { display: flex; align-items: center; gap: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; min-height: 22px; flex-wrap: wrap; justify-content: center; }
+  .turn-dot { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(255,255,255,0.15); }
+  .turn-dot.black { background: radial-gradient(circle at 35% 30%, var(--stone-black-1), var(--stone-black-2)); }
+  .turn-dot.white { background: radial-gradient(circle at 35% 30%, var(--stone-white-1), var(--stone-white-2)); border: 1px solid rgba(0,0,0,0.2); }
+  #status-text.targeting { color: var(--purple); font-weight: 600; }
+  #status-text.alkkagi { color: var(--teal); font-weight: 600; }
+  #win-length-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--teal); color: var(--teal); display: none; }
+  #win-length-badge.show { display: inline-block; }
+  .cancel-btn { display: none; border: 1px solid var(--purple); color: var(--purple); background: transparent; border-radius: 999px; padding: 3px 12px; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; cursor: pointer; }
+  .cancel-btn.show { display: inline-block; }
+  .progress-wrap { display: flex; align-items: center; gap: 6px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; opacity: 0.7; }
+  .pip-row { display: flex; gap: 3px; }
+  .pip { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.25; }
+  .pip.filled { opacity: 0.9; background: var(--gold); }
+  .board-wrap { position: relative; max-width: 100%; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); overflow: hidden; }
+  canvas { display: block; touch-action: none; max-width: 100%; height: auto; cursor: pointer; }
+  .controls { display: flex; gap: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; flex-wrap: wrap; justify-content: center; }
+  button.plain { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 9px 18px; border-radius: 999px; font-size: 14px; font-family: inherit; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+  button.plain:hover { background: var(--line); color: var(--paper); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #banner { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,14,8,0.6); color: #f6ecd9; font-size: clamp(18px, 5vw, 26px); font-weight: 600; text-align: center; padding: 20px; }
+  #banner.show { display: flex; }
+  #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(15,10,20,0.85); backdrop-filter: blur(2px); padding: 16px; }
+  #draft-overlay.show { display: flex; }
+  .draft-title { color: #f2e9d8; font-family: "Noto Serif KR", Georgia, serif; font-size: clamp(16px, 4vw, 20px); text-align: center; }
+  .draft-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
+  .aug-card { width: 130px; background: linear-gradient(160deg, #2a2333, #1a1520); border: 1px solid rgba(201,162,39,0.5); border-radius: 10px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .aug-card:hover { transform: translateY(-4px); border-color: var(--gold); }
+  .aug-icon { font-size: 28px; }
+  .aug-name { color: #f2e9d8; font-size: 14px; font-weight: 700; }
+  .aug-desc { color: #cfc5b8; font-size: 11px; line-height: 1.4; text-align: center; }
+  .hands { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .hand-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 10px; border-radius: 12px; }
+  .hand-row.active-turn { background: rgba(169, 128, 68, 0.15); }
+  .hand-label { font-size: 12px; font-weight: 700; opacity: 0.75; min-width: 34px; padding-top: 30px; }
+  .hand-cards-grid { display: grid; grid-template-columns: repeat(4, 92px); gap: 10px; }
+  .hand-card {
+    width: 92px;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    border: 1px solid rgba(201,162,39,0.5);
+    border-radius: 10px;
+    padding: 10px 6px;
+    background: linear-gradient(160deg, #2a2333, #1a1520);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  }
+  .hand-card:hover:not(.disabled) { transform: translateY(-4px); border-color: var(--gold); }
+  .hand-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .hand-card .hc-icon { font-size: 24px; }
+  .hand-card .hc-name { color: #f2e9d8; font-size: 12px; font-weight: 700; text-align: center; }
+  .hand-card .hc-desc { color: #cfc5b8; font-size: 9.5px; line-height: 1.35; text-align: center; }
+  .hand-card.disabled { opacity: 0.4; cursor: not-allowed; }
+  .hand-card.disabled:hover { transform: none; border-color: rgba(201,162,39,0.5); }
+  .hand-empty { font-size: 12px; opacity: 0.45; font-style: italic; padding-top: 30px; }
+  .log-panel { width: 100%; max-width: 460px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; opacity: 0.75; min-height: 18px; text-align: center; }
+
+  .menu-screen, .lobby-screen, .game-screen { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .mode-btn {
+    width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 18px; border-radius: 14px; border: 1px solid var(--line);
+    background: linear-gradient(160deg, var(--wood-light), var(--wood-dark));
+    cursor: pointer; font-family: "Noto Serif KR", Georgia, serif; color: var(--ink);
+    transition: transform 0.15s ease;
+  }
+  .mode-btn:hover { transform: translateY(-3px); }
+  .mode-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .mode-icon { font-size: 30px; }
+  .mode-name { font-size: 17px; font-weight: 700; }
+  .mode-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; opacity: 0.7; }
+  .menu-note { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; opacity: 0.6; text-align: center; min-height: 16px; }
+
+  .lobby-body { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .lobby-or { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; opacity: 0.6; }
+  .code-input {
+    width: 100%; text-align: center; letter-spacing: 4px; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 1px solid var(--line); font-size: 18px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink);
+  }
+  .lobby-status { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; text-align: center; min-height: 20px; opacity: 0.85; }
+  #game-back-btn, #lobby-back-btn { align-self: flex-start; font-size: 12px; padding: 5px 12px; }
+</style>
+</head>
+<body>
+  <h1>증강 오목</h1>
+  <p class="sub" id="sub-text">3수마다 패에 카드가 쌓입니다. 내 턴에 패의 카드를 눌러 능력을 발동하세요 — 수를 두는 것과는 별개의 행동이며, 턴당 1회만 사용할 수 있습니다.</p>
+
+  <div id="menu-screen" class="menu-screen">
+    <button class="mode-btn" id="mode-local-btn">
+      <div class="mode-icon">👥</div>
+      <div class="mode-name">로컬 모드</div>
+      <div class="mode-desc">한 기기에서 흑백 번갈아 대전</div>
+    </button>
+    <button class="mode-btn" id="mode-bot-btn">
+      <div class="mode-icon">🤖</div>
+      <div class="mode-name">봇전</div>
+      <div class="mode-desc">AI를 상대로 대전 (난이도 5/10)</div>
+    </button>
+    <button class="mode-btn" id="mode-mp-btn">
+      <div class="mode-icon">🌐</div>
+      <div class="mode-name">멀티플레이</div>
+      <div class="mode-desc">온라인으로 대전, 서로의 패는 비공개</div>
+    </button>
+    <p class="menu-note" id="menu-note"></p>
+  </div>
+
+  <div id="lobby-screen" class="lobby-screen" style="display:none;">
+    <button class="plain" id="lobby-back-btn">← 메뉴로</button>
+    <div class="lobby-body" id="lobby-body">
+      <button class="plain" id="create-room-btn">새 방 만들기</button>
+      <div class="lobby-or">또는</div>
+      <input class="code-input" id="join-code-input" placeholder="방 코드 입력" maxlength="5">
+      <button class="plain" id="join-room-btn">코드로 참가하기</button>
+    </div>
+    <div class="lobby-status" id="lobby-status"></div>
+  </div>
+
+  <div id="game-screen" class="game-screen" style="display:none;">
+    <button class="plain" id="game-back-btn">← 메뉴로</button>
+    <div class="status-row">
+      <span class="turn-dot black" id="turn-dot"></span>
+      <span id="status-text">흑 차례</span>
+      <span id="win-length-badge">6목 규칙</span>
+      <button class="cancel-btn" id="cancel-btn">취소</button>
+    </div>
+    <div class="progress-wrap">
+      <span>다음 카드까지</span>
+      <span class="pip-row" id="pip-row"></span>
+    </div>
+
+    <div class="board-wrap">
+      <canvas id="board"></canvas>
+      <div id="banner"></div>
+      <div id="draft-overlay">
+        <div class="draft-title" id="draft-title">카드 획득</div>
+        <div class="draft-cards" id="draft-cards"></div>
+      </div>
+    </div>
+
+    <div class="hands">
+      <div class="hand-row" id="hand-row-1">
+        <span class="hand-label">흑 패</span>
+        <div class="hand-cards-grid" id="hand-cards-1"></div>
+      </div>
+      <div class="hand-row" id="hand-row-2">
+        <span class="hand-label">백 패</span>
+        <div class="hand-cards-grid" id="hand-cards-2"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="plain" id="undo-btn">한 수 무르기</button>
+      <button class="plain" id="reset-btn">새 게임</button>
+    </div>
+    <div class="log-panel" id="log-panel"></div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-eP5kD_xudBE6-MXt1KLkKxZEKmD6-Sg",
+    authDomain: "gomoku-3f050.firebaseapp.com",
+    databaseURL: "https://gomoku-3f050-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gomoku-3f050",
+    storageBucket: "gomoku-3f050.firebasestorage.app",
+    messagingSenderId: "591915118208",
+    appId: "1:591915118208:web:d53298e42473674dc30065",
+  };
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    const rtdb = getDatabase(app);
+    window.__fb = {
+      ready: true,
+      setPath: (path, data) => set(ref(rtdb, path), data),
+      getPath: async (path) => {
+        const snap = await get(ref(rtdb, path));
+        const ex = snap.exists();
+        return { exists: ex, data: () => (ex ? snap.val() : undefined) };
+      },
+      updatePath: (path, data) => update(ref(rtdb, path), data),
+      onPath: (path, cb, errCb) => onValue(ref(rtdb, path), (snap) => {
+        const ex = snap.exists();
+        cb({ exists: ex, data: () => (ex ? snap.val() : undefined) });
+      }, errCb),
+    };
+  } catch (e) {
+    window.__fb = { ready: false };
+  }
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<script>
+(function () {
+  const SIZE = 15;
+  const CELL = 34;
+  const PAD = 28;
+  const DIM = PAD * 2 + CELL * (SIZE - 1);
+  const INTERVAL = 3;   // 자신의 돌을 N개 놓을 때마다 카드 1장 획득
+  const HAND_LIMIT = 4;
+  const EMPTY = 0, BLACK = 1, WHITE = 2;
+  const R = CELL * 0.42; // 돌 반지름
+
+  const CARD_POOL = [
+    { id: 'chain', name: '연속 착수', icon: '⚡', desc: '이번 턴에 총 3번까지 착수할 수 있습니다.', type: 'chain_move', weight: 10 },
+    { id: 'windmill', name: '풍차', icon: '🎡', desc: '내 돌 1개를 풍차로 만듭니다. 주변 8칸은 상대가 둘 수 없습니다.', type: 'windmill', weight: 10 },
+    { id: 'sixsense', name: '식스센스', icon: '👁️', desc: '승리 조건이 5목에서 6목으로 영구히 바뀝니다.', type: 'six_sense', weight: 10 },
+    { id: 'trade', name: '맞교환', icon: '🔄', desc: '흑돌과 백돌을 하나씩 골라 서로 색을 바꿉니다.', type: 'trade', weight: 10 },
+    { id: 'selfremove', name: '강제 회수', icon: '🫳', desc: '내 돌 1개를 원하는 대로 제거합니다.', type: 'self_remove', weight: 10 },
+    { id: 'bomb', name: '폭파', icon: '💥', desc: '상대 돌 1개를 제거합니다.', type: 'remove_enemy', weight: 10 },
+    { id: 'reversal', name: '전세 역전', icon: '☯️', desc: '보드의 모든 흑돌과 백돌을 통째로 뒤바꿉니다.', type: 'reversal', weight: 10 },
+    { id: 'alkkagi', name: '알까기 모드', icon: '🪀', desc: '흑, 백 순서로 한 번씩 알까기로 새 돌을 발사합니다. 흩어진 돌은 가장 가까운 자리로 고정됩니다.', type: 'alkkagi', weight: 10 },
+    { id: 'teleport', name: '순간이동', icon: '✨', desc: '내 돌 1개를 무작위 빈 칸으로 이동시킵니다.', type: 'teleport', weight: 10 },
+    { id: 'earthquake', name: '지진', icon: '🫨', desc: '보드의 모든 돌이 각자 주변의 무작위 빈 칸으로 흔들려 이동합니다.', type: 'earthquake', weight: 10 },
+    { id: 'blockade', name: '봉쇄', icon: '🚫', desc: '상대는 다음 턴에 카드를 사용할 수 없습니다. (희귀 카드)', type: 'blockade', weight: 3 },
+    { id: 'trap', name: '함정', icon: '🪤', desc: '빈 칸에 함정을 설치합니다. 상대가 그 칸에 두면 돌이 사라지고 나는 카드를 얻습니다. 설치 사실은 상대에게 공개됩니다.', type: 'trap', weight: 10 },
+    { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다.', type: 'infection', weight: 10 },
+  ];
+
+  const PLACE_SOUND = new Audio("data:audio/mpeg;base64,SUQzAwAAAABDXlRZRVIAAAAGAAAAMjAyNgBUREFUAAAABgAAADI3MDkAVElNRQAAAAYAAAAxODAzAFBSSVYAABmkAABYTVAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgOS4xLWMwMDMgNzkuOTY5MGE4NywgMjAyNS8wMy8wNi0xOToxMjowMyAgICAgICAgIj4KIDxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+CiAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIKICAgIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIgogICAgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIKICAgIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIgogICAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICAgeG1sbnM6Y3JlYXRvckF0b209Imh0dHA6Ly9ucy5hZG9iZS5jb20vY3JlYXRvckF0b20vMS4wLyIKICAgIHhtbG5zOnhtcERNPSJodHRwOi8vbnMuYWRvYmUuY29tL3htcC8xLjAvRHluYW1pY01lZGlhLyIKICAgIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIKICAgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo0MGQ1NjFhZi1hZDg1LWRhNGEtOThkYy1jZWJlZTI2ZDc4ODciCiAgIHhtcE1NOkRvY3VtZW50SUQ9ImU2ZjRmNGEwLWYzYTktOThhMi05OTQ2LWZkNWYwMDAwMDA0MSIKICAgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjU1ODlhZWI3LTA3NmMtM2I0MC04MWFlLWQzNDM0NTYzOWNjZSIKICAgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyNi0wOS0yN1QxODowNDowMCswOTowMCIKICAgeG1wOk1vZGlmeURhdGU9IjIwMjYtMDktMjdUMTg6MDQ6MDArMDk6MDAiCiAgIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUHJlbWllcmUgUHJvIDIwMjYuMCAoV2luZG93cykiCiAgIHhtcDpDcmVhdGVEYXRlPSIyMDI2LTA5LTI3VDE4OjAzOjMwKzA5OjAwIgogICB4bXBETTphdWRpb1NhbXBsZVJhdGU9Ii0xIgogICB4bXBETTphdWRpb1NhbXBsZVR5cGU9IjE2SW50IgogICB4bXBETTphdWRpb0NoYW5uZWxUeXBlPSJTdGVyZW8iCiAgIHhtcERNOnN0YXJ0VGltZVNjYWxlPSIzMDAwMCIKICAgeG1wRE06c3RhcnRUaW1lU2FtcGxlU2l6ZT0iMTAwMSIKICAgZGM6Zm9ybWF0PSJNUDMiPgogICA8eG1wTU06SGlzdG9yeT4KICAgIDxyZGY6U2VxPgogICAgIDxyZGY6bGkKICAgICAgc3RFdnQ6YWN0aW9uPSJzYXZlZCIKICAgICAgc3RFdnQ6aW5zdGFuY2VJRD0iNmM2NmIyYTUtZDIxOS1hZGZkLTQ3OTQtYzBiYjAwMDAwMDZlIgogICAgICBzdEV2dDp3aGVuPSIyMDI2LTA5LTI3VDE4OjA0OjAwKzA5OjAwIgogICAgICBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQcmVtaWVyZSBQcm8gMjAyNi4wIChXaW5kb3dzKSIKICAgICAgc3RFdnQ6Y2hhbmdlZD0iLyIvPgogICAgIDxyZGY6bGkKICAgICAgc3RFdnQ6YWN0aW9uPSJjcmVhdGVkIgogICAgICBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOjM4MmEwMThhLWM1YmEtOWI0NC1iN2M2LTBkZDhkMDA4NjQyMiIKICAgICAgc3RFdnQ6d2hlbj0iMjAyNi0wOS0yN1QxODowNDowMCswOTowMCIKICAgICAgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUHJlbWllcmUgUHJvIDIwMjYuMCAoV2luZG93cykiLz4KICAgICA8cmRmOmxpCiAgICAgIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiCiAgICAgIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6NzE1NGVmMzItNTQ1Yy01NTRhLTgxODctY2E4MGQ5NTBmNzU5IgogICAgICBzdEV2dDp3aGVuPSIyMDI2LTA5LTI3VDE4OjA0OjAwKzA5OjAwIgogICAgICBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQcmVtaWVyZSBQcm8gMjAyNi4wIChXaW5kb3dzKSIKICAgICAgc3RFdnQ6Y2hhbmdlZD0iLyIvPgogICAgIDxyZGY6bGkKICAgICAgc3RFdnQ6YWN0aW9uPSJzYXZlZCIKICAgICAgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDo0MGQ1NjFhZi1hZDg1LWRhNGEtOThkYy1jZWJlZTI2ZDc4ODciCiAgICAgIHN0RXZ0OndoZW49IjIwMjYtMDktMjdUMTg6MDQ6MDArMDk6MDAiCiAgICAgIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFByZW1pZXJlIFBybyAyMDI2LjAgKFdpbmRvd3MpIgogICAgICBzdEV2dDpjaGFuZ2VkPSIvbWV0YWRhdGEiLz4KICAgIDwvcmRmOlNlcT4KICAgPC94bXBNTTpIaXN0b3J5PgogICA8eG1wTU06SW5ncmVkaWVudHM+CiAgICA8cmRmOkJhZz4KICAgICA8cmRmOmxpCiAgICAgIHN0UmVmOmluc3RhbmNlSUQ9ImRmZTA5NTkxLWNjNzgtZjYzNy00OTViLTJjM2YwMDAwMDBlNiIKICAgICAgc3RSZWY6ZG9jdW1lbnRJRD0iYTkwMGNlOGMtZDNhZC04ZGU1LWM4NWQtNzU4MzAwMDAwMGI5IgogICAgICBzdFJlZjpmcm9tUGFydD0idGltZToyNDMyNTE2NDg2NDAwZjI1NDAxNjAwMDAwMGQxNjk1MTMzNDQwMDBmMjU0MDE2MDAwMDAwIgogICAgICBzdFJlZjp0b1BhcnQ9InRpbWU6MTY5NTEzMzQ0MDBmMjU0MDE2MDAwMDAwZDE2OTUxMzM0NDAwMGYyNTQwMTYwMDAwMDAiCiAgICAgIHN0UmVmOmZpbGVQYXRoPSJb66y066OM7Zqo6rO87J2MXeuwlOuRkeuRkOuKlCDshozrpqwyIFBsYXlHTyBTb3VuZHMg5Zuy56KB6Z+zLCBCYWRvdWsgc29uIFNvdW5kZWZmZWN0cyBET1dOTE9BRC5tcDMiCiAgICAgIHN0UmVmOm1hc2tNYXJrZXJzPSJOb25lIi8+CiAgICA8L3JkZjpCYWc+CiAgIDwveG1wTU06SW5ncmVkaWVudHM+CiAgIDx4bXBNTTpQYW50cnk+CiAgICA8cmRmOkJhZz4KICAgICA8cmRmOmxpPgogICAgICA8cmRmOkRlc2NyaXB0aW9uCiAgICAgICB4bXBNTTpJbnN0YW5jZUlEPSJkZmUwOTU5MS1jYzc4LWY2MzctNDk1Yi0yYzNmMDAwMDAwZTYiCiAgICAgICB4bXBNTTpEb2N1bWVudElEPSJhOTAwY2U4Yy1kM2FkLThkZTUtYzg1ZC03NTgzMDAwMDAwYjkiCiAgICAgICB4bXBNTTpPcmlnaW5hbERvY3VtZW50SUQ9InhtcC5kaWQ6ZjM2MTc3MmEtNTUwMS03ZTQ2LWE1ZTktM2JhMmRkNDllZGYwIgogICAgICAgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyNi0wOS0yN1QxODowMTo1NyswOTowMCIKICAgICAgIHhtcDpNb2RpZnlEYXRlPSIyMDI2LTA5LTI3VDE4OjAxOjU3KzA5OjAwIj4KICAgICAgPHhtcE1NOkhpc3Rvcnk+CiAgICAgICA8cmRmOlNlcT4KICAgICAgICA8cmRmOmxpCiAgICAgICAgIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiCiAgICAgICAgIHN0RXZ0Omluc3RhbmNlSUQ9ImRmZTA5NTkxLWNjNzgtZjYzNy00OTViLTJjM2YwMDAwMDBlNiIKICAgICAgICAgc3RFdnQ6d2hlbj0iMjAyNi0wOS0yN1QxODowMTo1NyswOTowMCIKICAgICAgICAgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUHJlbWllcmUgUHJvIDIwMjYuMCAoV2luZG93cykiCiAgICAgICAgIHN0RXZ0OmNoYW5nZWQ9Ii8iLz4KICAgICAgIDwvcmRmOlNlcT4KICAgICAgPC94bXBNTTpIaXN0b3J5PgogICAgICA8L3JkZjpEZXNjcmlwdGlvbj4KICAgICA8L3JkZjpsaT4KICAgIDwvcmRmOkJhZz4KICAgPC94bXBNTTpQYW50cnk+CiAgIDx4bXBNTTpEZXJpdmVkRnJvbQogICAgc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDozODJhMDE4YS1jNWJhLTliNDQtYjdjNi0wZGQ4ZDAwODY0MjIiCiAgICBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjM4MmEwMThhLWM1YmEtOWI0NC1iN2M2LTBkZDhkMDA4NjQyMiIKICAgIHN0UmVmOm9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDozODJhMDE4YS1jNWJhLTliNDQtYjdjNi0wZGQ4ZDAwODY0MjIiLz4KICAgPGNyZWF0b3JBdG9tOndpbmRvd3NBdG9tCiAgICBjcmVhdG9yQXRvbTpleHRlbnNpb249Ii5wcnByb2oiCiAgICBjcmVhdG9yQXRvbTppbnZvY2F0aW9uRmxhZ3M9Ii9MIgogICAgY3JlYXRvckF0b206dW5jUHJvamVjdFBhdGg9IlxcP1xDOlxVc2Vyc1xMR1xEZXNrdG9wXOymneqwlSDsmKTrqqkg7Zqo6rO87J2MLnBycHJvaiIvPgogICA8Y3JlYXRvckF0b206bWFjQXRvbQogICAgY3JlYXRvckF0b206YXBwbGljYXRpb25Db2RlPSIxMzQ3NDQ5NDU1IgogICAgY3JlYXRvckF0b206aW52b2NhdGlvbkFwcGxlRXZlbnQ9IjExMjk0NjgwMTgiLz4KICAgPHhtcERNOnByb2plY3RSZWYKICAgIHhtcERNOnR5cGU9Im1vdmllIi8+CiAgIDx4bXBETTpkdXJhdGlvbgogICAgeG1wRE06dmFsdWU9IjIyIgogICAgeG1wRE06c2NhbGU9IjEwMDEvMzAwMDAiLz4KICAgPHhtcERNOnN0YXJ0VGltZWNvZGUKICAgIHhtcERNOnRpbWVGb3JtYXQ9IjI5OTdEcm9wVGltZWNvZGUiCiAgICB4bXBETTp0aW1lVmFsdWU9IjAwOzAwOzAwOzAwIi8+CiAgIDx4bXBETTphbHRUaW1lY29kZQogICAgeG1wRE06dGltZVZhbHVlPSIwMDswMDswMDswMCIKICAgIHhtcERNOnRpbWVGb3JtYXQ9IjI5OTdEcm9wVGltZWNvZGUiLz4KICA8L3JkZjpEZXNjcmlwdGlvbj4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAKPD94cGFja2V0IGVuZD0idyI/PgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/7sEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uwZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+7JkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+7JkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+7JkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV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qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgHAAAAxDAyDMRCvNJIOE1TxVjaYHROVdII0ZI8xNUJcaDbwv2cy1D1lM4oT+DRAycM+Uh/joBIGNoggk0URVjLUBhMZ0LEwcQ8zAdC0KwKAgAAYNsEPmANgHZhDwECYUyAzGHPAgJieYQcY7AK3mUGmFBlgS4eYSErjmV7E1hly4EqY94HcmHQhdxgwANqbXhxmhNgEaEwtMZgAFDlcTpXRt5/rCfN6aLkFSKaNohTlKy//4zFtVPMatfH64OWN1///xdlYocasXFv//8WYXSuypmAnSnLi8Zt43n4fXep1WCbGEbapfZrXHz8yRsLssIMImA8lbWLC3//7skR8j/J8CotD3/Eo+K7CVX+PYgAAAaQAAAAgAAA0gAAABP851eZXLlwVsjuv//9vat1CbyrZmJ+hsRm3//iNBVsRPOaHP2XEbOv/84tW1VM2OXbZo3/96K6VSoSSIvY9R6oxVRd6t8WzWSO4mkVKCILVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7smQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7smQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7smQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7smQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7smQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7smQAD/AAAGkAAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVRBRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADIwMjYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+  PLACE_SOUND.preload = 'auto';
+  function playPlaceSound() {
+    try {
+      const s = PLACE_SOUND.cloneNode();
+      s.volume = 1;
+      s.play().catch(() => {});
+    } catch (e) {}
+  }
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = DIM * dpr; canvas.height = DIM * dpr;
+  canvas.style.width = DIM + 'px'; canvas.style.height = DIM + 'px';
+  ctx.scale(dpr, dpr);
+
+  const statusText = document.getElementById('status-text');
+  const turnDot = document.getElementById('turn-dot');
+  const winLenBadge = document.getElementById('win-length-badge');
+  const banner = document.getElementById('banner');
+  const undoBtn = document.getElementById('undo-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const cancelBtn = document.getElementById('cancel-btn');
+  const pipRow = document.getElementById('pip-row');
+  const logPanel = document.getElementById('log-panel');
+  const draftOverlay = document.getElementById('draft-overlay');
+  const draftTitle = document.getElementById('draft-title');
+  const draftCardsEl = document.getElementById('draft-cards');
+  const handRow1 = document.getElementById('hand-row-1');
+  const handRow2 = document.getElementById('hand-row-2');
+  const handCards1 = document.getElementById('hand-cards-1');
+  const handCards2 = document.getElementById('hand-cards-2');
+
+  const menuScreen = document.getElementById('menu-screen');
+  const lobbyScreen = document.getElementById('lobby-screen');
+  const gameScreen = document.getElementById('game-screen');
+  const subText = document.getElementById('sub-text');
+  const menuNote = document.getElementById('menu-note');
+  const modeLocalBtn = document.getElementById('mode-local-btn');
+  const modeBotBtn = document.getElementById('mode-bot-btn');
+  const modeMpBtn = document.getElementById('mode-mp-btn');
+  const lobbyBackBtn = document.getElementById('lobby-back-btn');
+  const gameBackBtn = document.getElementById('game-back-btn');
+  const createRoomBtn = document.getElementById('create-room-btn');
+  const joinRoomBtn = document.getElementById('join-room-btn');
+  const joinCodeInput = document.getElementById('join-code-input');
+  const lobbyStatus = document.getElementById('lobby-status');
+
+  let board, current, moveHistory, gameOver, winLine, winLength, lastMovePos;
+  let placedCount, hand, usedCardThisTurn, turnPlacementsDone, turnPlacementsNeeded;
+  let pendingTarget, draftOpen, draftPlayer, logLines, windmillList;
+  let alk; // 알까기 상태
+  let trapList; // { r, c, owner }[]
+  let cardLockNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 다음 턴 카드 사용 봉쇄
+  let startupQueue; // 게임 시작 시 초기 카드 뽑기 순서 (흑→백)
+
+  // ---- 모드 / 멀티플레이 상태 ----
+  let mode = 'local'; // 'local' | 'bot' | 'multiplayer'
+  let myColor = BLACK; // bot·멀티플레이에서 내가 조작하는 색
+  let dbApi = null, myUserId = null;
+  let roomCode = null;
+  let unsubPublic = null;
+  let mpPlayers = { [BLACK]: null, [WHITE]: null };
+  let mpNotice = null, mpNoticeSeq = 0, lastSeenNoticeSeq = 0, mpBannerText = null;
+  const BOT_DIFFICULTY = 5; // 1~10
+
+  function getCardPool() {
+    // 알까기(물리 실시간 모드)는 로컬 모드에서만 사용: 봇/멀티플레이는 동기화가 어려워 제외
+    return mode === 'local' ? CARD_POOL : CARD_POOL.filter(c => c.type !== 'alkkagi');
+  }
+
+  function waitForFb(timeoutMs) {
+    return new Promise((resolve) => {
+      if (window.__fb) { resolve(window.__fb); return; }
+      const onReady = () => { window.removeEventListener('fb-ready', onReady); resolve(window.__fb); };
+      window.addEventListener('fb-ready', onReady);
+      setTimeout(() => resolve(window.__fb || { ready: false }), timeoutMs || 6000);
+    });
+  }
+
+  function getOrCreateClientId() {
+    let id = null;
+    try { id = localStorage.getItem('omok_client_id'); } catch (e) {}
+    if (!id) {
+      id = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { localStorage.setItem('omok_client_id', id); } catch (e) {}
+    }
+    return id;
+  }
+
+  async function initCapabilities() {
+    const fb = await waitForFb();
+    dbApi = fb && fb.ready ? fb : null;
+    myUserId = dbApi ? getOrCreateClientId() : null;
+    if (!dbApi) {
+      modeMpBtn.disabled = true;
+      menuNote.textContent = '멀티플레이 서버 연결에 실패했습니다. 잠시 후 다시 열어주세요.';
+    }
+  }
+  initCapabilities();
+
+  let currentScreen = 'menu';
+  function showScreen(name) {
+    currentScreen = name;
+    menuScreen.style.display = name === 'menu' ? 'flex' : 'none';
+    lobbyScreen.style.display = name === 'lobby' ? 'flex' : 'none';
+    gameScreen.style.display = name === 'game' ? 'flex' : 'none';
+    subText.style.display = name === 'game' ? 'block' : 'none';
+  }
+
+  function other(p) { return p === BLACK ? WHITE : BLACK; }
+  function isStone(v) { return v === BLACK || v === WHITE; }
+
+  function init() {
+    board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    current = BLACK;
+    moveHistory = [];
+    gameOver = false;
+    winLine = null;
+    winLength = 5;
+    lastMovePos = null;
+    windmillList = [];
+    placedCount = { [BLACK]: 0, [WHITE]: 0 };
+    hand = { [BLACK]: [], [WHITE]: [] };
+    usedCardThisTurn = { [BLACK]: false, [WHITE]: false };
+    turnPlacementsDone = 0;
+    turnPlacementsNeeded = 1;
+    pendingTarget = null;
+    draftOpen = false;
+    draftPlayer = null;
+    logLines = [];
+    alk = null;
+    trapList = [];
+    cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
+    mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
+    banner.classList.remove('show');
+    draftOverlay.classList.remove('show');
+    winLenBadge.classList.remove('show');
+    updateLog();
+    draw();
+    startupQueue = mode === 'multiplayer' ? [myColor] : [BLACK, WHITE];
+    runStartupDraft();
+  }
+
+  function updateStatus() {
+    if (mode === 'bot') scheduleMaybeBotTurn();
+    undoBtn.style.display = mode === 'multiplayer' ? 'none' : 'inline-block';
+    resetBtn.style.display = mode === 'multiplayer' ? 'none' : 'inline-block';
+    if (gameOver) return;
+    if (alk) { updateAlkStatus(); return; }
+    statusText.classList.remove('targeting', 'alkkagi');
+    turnDot.className = 'turn-dot ' + (current === BLACK ? 'black' : 'white');
+    statusText.textContent = (current === BLACK ? '흑' : '백') + ' 차례';
+    cancelBtn.classList.remove('show');
+    winLenBadge.textContent = winLength + '목 규칙';
+    winLenBadge.classList.toggle('show', winLength !== 5);
+  }
+
+  function updateAlkStatus() {
+    const flicker = alk.turnOrder[alk.turnIndex];
+    turnDot.className = 'turn-dot ' + (flicker === BLACK ? 'black' : 'white');
+    statusText.classList.remove('targeting');
+    statusText.classList.add('alkkagi');
+    statusText.textContent = alk.simulating
+      ? '알까기 진행 중...'
+      : (flicker === BLACK ? '흑' : '백') + ' 알까기 — 아래쪽 돌을 당겼다 놓아 발사하세요';
+    cancelBtn.classList.remove('show');
+  }
+
+  function updatePips() {
+    if (gameOver || alk) return;
+    const filled = placedCount[current] % INTERVAL;
+    pipRow.innerHTML = '';
+    for (let i = 0; i < INTERVAL; i++) {
+      const span = document.createElement('span');
+      span.className = 'pip' + (i < filled ? ' filled' : '');
+      pipRow.appendChild(span);
+    }
+  }
+
+  function addLog(text) {
+    logLines.unshift(text);
+    logLines = logLines.slice(0, 3);
+    updateLog();
+  }
+  function updateLog() { logPanel.textContent = logLines.join('   ·   '); }
+
+  function updateHandUI() {
+    handRow1.classList.toggle('active-turn', current === BLACK && !gameOver && !alk);
+    handRow2.classList.toggle('active-turn', current === WHITE && !gameOver && !alk);
+    renderHand(BLACK, handCards1);
+    renderHand(WHITE, handCards2);
+  }
+
+  function renderHand(player, container) {
+    container.innerHTML = '';
+    const hideContents = mode === 'multiplayer' && player !== myColor;
+    if (hand[player].length === 0) {
+      const span = document.createElement('span');
+      span.className = 'hand-empty';
+      span.textContent = '없음';
+      container.appendChild(span);
+      return;
+    }
+    hand[player].forEach((card, idx) => {
+      const btn = document.createElement('button');
+      if (hideContents) {
+        btn.className = 'hand-card disabled';
+        btn.innerHTML = `<div class="hc-icon">🂠</div><div class="hc-name">비공개</div>`;
+        container.appendChild(btn);
+        return;
+      }
+      const canUse = player === current && !gameOver && !draftOpen && !pendingTarget && !usedCardThisTurn[player] && !alk && (mode === 'local' || player === myColor);
+      btn.className = 'hand-card' + (canUse ? '' : ' disabled');
+      btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${card.name}</div><div class="hc-desc">${card.desc}</div>`;
+      if (canUse) btn.addEventListener('click', () => {
+        useCard(player, idx);
+        if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function cellCenter(r, c) { return { x: PAD + c * CELL, y: PAD + r * CELL }; }
+  function getVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function drawBoardBase() {
+    ctx.clearRect(0, 0, DIM, DIM);
+    const grad = ctx.createLinearGradient(0, 0, DIM, DIM);
+    grad.addColorStop(0, getVar('--wood-light'));
+    grad.addColorStop(1, getVar('--wood-dark'));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, DIM, DIM);
+
+    ctx.strokeStyle = getVar('--line');
+    ctx.lineWidth = 1;
+    for (let i = 0; i < SIZE; i++) {
+      const x = PAD + i * CELL;
+      ctx.beginPath(); ctx.moveTo(x, PAD); ctx.lineTo(x, DIM - PAD); ctx.stroke();
+      const y = PAD + i * CELL;
+      ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(DIM - PAD, y); ctx.stroke();
+    }
+    const stars = [3, 7, 11];
+    ctx.fillStyle = getVar('--line');
+    stars.forEach(r => stars.forEach(c => {
+      const p = cellCenter(r, c);
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+    }));
+  }
+
+  function drawStoneAt(x, y, player) {
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - R * 0.35, y - R * 0.35, R * 0.1, x, y, R);
+    if (player === BLACK) { g.addColorStop(0, getVar('--stone-black-1')); g.addColorStop(1, getVar('--stone-black-2')); }
+    else { g.addColorStop(0, getVar('--stone-white-1')); g.addColorStop(1, getVar('--stone-white-2')); }
+    ctx.fillStyle = g; ctx.fill();
+    if (player === WHITE) { ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  function draw() {
+    drawBoardBase();
+
+    if (alk) {
+      alk.physStones.forEach(s => drawStoneAt(s.x, s.y, s.color));
+      if (alk.dragging && alk.dragCurrent) {
+        const ns = alk.physStones[alk.newIndex];
+        ctx.strokeStyle = getVar('--purple'); ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(ns.x, ns.y); ctx.lineTo(alk.dragCurrent.x, alk.dragCurrent.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      return;
+    }
+
+    windmillList.forEach(w => {
+      if (!isStone(board[w.r][w.c])) return;
+      const p = cellCenter(w.r, w.c);
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = getVar('--teal');
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(p.x - CELL * 0.9, p.y - CELL * 0.9, CELL * 1.8, CELL * 1.8);
+      ctx.setLineDash([]);
+    });
+
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (isStone(board[r][c])) { const p = cellCenter(r, c); drawStoneAt(p.x, p.y, board[r][c]); }
+      }
+    }
+
+    windmillList.forEach(w => {
+      if (!isStone(board[w.r][w.c])) return;
+      const p = cellCenter(w.r, w.c);
+      ctx.font = (CELL * 0.5) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🎡', p.x, p.y);
+    });
+
+    if (lastMovePos) {
+      const p = cellCenter(lastMovePos.r, lastMovePos.c);
+      ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    if (winLine) {
+      const a = cellCenter(winLine[0].r, winLine[0].c);
+      const b = cellCenter(winLine[1].r, winLine[1].c);
+      ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+
+    if (pendingTarget) {
+      ctx.strokeStyle = getVar('--purple');
+      ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, DIM - 4, DIM - 4);
+    }
+    if (pendingTarget && pendingTarget.type === 'trade' && pendingTarget.firstPos) {
+      const p = cellCenter(pendingTarget.firstPos.r, pendingTarget.firstPos.c);
+      ctx.strokeStyle = getVar('--purple'); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  function rawPosFromEvent(evt) {
+    let clientX, clientY;
+    if (evt.touches && evt.touches.length) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; }
+    else if (evt.changedTouches && evt.changedTouches.length) { clientX = evt.changedTouches[0].clientX; clientY = evt.changedTouches[0].clientY; }
+    else { clientX = evt.clientX; clientY = evt.clientY; }
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = DIM / rect.width, scaleY = DIM / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+
+  function posFromEvent(evt) {
+    const raw = rawPosFromEvent(evt);
+    const c = Math.round((raw.x - PAD) / CELL), r = Math.round((raw.y - PAD) / CELL);
+    if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return null;
+    const p = cellCenter(r, c);
+    if (Math.hypot(p.x - raw.x, p.y - raw.y) > CELL * 0.48) return null;
+    return { r, c };
+  }
+
+  function handleCanvasClick(evt) {
+    if (alk || gameOver || draftOpen) return;
+    if (mode !== 'local' && current !== myColor) return;
+    const pos = posFromEvent(evt);
+    if (!pos) return;
+    if (pendingTarget) { handleTargetClick(pos); return; }
+    handlePlace(pos);
+  }
+
+  function isBlockedForPlayer(r, c, player) {
+    for (const w of windmillList) {
+      if (!isStone(board[w.r][w.c])) continue;
+      if (board[w.r][w.c] === player) continue;
+      const dr = Math.abs(w.r - r), dc = Math.abs(w.c - c);
+      if (dr <= 1 && dc <= 1 && !(dr === 0 && dc === 0)) return true;
+    }
+    return false;
+  }
+
+  function handlePlace(pos) {
+    const { r, c } = pos;
+    if (board[r][c] !== EMPTY) return;
+    if (isBlockedForPlayer(r, c, current)) {
+      addLog('🎡 풍차 주변이라 둘 수 없는 칸입니다');
+      return;
+    }
+    board[r][c] = current;
+    playPlaceSound();
+    moveHistory.push({ r, c, player: current });
+    lastMovePos = { r, c };
+
+    const trapHit = trapList.find(tr => tr.r === r && tr.c === c && tr.owner !== current);
+    if (trapHit) {
+      board[r][c] = EMPTY;
+      moveHistory.pop();
+      trapList = trapList.filter(tr => tr !== trapHit);
+      addLog(`🪤 함정 발동! ${(current === BLACK ? '흑' : '백')}의 돌이 사라졌습니다`);
+      grantRandomCard(trapHit.owner);
+      turnPlacementsDone++;
+      draw();
+      if (turnPlacementsDone >= turnPlacementsNeeded) {
+        passTurn();
+      } else {
+        updateStatus(); updatePips(); updateHandUI(); draw();
+      }
+      return;
+    }
+    // 자기 자신의 함정 위에 두면 그 함정은 조용히 소멸
+    trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
+
+    const win = checkWin(r, c, current);
+    if (win) {
+      gameOver = true; winLine = [win.start, win.end];
+      draw(); showBanner((current === BLACK ? '흑' : '백') + ' 승리');
+      return;
+    }
+    if (moveHistory.length === SIZE * SIZE) {
+      gameOver = true; draw(); showBanner('무승부'); return;
+    }
+
+    placedCount[current]++;
+    turnPlacementsDone++;
+
+    const milestone = placedCount[current] % INTERVAL === 0;
+    draw();
+
+    if (milestone) {
+      openDraft(current);
+    } else if (turnPlacementsDone >= turnPlacementsNeeded) {
+      passTurn();
+    } else {
+      updateStatus(); updatePips(); updateHandUI(); draw();
+    }
+  }
+
+  function passTurn() {
+    current = other(current);
+    turnPlacementsDone = 0;
+    turnPlacementsNeeded = 1;
+    usedCardThisTurn[current] = false;
+    if (cardLockNextTurn[current]) {
+      usedCardThisTurn[current] = true;
+      cardLockNextTurn[current] = false;
+      addLog((current === BLACK ? '흑' : '백') + ': 🚫 봉쇄로 이번 턴 카드 사용 불가');
+    }
+    updateStatus(); updatePips(); updateHandUI(); draw();
+  }
+
+  function checkWin(r, c, player) {
+    const dirs = [{ dr: 0, dc: 1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }, { dr: 1, dc: -1 }];
+    for (const { dr, dc } of dirs) {
+      let count = 1, start = { r, c }, end = { r, c };
+      let rr = r + dr, cc = c + dc;
+      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { end = { r: rr, c: cc }; count++; rr += dr; cc += dc; }
+      rr = r - dr; cc = c - dc;
+      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { start = { r: rr, c: cc }; count++; rr -= dr; cc -= dc; }
+      if (count >= winLength) return { start, end };
+    }
+    return null;
+  }
+
+  function scanBoardForWin() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (isStone(board[r][c])) { const win = checkWin(r, c, board[r][c]); if (win) return { player: board[r][c], win }; }
+    }
+    return null;
+  }
+
+  function endIfBoardWin() {
+    const found = scanBoardForWin();
+    if (found) {
+      gameOver = true;
+      winLine = [found.win.start, found.win.end];
+      draw();
+      showBanner((found.player === BLACK ? '흑' : '백') + ' 승리');
+      return true;
+    }
+    return false;
+  }
+
+  function renderBannerOnly(text) {
+    banner.textContent = text + ' — 새 게임을 눌러 다시 시작하세요';
+    banner.classList.add('show');
+  }
+  function showBanner(text) {
+    mpBannerText = text;
+    renderBannerOnly(text);
+    if (mode === 'multiplayer') syncPublicState();
+  }
+
+  // ---- 카드 획득 (드래프트) ----
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  // 가중치 기반 비복원 추출 (Efraimidis-Spirakis): weight가 낮을수록 뽑힐 확률이 낮음
+  function weightedSample(pool, k) {
+    const keyed = pool.map(card => ({ card, key: Math.pow(Math.random(), 1 / (card.weight || 10)) }));
+    keyed.sort((a, b) => b.key - a.key);
+    return keyed.slice(0, k).map(x => x.card);
+  }
+
+  function grantRandomCard(player) {
+    const pname = player === BLACK ? '흑' : '백';
+    const card = weightedSample(getCardPool(), 1)[0];
+    hand[player].push(card);
+    if (hand[player].length > HAND_LIMIT) {
+      const dropped = hand[player].shift();
+      addLog(`${pname}: 패 한도 초과로 ${dropped.name} 소멸`);
+    }
+    addLog(`${pname}: ${card.icon} ${card.name} 획득`);
+  }
+
+  function openDraft(player) {
+    const picks = weightedSample(getCardPool(), 3);
+    if (mode === 'bot' && player !== myColor) {
+      // 봇은 UI 없이 무작위로 한 장 선택
+      draftPlayer = player;
+      draftOpen = false;
+      pickCardIntoHand(picks[Math.floor(Math.random() * picks.length)]);
+      return;
+    }
+    draftOpen = true;
+    draftPlayer = player;
+    draftTitle.textContent = (player === BLACK ? '흑' : '백') + ' — 카드 획득';
+    draftCardsEl.innerHTML = '';
+    picks.forEach(card => {
+      const btn = document.createElement('button');
+      btn.className = 'aug-card';
+      btn.innerHTML = `<div class="aug-icon">${card.icon}</div><div class="aug-name">${card.name}</div><div class="aug-desc">${card.desc}</div>`;
+      btn.addEventListener('click', () => pickCardIntoHand(card));
+      draftCardsEl.appendChild(btn);
+    });
+    draftOverlay.classList.add('show');
+    updateHandUI();
+  }
+
+  function runStartupDraft() {
+    if (!startupQueue || startupQueue.length === 0) {
+      startupQueue = null;
+      updateStatus(); updatePips(); updateHandUI(); draw();
+      return;
+    }
+    openDraft(startupQueue[0]);
+  }
+
+  function pickCardIntoHand(card) {
+    const p = draftPlayer;
+    const pname = p === BLACK ? '흑' : '백';
+    hand[p].push(card);
+    if (hand[p].length > HAND_LIMIT) {
+      const dropped = hand[p].shift();
+      addLog(`${pname}: 패 한도 초과로 ${dropped.name} 소멸`);
+    }
+    addLog(`${pname}: ${card.icon} ${card.name} 획득 (패에 저장)`);
+    draftOverlay.classList.remove('show');
+    draftOpen = false;
+    if (mode === 'multiplayer') savePrivateState();
+
+    if (startupQueue) {
+      startupQueue.shift();
+      runStartupDraft();
+      return;
+    }
+
+    if (turnPlacementsDone >= turnPlacementsNeeded) {
+      passTurn();
+    } else {
+      updateStatus(); updatePips(); updateHandUI(); draw();
+    }
+  }
+
+  // ---- 카드 사용 ----
+  function hasStoneOf(player) {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === player) return true;
+    return false;
+  }
+  function hasWindmillableTarget(player) {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === player && !windmillList.some(w => w.r === r && w.c === c)) return true;
+    }
+    return false;
+  }
+
+  function hasEmptyCell() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === EMPTY) return true;
+    return false;
+  }
+
+  function pruneInvalidTraps() {
+    trapList = trapList.filter(t => board[t.r][t.c] === EMPTY);
+  }
+
+  // 순간이동 목적지: 가능하면 그 플레이어에게 풍차로 막히지 않은 빈 칸 중에서, 없으면 아무 빈 칸에서 무작위 선택
+  function pickRandomEmptyCell(forPlayer) {
+    const preferred = [];
+    const anyEmpty = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === EMPTY) {
+        anyEmpty.push({ r, c });
+        if (!isBlockedForPlayer(r, c, forPlayer)) preferred.push({ r, c });
+      }
+    }
+    const pool = preferred.length > 0 ? preferred : anyEmpty;
+    if (pool.length === 0) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // 감염 대상: 내 돌과 상하좌우(대각선 제외)로 맞닿은 상대 돌 목록 (중복 없이)
+  function getOrthogonalEnemyNeighbors(player) {
+    const opp = other(player);
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const seen = new Set();
+    const result = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== player) continue;
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+        if (board[nr][nc] !== opp) continue;
+        const key = nr + ',' + nc;
+        if (!seen.has(key)) { seen.add(key); result.push({ r: nr, c: nc }); }
+      }
+    }
+    return result;
+  }
+
+  // 지진: 모든 돌을 각자 주변 무작위 빈 칸(원래 보드 기준)으로 흔들되, 겹치지 않도록 처리
+  function runEarthquake() {
+    const stones = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (isStone(board[r][c])) stones.push({ r, c, color: board[r][c], isWindmill: windmillList.some(w => w.r === r && w.c === c) });
+    }
+    const occSet = new Set(stones.map(s => s.r + ',' + s.c));
+    const claimed = new Set();
+    const order = shuffle(stones.map((_, i) => i));
+    const newPos = new Array(stones.length);
+
+    for (const i of order) {
+      const s = stones[i];
+      const neighbors = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = s.r + dr, nc = s.c + dc;
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+        const key = nr + ',' + nc;
+        if (occSet.has(key)) continue;      // 원래 다른 돌이 있던 칸은 제외
+        if (claimed.has(key)) continue;      // 이번 지진에서 이미 배정된 칸은 제외
+        neighbors.push({ r: nr, c: nc, key });
+      }
+      if (neighbors.length > 0) {
+        const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+        claimed.add(pick.key);
+        newPos[i] = { r: pick.r, c: pick.c };
+      } else {
+        newPos[i] = { r: s.r, c: s.c };
+      }
+    }
+
+    board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    windmillList = [];
+    moveHistory = [];
+    stones.forEach((s, i) => {
+      const p = newPos[i];
+      board[p.r][p.c] = s.color;
+      moveHistory.push({ r: p.r, c: p.c, player: s.color });
+      if (s.isWindmill) windmillList.push({ r: p.r, c: p.c });
+    });
+    lastMovePos = null;
+    pruneInvalidTraps();
+  }
+
+  function useCard(player, idx) {
+    if (player !== current || gameOver || draftOpen || pendingTarget || usedCardThisTurn[player] || alk) return;
+    if (mode === 'multiplayer' && player !== myColor) return;
+    const card = hand[player][idx];
+    if (!card) return;
+    const opp = other(player);
+    const pname = player === BLACK ? '흑' : '백';
+
+    switch (card.type) {
+      case 'chain_move':
+        removeFromHand(player, idx);
+        markUsed(player);
+        turnPlacementsNeeded = Math.max(turnPlacementsNeeded, turnPlacementsDone + 3, 3);
+        addLog(`${pname}: ${card.icon} 연속 착수 발동 — 이번 턴 총 3착`);
+        updateStatus(); updatePips(); updateHandUI(); draw();
+        return;
+
+      case 'six_sense':
+        if (winLength === 6) { addLog(`${pname}: 이미 6목 규칙이 적용 중입니다`); return; }
+        winLength = 6;
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(`${pname}: ${card.icon} 식스센스 발동 — 이제부터 6목`);
+        updateStatus(); updateHandUI(); draw();
+        return;
+
+      case 'reversal':
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+          if (board[r][c] === BLACK) board[r][c] = WHITE;
+          else if (board[r][c] === WHITE) board[r][c] = BLACK;
+        }
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(`${pname}: ${card.icon} 전세 역전 발동 — 모든 돌 색 반전`);
+        updateHandUI(); draw();
+        endIfBoardWin();
+        return;
+
+      case 'windmill':
+        if (!hasWindmillableTarget(player)) { addLog(`${pname}: 풍차로 만들 수 있는 내 돌 없음`); return; }
+        pendingTarget = { type: 'windmill', forPlayer: player, handIndex: idx };
+        enterTargetMode('풍차로 만들 내 돌을 클릭하세요');
+        return;
+
+      case 'self_remove':
+        if (!hasStoneOf(player)) { addLog(`${pname}: 제거할 내 돌 없음`); return; }
+        pendingTarget = { type: 'self_remove', forPlayer: player, handIndex: idx };
+        enterTargetMode('제거할 내 돌을 클릭하세요');
+        return;
+
+      case 'remove_enemy':
+        if (!hasStoneOf(opp)) { addLog(`${pname}: 제거할 대상 없음`); return; }
+        pendingTarget = { type: 'remove', opponent: opp, forPlayer: player, handIndex: idx };
+        enterTargetMode('제거할 상대 돌을 클릭하세요');
+        return;
+
+      case 'trade':
+        if (!hasStoneOf(BLACK) || !hasStoneOf(WHITE)) { addLog(`${pname}: 교환할 돌이 부족함`); return; }
+        pendingTarget = { type: 'trade', forPlayer: player, handIndex: idx, stage: 'first', firstPos: null };
+        enterTargetMode('교환할 돌 하나를 클릭하세요');
+        return;
+
+      case 'alkkagi':
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(`${pname}: ${card.icon} 알까기 모드 발동`);
+        startAlkkagi(player);
+        return;
+
+      case 'teleport':
+        if (!hasStoneOf(player)) { addLog(`${pname}: 이동시킬 내 돌 없음`); return; }
+        if (!hasEmptyCell()) { addLog(`${pname}: 이동할 빈 칸 없음`); return; }
+        pendingTarget = { type: 'teleport', forPlayer: player, handIndex: idx };
+        enterTargetMode('이동시킬 내 돌을 클릭하세요');
+        return;
+
+      case 'earthquake':
+        runEarthquake();
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(`${pname}: ${card.icon} 지진 발동 — 모든 돌이 흔들려 재배치됨`);
+        updateHandUI(); draw();
+        if (moveHistory.length === SIZE * SIZE) { gameOver = true; showBanner('무승부'); return; }
+        endIfBoardWin();
+        return;
+
+      case 'blockade':
+        cardLockNextTurn[opp] = true;
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(`${pname}: ${card.icon} 봉쇄 발동 — 상대는 다음 턴 카드 사용 불가`);
+        updateHandUI(); draw();
+        return;
+
+      case 'trap':
+        if (!hasEmptyCell()) { addLog(`${pname}: 함정을 설치할 빈 칸 없음`); return; }
+        pendingTarget = { type: 'trap', forPlayer: player, handIndex: idx };
+        enterTargetMode('함정을 설치할 빈 칸을 클릭하세요');
+        return;
+
+      case 'infection': {
+        const targets = getOrthogonalEnemyNeighbors(player);
+        if (targets.length === 0) { addLog(`${pname}: 감염시킬 인접 상대 돌 없음`); return; }
+        const chosen = shuffle(targets).slice(0, 2);
+        chosen.forEach(t => { board[t.r][t.c] = player; });
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(`${pname}: ${card.icon} 감염 발동 — 상대 돌 ${chosen.length}개 전향`);
+        updateHandUI(); draw();
+        endIfBoardWin();
+        return;
+      }
+    }
+  }
+
+  function enterTargetMode(msg) {
+    statusText.classList.remove('alkkagi');
+    statusText.textContent = msg;
+    statusText.classList.add('targeting');
+    cancelBtn.classList.add('show');
+    updateHandUI();
+    draw();
+  }
+
+  function resetStatusAfterTarget() {
+    cancelBtn.classList.remove('show');
+    statusText.classList.remove('targeting');
+    statusText.textContent = (current === BLACK ? '흑' : '백') + ' 차례';
+  }
+
+  function handleTargetClick(pos) {
+    const { r, c } = pos;
+    const t = pendingTarget;
+    const pname = t.forPlayer === BLACK ? '흑' : '백';
+    let resolved = false;
+
+    if (t.type === 'remove' && board[r][c] === t.opponent) {
+      board[r][c] = EMPTY;
+      moveHistory = moveHistory.filter(m => !(m.r === r && m.c === c));
+      addLog(`${pname}: 💥 상대 돌 제거`);
+      resolved = true;
+
+    } else if (t.type === 'self_remove' && board[r][c] === t.forPlayer) {
+      board[r][c] = EMPTY;
+      moveHistory = moveHistory.filter(m => !(m.r === r && m.c === c));
+      addLog(`${pname}: 🫳 내 돌 회수`);
+      resolved = true;
+
+    } else if (t.type === 'teleport' && board[r][c] === t.forPlayer) {
+      const dest = pickRandomEmptyCell(t.forPlayer);
+      if (!dest) { addLog('이동할 빈 칸이 없습니다'); return; }
+      board[r][c] = EMPTY;
+      board[dest.r][dest.c] = t.forPlayer;
+      moveHistory = moveHistory.filter(m => !(m.r === r && m.c === c));
+      moveHistory.push({ r: dest.r, c: dest.c, player: t.forPlayer });
+      const wIdx = windmillList.findIndex(w => w.r === r && w.c === c);
+      if (wIdx !== -1) windmillList[wIdx] = { r: dest.r, c: dest.c };
+      lastMovePos = dest;
+      pruneInvalidTraps();
+      addLog(`${pname}: ✨ 순간이동 발동`);
+      resolved = true;
+
+    } else if (t.type === 'trap' && board[r][c] === EMPTY) {
+      if (trapList.some(tr => tr.r === r && tr.c === c)) {
+        addLog('이미 함정이 있는 칸입니다. 다른 칸을 클릭하세요');
+        return;
+      }
+      trapList.push({ r, c, owner: t.forPlayer });
+      addLog(`⚠️ ${pname}이(가) 함정을 설치했습니다! 상대는 조심하세요`);
+      if (mode === 'multiplayer') setNotice(`⚠️ 상대가 함정을 설치했습니다! 조심하세요`);
+      resolved = true;
+
+    } else if (t.type === 'windmill' && board[r][c] === t.forPlayer) {
+      if (windmillList.some(w => w.r === r && w.c === c)) {
+        addLog('이미 풍차인 돌입니다. 다른 돌을 클릭하세요');
+        return;
+      }
+      windmillList.push({ r, c });
+      addLog(`${pname}: 🎡 풍차 설치`);
+      resolved = true;
+
+    } else if (t.type === 'trade') {
+      if (t.stage === 'first') {
+        if (isStone(board[r][c])) {
+          t.firstPos = { r, c, color: board[r][c] };
+          t.stage = 'second';
+          statusText.textContent = '이제 반대 색 돌을 클릭하세요';
+          draw();
+        }
+        return;
+      } else {
+        if (isStone(board[r][c]) && board[r][c] !== t.firstPos.color && !(r === t.firstPos.r && c === t.firstPos.c)) {
+          const a = t.firstPos, bColor = board[r][c];
+          board[a.r][a.c] = bColor;
+          board[r][c] = a.color;
+          addLog(`${pname}: 🔄 맞교환 발동`);
+          resolved = true;
+        } else {
+          return;
+        }
+      }
+    }
+
+    if (resolved) {
+      removeFromHand(t.forPlayer, t.handIndex);
+      markUsed(t.forPlayer);
+      pendingTarget = null;
+      resetStatusAfterTarget();
+      updateHandUI();
+      draw();
+      if (t.type === 'trade' || t.type === 'teleport') endIfBoardWin();
+    }
+  }
+
+  function cancelTarget() {
+    if (!pendingTarget) return;
+    pendingTarget = null;
+    resetStatusAfterTarget();
+    updateHandUI();
+    draw();
+  }
+
+  function removeFromHand(player, idx) { hand[player].splice(idx, 1); }
+  function markUsed(player) { usedCardThisTurn[player] = true; }
+
+  function undo() {
+    if (gameOver || draftOpen || pendingTarget || alk || moveHistory.length === 0) return;
+    const last = moveHistory.pop();
+    board[last.r][last.c] = EMPTY;
+    placedCount[last.player] = Math.max(0, placedCount[last.player] - 1);
+    current = last.player;
+    turnPlacementsDone = 0;
+    turnPlacementsNeeded = 1;
+    lastMovePos = moveHistory.length > 0 ? { r: moveHistory[moveHistory.length - 1].r, c: moveHistory[moveHistory.length - 1].c } : null;
+    updateStatus(); updatePips(); updateHandUI(); draw();
+  }
+
+  // ================= 알까기 =================
+  function buildPhysFromBoard() {
+    const list = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (isStone(board[r][c])) {
+        const p = cellCenter(r, c);
+        list.push({ x: p.x, y: p.y, vx: 0, vy: 0, color: board[r][c], isNew: false, isWindmill: windmillList.some(w => w.r === r && w.c === c) });
+      }
+    }
+    return list;
+  }
+
+  function addNewFlickStone(player) {
+    const ns = { x: DIM / 2, y: DIM - PAD / 2, vx: 0, vy: 0, color: player, isNew: true, isWindmill: false };
+    alk.physStones.push(ns);
+    alk.newIndex = alk.physStones.length - 1;
+    alk.awaitingLaunch = true;
+    alk.dragging = false;
+    alk.dragCurrent = null;
+  }
+
+  function startAlkkagi(player) {
+    const opp = other(player);
+    alk = {
+      turnOrder: [player, opp],
+      turnIndex: 0,
+      physStones: buildPhysFromBoard(),
+      simulating: false,
+      awaitingLaunch: true,
+      dragging: false,
+      dragCurrent: null,
+      frameCount: 0,
+    };
+    addNewFlickStone(player);
+    updateStatus(); updateHandUI(); draw();
+  }
+
+  function tryStartDrag(pos) {
+    if (!alk || !alk.awaitingLaunch || alk.simulating) return;
+    const ns = alk.physStones[alk.newIndex];
+    if (Math.hypot(pos.x - ns.x, pos.y - ns.y) <= CELL * 0.9) {
+      alk.dragging = true;
+      alk.dragCurrent = pos;
+      draw();
+    }
+  }
+  function updateDrag(pos) {
+    if (!alk || !alk.dragging) return;
+    alk.dragCurrent = pos;
+    draw();
+  }
+  function releaseDrag(pos) {
+    if (!alk || !alk.dragging) return;
+    alk.dragging = false;
+    const ns = alk.physStones[alk.newIndex];
+    let pullX = pos.x - ns.x, pullY = pos.y - ns.y;
+    let pullDist = Math.hypot(pullX, pullY);
+    const MAXPULL = CELL * 4;
+    if (pullDist > MAXPULL) { pullX *= MAXPULL / pullDist; pullY *= MAXPULL / pullDist; pullDist = MAXPULL; }
+    if (pullDist < 6) { alk.dragCurrent = null; draw(); return; } // 너무 약하면 다시 시도
+    const POWER = 0.32;
+    ns.vx = -pullX * POWER; ns.vy = -pullY * POWER;
+    alk.awaitingLaunch = false;
+    alk.simulating = true;
+    alk.frameCount = 0;
+    alk.dragCurrent = null;
+    updateStatus();
+    requestAnimationFrame(simulateAlkTick);
+  }
+
+  function simulateAlkTick() {
+    if (!alk || !alk.simulating) return;
+    const stones = alk.physStones;
+    const FRICTION = 0.965, MIN_SPEED = 0.05;
+
+    for (const s of stones) { s.x += s.vx; s.y += s.vy; s.vx *= FRICTION; s.vy *= FRICTION; }
+
+    for (const s of stones) {
+      if (s.x < R) { s.x = R; s.vx = Math.abs(s.vx) * 0.6; }
+      if (s.x > DIM - R) { s.x = DIM - R; s.vx = -Math.abs(s.vx) * 0.6; }
+      if (s.y < R) { s.y = R; s.vy = Math.abs(s.vy) * 0.6; }
+      if (s.y > DIM - R) { s.y = DIM - R; s.vy = -Math.abs(s.vy) * 0.6; }
+    }
+
+    for (let i = 0; i < stones.length; i++) {
+      for (let j = i + 1; j < stones.length; j++) {
+        const a = stones[i], b = stones[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 0.0001;
+        const minDist = R * 2;
+        if (dist < minDist) {
+          const nx = dx / dist, ny = dy / dist;
+          const overlap = (minDist - dist) / 2;
+          a.x -= nx * overlap; a.y -= ny * overlap;
+          b.x += nx * overlap; b.y += ny * overlap;
+          const avn = a.vx * nx + a.vy * ny, bvn = b.vx * nx + b.vy * ny;
+          const avtx = a.vx - avn * nx, avty = a.vy - avn * ny;
+          const bvtx = b.vx - bvn * nx, bvty = b.vy - bvn * ny;
+          a.vx = avtx + bvn * nx; a.vy = avty + bvn * ny;
+          b.vx = bvtx + avn * nx; b.vy = bvty + avn * ny;
+        }
+      }
+    }
+
+    draw();
+    alk.frameCount++;
+    const maxSpeed = stones.reduce((m, s) => Math.max(m, Math.hypot(s.vx, s.vy)), 0);
+    if (maxSpeed < MIN_SPEED || alk.frameCount > 480) {
+      alk.simulating = false;
+      finishAlkFlick();
+    } else {
+      requestAnimationFrame(simulateAlkTick);
+    }
+  }
+
+  function snapPhysStonesToGrid(physStones) {
+    const candidates = [];
+    for (let si = 0; si < physStones.length; si++) {
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+        const p = cellCenter(r, c);
+        const dist = Math.hypot(physStones[si].x - p.x, physStones[si].y - p.y);
+        candidates.push({ si, r, c, dist });
+      }
+    }
+    candidates.sort((a, b) => a.dist - b.dist);
+    const assignedStone = new Array(physStones.length).fill(false);
+    const takenCell = new Set();
+    const result = new Array(physStones.length);
+    let remaining = physStones.length;
+    for (const cand of candidates) {
+      if (remaining === 0) break;
+      if (assignedStone[cand.si]) continue;
+      const key = cand.r + ',' + cand.c;
+      if (takenCell.has(key)) continue;
+      assignedStone[cand.si] = true;
+      takenCell.add(key);
+      result[cand.si] = { r: cand.r, c: cand.c };
+      remaining--;
+    }
+    return result;
+  }
+
+  function finishAlkFlick() {
+    const assign = snapPhysStonesToGrid(alk.physStones);
+    board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    windmillList = [];
+    moveHistory = [];
+    let newStonePos = null;
+    alk.physStones.forEach((s, i) => {
+      const pos = assign[i];
+      if (!pos) return; // 보드가 가득 찬 극단적 상황 안전장치
+      board[pos.r][pos.c] = s.color;
+      moveHistory.push({ r: pos.r, c: pos.c, player: s.color });
+      if (s.isWindmill) windmillList.push({ r: pos.r, c: pos.c });
+      if (s.isNew) newStonePos = pos;
+    });
+    if (newStonePos) lastMovePos = newStonePos;
+    pruneInvalidTraps();
+    draw();
+
+    alk.turnIndex++;
+    if (alk.turnIndex < alk.turnOrder.length) {
+      const nextPlayer = alk.turnOrder[alk.turnIndex];
+      alk.physStones = buildPhysFromBoard();
+      addNewFlickStone(nextPlayer);
+      addLog((nextPlayer === BLACK ? '흑' : '백') + ': 알까기 차례');
+      updateStatus(); draw();
+    } else {
+      alk = null;
+      addLog('🪀 알까기 종료 — 오목판으로 복귀');
+      if (moveHistory.length === SIZE * SIZE) {
+        gameOver = true; showBanner('무승부'); draw(); return;
+      }
+      if (endIfBoardWin()) return;
+      updateStatus(); updatePips(); updateHandUI(); draw();
+    }
+  }
+
+  // ================= 멀티플레이 동기화 =================
+  function flattenBoard() { const a = []; for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) a.push(board[r][c]); return a; }
+  function unflattenBoard(flat) { const b = []; for (let r = 0; r < SIZE; r++) b.push(flat.slice(r * SIZE, (r + 1) * SIZE)); return b; }
+
+  function buildPublicState() {
+    return {
+      board: flattenBoard(), current, winLength, windmillList,
+      turnPlacementsDone, turnPlacementsNeeded,
+      usedCardThisTurn, cardLockNextTurn, placedCount,
+      gameOver, winLine, lastMovePos,
+      players: mpPlayers,
+      notice: mpNotice, noticeSeq: mpNoticeSeq,
+      bannerText: mpBannerText,
+    };
+  }
+
+  let publicSyncBusy = false, publicSyncQueued = false;
+  async function syncPublicState() {
+    if (mode !== 'multiplayer' || !dbApi || !roomCode) return;
+    if (publicSyncBusy) { publicSyncQueued = true; return; }
+    publicSyncBusy = true;
+    try { await dbApi.setPath('games/' + roomCode, buildPublicState()); } catch (e) {}
+    publicSyncBusy = false;
+    if (publicSyncQueued) { publicSyncQueued = false; syncPublicState(); }
+  }
+
+  let privateSyncBusy = false, privateSyncQueued = false;
+  async function savePrivateState() {
+    if (mode !== 'multiplayer' || !dbApi || !roomCode) return;
+    if (privateSyncBusy) { privateSyncQueued = true; return; }
+    privateSyncBusy = true;
+    try { await dbApi.setPath('private/' + myUserId + '/games_' + roomCode, { hand: hand[myColor], traps: trapList }); } catch (e) {}
+    privateSyncBusy = false;
+    if (privateSyncQueued) { privateSyncQueued = false; savePrivateState(); }
+  }
+
+  async function loadPrivateState() {
+    if (mode !== 'multiplayer' || !dbApi || !roomCode) return;
+    try {
+      const snap = await dbApi.getPath('private/' + myUserId + '/games_' + roomCode);
+      if (snap.exists) {
+        const data = snap.data() || {};
+        hand[myColor] = data.hand || hand[myColor] || [];
+        trapList = data.traps || trapList || [];
+      }
+    } catch (e) {}
+  }
+
+  function setNotice(text) { mpNotice = text; mpNoticeSeq++; }
+
+  function checkMyTrapsAgainstBoard() {
+    if (mode !== 'multiplayer' || !trapList || trapList.length === 0) return;
+    const opp = other(myColor);
+    const remaining = [];
+    let triggered = false;
+    for (const tr of trapList) {
+      if (board[tr.r][tr.c] === opp) {
+        board[tr.r][tr.c] = EMPTY;
+        addLog('🪤 함정 발동! 상대 돌이 사라졌습니다');
+        grantRandomCard(myColor);
+        triggered = true;
+      } else if (board[tr.r][tr.c] === EMPTY) {
+        remaining.push(tr);
+      }
+      // 내 돌이 그 칸을 덮은 경우는 자연 소멸 (remaining에서 제외)
+    }
+    trapList = remaining;
+    if (triggered) {
+      setNotice('🪤 함정이 발동되어 상대 돌이 제거됐습니다');
+      syncPublicState();
+      savePrivateState();
+    }
+  }
+
+  function applyPublicSnapshot(data) {
+    if (!data) return;
+    if (data.board) board = unflattenBoard(data.board);
+    if (data.current) current = data.current;
+    if (data.winLength) winLength = data.winLength;
+    windmillList = data.windmillList || [];
+    turnPlacementsDone = data.turnPlacementsDone || 0;
+    turnPlacementsNeeded = data.turnPlacementsNeeded || 1;
+    usedCardThisTurn = data.usedCardThisTurn || { [BLACK]: false, [WHITE]: false };
+    cardLockNextTurn = data.cardLockNextTurn || { [BLACK]: false, [WHITE]: false };
+    placedCount = data.placedCount || { [BLACK]: 0, [WHITE]: 0 };
+    gameOver = !!data.gameOver;
+    winLine = data.winLine || null;
+    lastMovePos = data.lastMovePos || null;
+    mpPlayers = data.players || mpPlayers;
+
+    if (data.noticeSeq && data.noticeSeq > lastSeenNoticeSeq) {
+      lastSeenNoticeSeq = data.noticeSeq;
+      if (data.notice) addLog(data.notice);
+    }
+
+    checkMyTrapsAgainstBoard();
+
+    if (gameOver && data.bannerText) {
+      if (!banner.classList.contains('show')) renderBannerOnly(data.bannerText);
+    } else {
+      banner.classList.remove('show');
+    }
+
+    updateStatus(); updatePips(); updateHandUI(); draw();
+  }
+
+  function subscribePublic() {
+    if (unsubPublic) { unsubPublic(); unsubPublic = null; }
+    unsubPublic = dbApi.onPath('games/' + roomCode, function (snap) {
+      if (!snap.exists) return;
+      const data = snap.data();
+      if (!data) return;
+      if (currentScreen !== 'game' && data.players && data.players[BLACK] && data.players[WHITE]) {
+        showScreen('game');
+      }
+      applyPublicSnapshot(data);
+    }, function () {
+      lobbyStatus.textContent = '연결 오류가 발생했습니다. 새로고침 후 다시 시도해주세요.';
+    });
+  }
+
+  function randomRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  async function createRoom() {
+    if (!dbApi || !myUserId) { lobbyStatus.textContent = '서버에 연결하는 중입니다. 잠시 후 다시 눌러주세요.'; return; }
+    mode = 'multiplayer';
+    myColor = BLACK;
+    roomCode = randomRoomCode();
+    mpPlayers = { [BLACK]: myUserId, [WHITE]: null };
+    lobbyStatus.textContent = '방을 만드는 중...';
+    init();
+    subscribePublic();
+    await syncPublicState();
+    lobbyStatus.textContent = '방 코드: ' + roomCode + ' — 상대를 기다리는 중...';
+  }
+
+  async function joinRoom(codeRaw) {
+    if (!dbApi || !myUserId) { lobbyStatus.textContent = '서버에 연결하는 중입니다. 잠시 후 다시 눌러주세요.'; return; }
+    const code = (codeRaw || '').trim().toUpperCase();
+    if (!code) { lobbyStatus.textContent = '코드를 입력하세요'; return; }
+    lobbyStatus.textContent = '참가하는 중...';
+    try {
+      const snap = await dbApi.getPath('games/' + code);
+      if (!snap.exists) { lobbyStatus.textContent = '방을 찾을 수 없습니다'; return; }
+      const data = snap.data() || {};
+      if (data.players && data.players[WHITE]) { lobbyStatus.textContent = '이미 인원이 찼습니다'; return; }
+      mode = 'multiplayer';
+      myColor = WHITE;
+      roomCode = code;
+      mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, data.players || {});
+      mpPlayers[WHITE] = myUserId;
+      hand = { [BLACK]: [], [WHITE]: [] };
+      trapList = []; pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null;
+      logLines = []; mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
+      board = unflattenBoard(data.board || flattenBoard());
+      current = data.current || BLACK;
+      winLength = data.winLength || 5;
+      windmillList = data.windmillList || [];
+      turnPlacementsDone = data.turnPlacementsDone || 0;
+      turnPlacementsNeeded = data.turnPlacementsNeeded || 1;
+      usedCardThisTurn = data.usedCardThisTurn || { [BLACK]: false, [WHITE]: false };
+      cardLockNextTurn = data.cardLockNextTurn || { [BLACK]: false, [WHITE]: false };
+      placedCount = data.placedCount || { [BLACK]: 0, [WHITE]: 0 };
+      gameOver = !!data.gameOver;
+      winLine = data.winLine || null;
+      lastMovePos = data.lastMovePos || null;
+      banner.classList.remove('show'); draftOverlay.classList.remove('show'); updateLog();
+      await dbApi.updatePath('games/' + code + '/players', { [WHITE]: myUserId });
+      subscribePublic();
+      await loadPrivateState();
+      startupQueue = [myColor];
+      runStartupDraft();
+      showScreen('game');
+    } catch (e) {
+      lobbyStatus.textContent = '참가에 실패했습니다. 코드를 확인해주세요.';
+    }
+  }
+
+  // ================= 봇 AI (난이도 5/10) =================
+  let botTimer = null;
+  function scheduleMaybeBotTurn() {
+    if (botTimer) return;
+    botTimer = setTimeout(() => { botTimer = null; maybeBotTurn(); }, 650);
+  }
+
+  function maybeBotTurn() {
+    if (mode !== 'bot' || gameOver || draftOpen || pendingTarget || alk) return;
+    const botColor = other(myColor);
+    if (current !== botColor) return;
+    if (!usedCardThisTurn[botColor] && hand[botColor].length > 0 && Math.random() < 0.5) {
+      botUseCard(botColor);
+    }
+    if (!gameOver && current === botColor && !draftOpen && !pendingTarget) {
+      botPlaceStone(botColor);
+    }
+  }
+
+  function botUseCard(botColor) {
+    const opp = other(botColor);
+    const usable = hand[botColor].map((c, i) => ({ c, i })).filter(({ c }) => {
+      if (c.type === 'remove_enemy') return hasStoneOf(opp);
+      if (c.type === 'self_remove' || c.type === 'windmill' || c.type === 'teleport') return hasStoneOf(botColor);
+      if (c.type === 'trade') return hasStoneOf(BLACK) && hasStoneOf(WHITE);
+      if (c.type === 'trap') return hasEmptyCell();
+      if (c.type === 'six_sense') return winLength !== 6;
+      return true;
+    });
+    if (usable.length === 0) return;
+    const chosen = usable[Math.floor(Math.random() * usable.length)];
+    useCard(botColor, chosen.i);
+    if (pendingTarget && pendingTarget.forPlayer === botColor) resolveBotPendingTarget();
+  }
+
+  function resolveBotPendingTarget() {
+    const t = pendingTarget;
+    if (!t) return;
+    let candidates = [];
+    if (t.type === 'remove') {
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.opponent) candidates.push({ r, c });
+    } else if (t.type === 'self_remove' || t.type === 'windmill' || t.type === 'teleport') {
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.forPlayer) candidates.push({ r, c });
+    } else if (t.type === 'trap') {
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === EMPTY) candidates.push({ r, c });
+    } else if (t.type === 'trade') {
+      if (t.stage === 'first') {
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) candidates.push({ r, c });
+      } else {
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c]) && board[r][c] !== t.firstPos.color) candidates.push({ r, c });
+      }
+    }
+    if (candidates.length === 0) { cancelTarget(); return; }
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    handleTargetClick(pick);
+    if (pendingTarget && pendingTarget.type === 'trade' && pendingTarget.stage === 'second') {
+      resolveBotPendingTarget();
+    }
+  }
+
+  function collectCandidates(player) {
+    let any = false;
+    for (let r = 0; r < SIZE && !any; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) { any = true; break; }
+    if (!any) return [{ r: 7, c: 7 }];
+    const cands = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== EMPTY || isBlockedForPlayer(r, c, player)) continue;
+      let near = false;
+      for (let dr = -2; dr <= 2 && !near; dr++) for (let dc = -2; dc <= 2 && !near; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && isStone(board[nr][nc])) near = true;
+      }
+      if (near) cands.push({ r, c });
+    }
+    return cands.length ? cands : [{ r: 7, c: 7 }];
+  }
+
+  function lineScore(r, c, dr, dc, player) {
+    let count = 1, openEnds = 0;
+    let rr = r + dr, cc = c + dc;
+    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { count++; rr += dr; cc += dc; }
+    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === EMPTY) openEnds++;
+    rr = r - dr; cc = c - dc;
+    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { count++; rr -= dr; cc -= dc; }
+    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === EMPTY) openEnds++;
+
+    if (count >= winLength) return 10000000;
+    const gap = winLength - count;
+    if (gap === 1) return openEnds === 2 ? 500000 : openEnds === 1 ? 50000 : 0;
+    if (gap === 2) return openEnds === 2 ? 5000 : openEnds === 1 ? 500 : 0;
+    if (gap === 3) return openEnds === 2 ? 200 : openEnds === 1 ? 50 : 0;
+    return count * 2 + openEnds;
+  }
+
+  function scoreCell(r, c, player) {
+    const opp = other(player);
+    const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    board[r][c] = player;
+    let offense = 0;
+    for (const [dr, dc] of dirs) offense = Math.max(offense, lineScore(r, c, dr, dc, player));
+    board[r][c] = opp;
+    let defense = 0;
+    for (const [dr, dc] of dirs) defense = Math.max(defense, lineScore(r, c, dr, dc, opp));
+    board[r][c] = EMPTY;
+    return offense + defense * 0.85;
+  }
+
+  function botPlaceStone(botColor) {
+    const cands = collectCandidates(botColor);
+    const scored = cands.map(p => ({ r: p.r, c: p.c, score: scoreCell(p.r, p.c, botColor) }));
+    scored.sort((a, b) => b.score - a.score);
+    const topN = Math.max(1, Math.round((10 - BOT_DIFFICULTY) / 2) + 1);
+    const pool = scored.slice(0, Math.min(topN, scored.length));
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    handlePlace({ r: pick.r, c: pick.c });
+  }
+
+  // ================= 메뉴 / 로비 UI =================
+  modeLocalBtn.addEventListener('click', () => { mode = 'local'; myColor = BLACK; init(); showScreen('game'); });
+  modeBotBtn.addEventListener('click', () => { mode = 'bot'; myColor = BLACK; init(); showScreen('game'); });
+  modeMpBtn.addEventListener('click', () => {
+    lobbyStatus.textContent = '';
+    joinCodeInput.value = '';
+    showScreen('lobby');
+  });
+  lobbyBackBtn.addEventListener('click', () => {
+    if (unsubPublic) { unsubPublic(); unsubPublic = null; }
+    showScreen('menu');
+  });
+  gameBackBtn.addEventListener('click', () => {
+    if (unsubPublic) { unsubPublic(); unsubPublic = null; }
+    mode = 'local';
+    showScreen('menu');
+  });
+  createRoomBtn.addEventListener('click', createRoom);
+  joinRoomBtn.addEventListener('click', () => joinRoom(joinCodeInput.value));
+
+  canvas.addEventListener('click', function (e) {
+    if (!alk) {
+      handleCanvasClick(e);
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+    }
+  });
+
+  canvas.addEventListener('mousedown', function (e) { if (alk) tryStartDrag(rawPosFromEvent(e)); });
+  canvas.addEventListener('mousemove', function (e) { if (alk && alk.dragging) updateDrag(rawPosFromEvent(e)); });
+  window.addEventListener('mouseup', function (e) { if (alk && alk.dragging) releaseDrag(rawPosFromEvent(e)); });
+
+  canvas.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    if (alk) tryStartDrag(rawPosFromEvent(e));
+    else { handleCanvasClick(e); if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); } }
+  }, { passive: false });
+  canvas.addEventListener('touchmove', function (e) {
+    e.preventDefault();
+    if (alk && alk.dragging) updateDrag(rawPosFromEvent(e));
+  }, { passive: false });
+  canvas.addEventListener('touchend', function (e) {
+    e.preventDefault();
+    if (alk && alk.dragging) releaseDrag(rawPosFromEvent(e));
+  }, { passive: false });
+
+  undoBtn.addEventListener('click', () => { if (mode !== 'multiplayer') undo(); });
+  resetBtn.addEventListener('click', () => { if (mode !== 'multiplayer') init(); });
+  cancelBtn.addEventListener('click', cancelTarget);
+
+  showScreen('menu');
+})();
+</script>
+</body>
+</html>
