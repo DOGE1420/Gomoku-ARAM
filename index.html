@@ -299,7 +299,7 @@
   const R = CELL * 0.42; // 돌 반지름
 
   const CARD_POOL = [
-    { id: 'chain', name: '연속 착수', icon: '⚡', desc: '이번 턴에 총 3번까지 착수할 수 있습니다.', type: 'chain_move', weight: 10 },
+    { id: 'chain', name: '연속 착수', icon: '⚡', desc: '이번 턴에 총 3번까지 착수할 수 있습니다 (단, 직전에 둔 돌과 2칸 이내에는 놓을 수 없음).', type: 'chain_move', weight: 10 },
     { id: 'windmill', name: '풍차', icon: '🎡', desc: '내 돌 1개를 풍차로 만듭니다. 주변 8칸은 상대가 둘 수 없습니다.', type: 'windmill', weight: 10 },
     { id: 'sixsense', name: '식스센스', icon: '👁️', desc: '승리 조건이 5목에서 6목으로 영구히 바뀝니다.', type: 'six_sense', weight: 10 },
     { id: 'trade', name: '맞교환', icon: '🔄', desc: '흑돌과 백돌을 하나씩 골라 서로 색을 바꿉니다.', type: 'trade', weight: 10 },
@@ -742,6 +742,13 @@
     if (isBlockedForPlayer(r, c, current)) {
       addLog('🎡 풍차 주변이라 둘 수 없는 칸입니다');
       return;
+    }
+    if (turnPlacementsDone > 0 && lastMovePos) {
+      const dr = Math.abs(r - lastMovePos.r), dc = Math.abs(c - lastMovePos.c);
+      if (Math.max(dr, dc) <= 2) {
+        addLog('⚡ 연속 착수 — 직전에 둔 돌과 2칸 이내에는 놓을 수 없습니다');
+        return;
+      }
     }
     board[r][c] = current;
     playPlaceSound();
@@ -1796,10 +1803,17 @@
   function collectCandidates(player) {
     let any = false;
     for (let r = 0; r < SIZE && !any; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) { any = true; break; }
+    const chainActive = turnPlacementsDone > 0 && !!lastMovePos;
+    function farEnough(r, c) {
+      if (!chainActive) return true;
+      const dr = Math.abs(r - lastMovePos.r), dc = Math.abs(c - lastMovePos.c);
+      return Math.max(dr, dc) > 2;
+    }
     if (!any) return [{ r: 7, c: 7 }];
     const cands = [];
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
       if (board[r][c] !== EMPTY || isBlockedForPlayer(r, c, player)) continue;
+      if (!farEnough(r, c)) continue;
       let near = false;
       for (let dr = -2; dr <= 2 && !near; dr++) for (let dc = -2; dc <= 2 && !near; dc++) {
         const nr = r + dr, nc = c + dc;
@@ -1807,7 +1821,12 @@
       }
       if (near) cands.push({ r, c });
     }
-    return cands.length ? cands : [{ r: 7, c: 7 }];
+    if (cands.length) return cands;
+    const fallback = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === EMPTY && !isBlockedForPlayer(r, c, player) && farEnough(r, c)) fallback.push({ r, c });
+    }
+    return fallback.length ? fallback : [{ r: 7, c: 7 }];
   }
 
   function lineScore(r, c, dr, dc, player) {
