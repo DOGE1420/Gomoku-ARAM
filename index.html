@@ -1696,6 +1696,8 @@
       mpPlayers[WHITE] = myUserId;
       hand = { [BLACK]: [], [WHITE]: [] };
       trapList = []; pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null; alkHandoff = null;
+      pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
+      moveHistory = [];
       logLines = []; mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
       mpShakeSeq = 0; lastSeenShakeSeq = 0;
       board = unflattenBoard(data.board || flattenBoard());
