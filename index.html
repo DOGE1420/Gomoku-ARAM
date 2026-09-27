@@ -326,7 +326,9 @@
   let board, current, moveHistory, gameOver, winLine, winLength, lastMovePos;
   let placedCount, hand, usedCardThisTurn, turnPlacementsDone, turnPlacementsNeeded;
   let pendingTarget, draftOpen, draftPlayer, logLines, windmillList;
-  let alk; // 알까기 상태
+  let alk; // 알까기 상태 (내가 지금 발사할 차례일 때만 채워짐)
+  let alkHandoff; // 멀티플레이: 알까기가 진행 중이지만 지금은 내 차례가 아닐 때 { turnOrder, turnIndex }
+  function alkPhaseActive() { return !!alk || !!alkHandoff; }
   let trapList; // { r, c, owner }[]
   let cardLockNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 다음 턴 카드 사용 봉쇄
   let startupQueue; // 게임 시작 시 초기 카드 뽑기 순서 (흑→백)
@@ -342,8 +344,8 @@
   const BOT_DIFFICULTY = 5; // 1~10
 
   function getCardPool() {
-    // 알까기(물리 실시간 모드)는 로컬 모드에서만 사용: 봇/멀티플레이는 동기화가 어려워 제외
-    return mode === 'local' ? CARD_POOL : CARD_POOL.filter(c => c.type !== 'alkkagi');
+    // 알까기는 봇전에서는 제외 (봇이 드래그 발사를 판단하도록 만들기 전까지는 봇 손패에서 뺌)
+    return mode === 'bot' ? CARD_POOL.filter(c => c.type !== 'alkkagi') : CARD_POOL;
   }
 
   function waitForFb(timeoutMs) {
@@ -407,6 +409,7 @@
     draftPlayer = null;
     logLines = [];
     alk = null;
+    alkHandoff = null;
     trapList = [];
     cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
@@ -425,6 +428,15 @@
     resetBtn.style.display = mode === 'multiplayer' ? 'none' : 'inline-block';
     if (gameOver) return;
     if (alk) { updateAlkStatus(); return; }
+    if (alkHandoff) {
+      const flicker = alkHandoff.turnOrder[alkHandoff.turnIndex];
+      turnDot.className = 'turn-dot ' + (flicker === BLACK ? 'black' : 'white');
+      statusText.classList.remove('targeting');
+      statusText.classList.add('alkkagi');
+      statusText.textContent = (flicker === BLACK ? '흑' : '백') + '이(가) 알까기 중입니다...';
+      cancelBtn.classList.remove('show');
+      return;
+    }
     statusText.classList.remove('targeting', 'alkkagi');
     turnDot.className = 'turn-dot ' + (current === BLACK ? 'black' : 'white');
     statusText.textContent = (current === BLACK ? '흑' : '백') + ' 차례';
@@ -445,7 +457,7 @@
   }
 
   function updatePips() {
-    if (gameOver || alk) return;
+    if (gameOver || alk || alkHandoff) return;
     const filled = placedCount[current] % INTERVAL;
     pipRow.innerHTML = '';
     for (let i = 0; i < INTERVAL; i++) {
@@ -487,7 +499,7 @@
         container.appendChild(btn);
         return;
       }
-      const canUse = player === current && !gameOver && !draftOpen && !pendingTarget && !usedCardThisTurn[player] && !alk && (mode === 'local' || player === myColor);
+      const canUse = player === current && !gameOver && !draftOpen && !pendingTarget && !usedCardThisTurn[player] && !alkPhaseActive() && (mode === 'local' || player === myColor);
       btn.className = 'hand-card' + (canUse ? '' : ' disabled');
       btn.title = card.desc;
       btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${card.name}</div><div class="hc-desc">${card.desc}</div>`;
@@ -618,7 +630,7 @@
   }
 
   function handleCanvasClick(evt) {
-    if (alk || gameOver || draftOpen) return;
+    if (alkPhaseActive() || gameOver || draftOpen) return;
     if (mode !== 'local' && current !== myColor) return;
     const pos = posFromEvent(evt);
     if (!pos) return;
@@ -932,7 +944,7 @@
   }
 
   function useCard(player, idx) {
-    if (player !== current || gameOver || draftOpen || pendingTarget || usedCardThisTurn[player] || alk) return;
+    if (player !== current || gameOver || draftOpen || pendingTarget || usedCardThisTurn[player] || alkPhaseActive()) return;
     if (mode === 'multiplayer' && player !== myColor) return;
     const card = hand[player][idx];
     if (!card) return;
@@ -1191,6 +1203,7 @@
 
   function startAlkkagi(player) {
     const opp = other(player);
+    alkHandoff = null;
     alk = {
       turnOrder: [player, opp],
       turnIndex: 0,
@@ -1202,6 +1215,22 @@
       frameCount: 0,
     };
     addNewFlickStone(player);
+    updateStatus(); updateHandUI(); draw();
+  }
+
+  function beginMyAlkTurn(turnOrder, turnIndex) {
+    alkHandoff = null;
+    alk = {
+      turnOrder: turnOrder,
+      turnIndex: turnIndex,
+      physStones: buildPhysFromBoard(),
+      simulating: false,
+      awaitingLaunch: true,
+      dragging: false,
+      dragCurrent: null,
+      frameCount: 0,
+    };
+    addNewFlickStone(myColor);
     updateStatus(); updateHandUI(); draw();
   }
 
@@ -1328,9 +1357,33 @@
     pruneInvalidTraps();
     draw();
 
-    alk.turnIndex++;
-    if (alk.turnIndex < alk.turnOrder.length) {
-      const nextPlayer = alk.turnOrder[alk.turnIndex];
+    const turnOrder = alk.turnOrder;
+    const nextIndex = alk.turnIndex + 1;
+    const phaseDone = nextIndex >= turnOrder.length;
+
+    if (mode === 'multiplayer') {
+      if (phaseDone) {
+        alk = null; alkHandoff = null;
+        addLog('🪀 알까기 종료 — 오목판으로 복귀');
+      } else {
+        alk = null;
+        alkHandoff = { turnOrder: turnOrder, turnIndex: nextIndex };
+        addLog((turnOrder[nextIndex] === BLACK ? '흑' : '백') + ': 알까기 차례');
+      }
+      syncPublicState();
+      savePrivateState();
+      if (phaseDone) {
+        if (moveHistory.length === SIZE * SIZE) { gameOver = true; showBanner('무승부'); draw(); return; }
+        if (endIfBoardWin()) return;
+      }
+      updateStatus(); updatePips(); updateHandUI(); draw();
+      return;
+    }
+
+    // ---- 로컬 / 봇 모드: 한 화면에서 이어서 진행 ----
+    if (!phaseDone) {
+      const nextPlayer = turnOrder[nextIndex];
+      alk.turnIndex = nextIndex;
       alk.physStones = buildPhysFromBoard();
       addNewFlickStone(nextPlayer);
       addLog((nextPlayer === BLACK ? '흑' : '백') + ': 알까기 차례');
@@ -1351,6 +1404,8 @@
   function unflattenBoard(flat) { const b = []; for (let r = 0; r < SIZE; r++) b.push(flat.slice(r * SIZE, (r + 1) * SIZE)); return b; }
 
   function buildPublicState() {
+    const alkOrderNow = alk ? alk.turnOrder : (alkHandoff ? alkHandoff.turnOrder : null);
+    const alkIndexNow = alk ? alk.turnIndex : (alkHandoff ? alkHandoff.turnIndex : null);
     return {
       board: flattenBoard(), current, winLength, windmillList,
       turnPlacementsDone, turnPlacementsNeeded,
@@ -1359,6 +1414,9 @@
       players: mpPlayers,
       notice: mpNotice, noticeSeq: mpNoticeSeq,
       bannerText: mpBannerText,
+      alkActive: !!(alk || alkHandoff),
+      alkTurnOrder: alkOrderNow,
+      alkTurnIndex: alkIndexNow,
     };
   }
 
@@ -1441,6 +1499,7 @@
       if (data.notice) addLog(data.notice);
     }
 
+    syncAlkFromPublic(data);
     checkMyTrapsAgainstBoard();
 
     if (gameOver && data.bannerText) {
@@ -1450,6 +1509,25 @@
     }
 
     updateStatus(); updatePips(); updateHandUI(); draw();
+  }
+
+  function syncAlkFromPublic(data) {
+    if (!data.alkActive) {
+      if (alk || alkHandoff) { alk = null; alkHandoff = null; }
+      return;
+    }
+    const turnOrder = data.alkTurnOrder;
+    const turnIndex = data.alkTurnIndex;
+    if (!turnOrder || typeof turnIndex !== 'number') return;
+    const flicker = turnOrder[turnIndex];
+    if (flicker === myColor) {
+      if (!alk || alk.turnIndex !== turnIndex) {
+        beginMyAlkTurn(turnOrder, turnIndex);
+      }
+    } else {
+      alk = null;
+      alkHandoff = { turnOrder: turnOrder, turnIndex: turnIndex };
+    }
   }
 
   function subscribePublic() {
@@ -1503,7 +1581,7 @@
       mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, data.players || {});
       mpPlayers[WHITE] = myUserId;
       hand = { [BLACK]: [], [WHITE]: [] };
-      trapList = []; pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null;
+      trapList = []; pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null; alkHandoff = null;
       logLines = []; mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
       board = unflattenBoard(data.board || flattenBoard());
       current = data.current || BLACK;
