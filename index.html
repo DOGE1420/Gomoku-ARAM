@@ -52,7 +52,35 @@
   .pip-row { display: flex; gap: 3px; }
   .pip { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.25; }
   .pip.filled { opacity: 0.9; background: var(--gold); }
+  .confirm-bar {
+    display: none;
+    align-items: center; justify-content: center; gap: 10px;
+    background: rgba(169, 128, 68, 0.18);
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+  }
+  .confirm-bar.show { display: flex; }
+  .confirm-bar button { padding: 5px 14px; font-size: 12.5px; }
+  .confirm-bar .confirm-yes { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+  .confirm-bar .confirm-no { opacity: 0.7; }
   .board-wrap { position: relative; max-width: 100%; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); overflow: hidden; }
+  @keyframes board-shake {
+    0% { transform: translate(0,0) rotate(0deg); }
+    10% { transform: translate(-7px, 5px) rotate(-1.1deg); }
+    20% { transform: translate(6px, -6px) rotate(1deg); }
+    30% { transform: translate(-6px, 7px) rotate(-1deg); }
+    40% { transform: translate(7px, -4px) rotate(1.1deg); }
+    50% { transform: translate(-6px, 5px) rotate(-0.7deg); }
+    60% { transform: translate(5px, -5px) rotate(0.7deg); }
+    70% { transform: translate(-4px, 4px) rotate(-0.5deg); }
+    80% { transform: translate(3px, -3px) rotate(0.4deg); }
+    90% { transform: translate(-2px, 2px) rotate(-0.2deg); }
+    100% { transform: translate(0,0) rotate(0deg); }
+  }
+  .board-wrap.shake { animation: board-shake 0.55s ease-in-out; }
   canvas { display: block; touch-action: none; max-width: 100%; height: auto; cursor: pointer; }
   .controls { display: flex; gap: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; flex-wrap: wrap; justify-content: center; }
   button.plain { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 9px 18px; border-radius: 999px; font-size: 14px; font-family: inherit; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
@@ -183,6 +211,12 @@
       <span class="pip-row" id="pip-row"></span>
     </div>
 
+    <div class="confirm-bar" id="confirm-bar">
+      <span id="confirm-text"></span>
+      <button class="plain confirm-yes" id="confirm-yes-btn">확인</button>
+      <button class="plain confirm-no" id="confirm-no-btn">취소</button>
+    </div>
+
     <div class="board-wrap">
       <canvas id="board"></canvas>
       <div id="banner"></div>
@@ -285,6 +319,7 @@
   }
 
   const canvas = document.getElementById('board');
+  const boardWrapEl = document.querySelector('.board-wrap');
   const ctx = canvas.getContext('2d');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = DIM * dpr; canvas.height = DIM * dpr;
@@ -298,6 +333,10 @@
   const undoBtn = document.getElementById('undo-btn');
   const resetBtn = document.getElementById('reset-btn');
   const cancelBtn = document.getElementById('cancel-btn');
+  const confirmBar = document.getElementById('confirm-bar');
+  const confirmText = document.getElementById('confirm-text');
+  const confirmYesBtn = document.getElementById('confirm-yes-btn');
+  const confirmNoBtn = document.getElementById('confirm-no-btn');
   const pipRow = document.getElementById('pip-row');
   const logPanel = document.getElementById('log-panel');
   const draftOverlay = document.getElementById('draft-overlay');
@@ -329,6 +368,9 @@
   let alk; // 알까기 상태 (내가 지금 발사할 차례일 때만 채워짐)
   let alkHandoff; // 멀티플레이: 알까기가 진행 중이지만 지금은 내 차례가 아닐 때 { turnOrder, turnIndex }
   function alkPhaseActive() { return !!alk || !!alkHandoff; }
+  let pendingPlacement = null;  // { r, c } — 확인 대기 중인 착수 미리보기
+  let pendingCardUse = null;    // { player, idx } — 확인 대기 중인 카드 사용
+  let pendingTargetCell = null; // { r, c } — 확인 대기 중인 카드 대상 선택
   let trapList; // { r, c, owner }[]
   let cardLockNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 다음 턴 카드 사용 봉쇄
   let startupQueue; // 게임 시작 시 초기 카드 뽑기 순서 (흑→백)
@@ -341,6 +383,7 @@
   let unsubPublic = null;
   let mpPlayers = { [BLACK]: null, [WHITE]: null };
   let mpNotice = null, mpNoticeSeq = 0, lastSeenNoticeSeq = 0, mpBannerText = null;
+  let mpShakeSeq = 0, lastSeenShakeSeq = 0;
   const BOT_DIFFICULTY = 5; // 1~10
 
   function getCardPool() {
@@ -410,9 +453,13 @@
     logLines = [];
     alk = null;
     alkHandoff = null;
+    pendingPlacement = null;
+    pendingCardUse = null;
+    pendingTargetCell = null;
     trapList = [];
     cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
+    mpShakeSeq = 0; lastSeenShakeSeq = 0;
     banner.classList.remove('show');
     draftOverlay.classList.remove('show');
     winLenBadge.classList.remove('show');
@@ -504,8 +551,10 @@
       btn.title = card.desc;
       btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${card.name}</div><div class="hc-desc">${card.desc}</div>`;
       if (canUse) btn.addEventListener('click', () => {
-        useCard(player, idx);
-        if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+        pendingPlacement = null;
+        pendingTargetCell = null;
+        pendingCardUse = { player, idx };
+        showConfirmBar(`${card.name} 카드를 사용할까요?`);
       });
       container.appendChild(btn);
     });
@@ -608,6 +657,21 @@
       ctx.strokeStyle = getVar('--purple'); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
     }
+
+    if (pendingPlacement) {
+      const p = cellCenter(pendingPlacement.r, pendingPlacement.c);
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      drawStoneAt(p.x, p.y, current);
+      ctx.restore();
+      ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, R + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (pendingTargetCell) {
+      const p = cellCenter(pendingTargetCell.r, pendingTargetCell.c);
+      ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
+    }
   }
 
   function rawPosFromEvent(evt) {
@@ -634,8 +698,25 @@
     if (mode !== 'local' && current !== myColor) return;
     const pos = posFromEvent(evt);
     if (!pos) return;
-    if (pendingTarget) { handleTargetClick(pos); return; }
-    handlePlace(pos);
+
+    if (pendingTarget) {
+      pendingPlacement = null;
+      pendingTargetCell = pos;
+      showConfirmBar('이 대상을 선택할까요?');
+      draw();
+      return;
+    }
+
+    const { r, c } = pos;
+    if (board[r][c] !== EMPTY) return;
+    if (isBlockedForPlayer(r, c, current)) {
+      addLog('🎡 풍차 주변이라 둘 수 없는 칸입니다');
+      return;
+    }
+    pendingCardUse = null;
+    pendingPlacement = { r, c };
+    showConfirmBar('이 위치에 착수할까요?');
+    draw();
   }
 
   function isBlockedForPlayer(r, c, player) {
@@ -1024,6 +1105,9 @@
         removeFromHand(player, idx);
         markUsed(player);
         addLog(`${pname}: ${card.icon} 지진 발동 — 모든 돌이 흔들려 재배치됨`);
+        mpShakeSeq++;
+        lastSeenShakeSeq = mpShakeSeq;
+        triggerBoardShake();
         updateHandUI(); draw();
         if (moveHistory.length === SIZE * SIZE) { gameOver = true; showBanner('무승부'); return; }
         endIfBoardWin();
@@ -1056,6 +1140,20 @@
         return;
       }
     }
+  }
+
+  function showConfirmBar(text) {
+    confirmText.textContent = text;
+    confirmBar.classList.add('show');
+  }
+  function hideConfirmBar() {
+    confirmBar.classList.remove('show');
+  }
+  function clearAllPending() {
+    pendingPlacement = null;
+    pendingCardUse = null;
+    pendingTargetCell = null;
+    hideConfirmBar();
   }
 
   function enterTargetMode(msg) {
@@ -1160,6 +1258,8 @@
   function cancelTarget() {
     if (!pendingTarget) return;
     pendingTarget = null;
+    pendingTargetCell = null;
+    hideConfirmBar();
     resetStatusAfterTarget();
     updateHandUI();
     draw();
@@ -1414,6 +1514,7 @@
       players: mpPlayers,
       notice: mpNotice, noticeSeq: mpNoticeSeq,
       bannerText: mpBannerText,
+      shakeSeq: mpShakeSeq,
       alkActive: !!(alk || alkHandoff),
       alkTurnOrder: alkOrderNow,
       alkTurnIndex: alkIndexNow,
@@ -1452,7 +1553,14 @@
     } catch (e) {}
   }
 
-  function setNotice(text) { mpNotice = text; mpNoticeSeq++; }
+  function setNotice(text) { mpNotice = text; mpNoticeSeq++; lastSeenNoticeSeq = mpNoticeSeq; }
+
+  function triggerBoardShake() {
+    if (!boardWrapEl) return;
+    boardWrapEl.classList.remove('shake');
+    void boardWrapEl.offsetWidth; // 강제 리플로우로 애니메이션 재시작 가능하게
+    boardWrapEl.classList.add('shake');
+  }
 
   function checkMyTrapsAgainstBoard() {
     if (mode !== 'multiplayer' || !trapList || trapList.length === 0) return;
@@ -1490,6 +1598,7 @@
     cardLockNextTurn = data.cardLockNextTurn || { [BLACK]: false, [WHITE]: false };
     placedCount = data.placedCount || { [BLACK]: 0, [WHITE]: 0 };
     gameOver = !!data.gameOver;
+    if (gameOver) clearAllPending();
     winLine = data.winLine || null;
     lastMovePos = data.lastMovePos || null;
     mpPlayers = data.players || mpPlayers;
@@ -1497,6 +1606,10 @@
     if (data.noticeSeq && data.noticeSeq > lastSeenNoticeSeq) {
       lastSeenNoticeSeq = data.noticeSeq;
       if (data.notice) addLog(data.notice);
+    }
+    if (typeof data.shakeSeq === 'number' && data.shakeSeq > lastSeenShakeSeq) {
+      lastSeenShakeSeq = data.shakeSeq;
+      triggerBoardShake();
     }
 
     syncAlkFromPublic(data);
@@ -1583,6 +1696,7 @@
       hand = { [BLACK]: [], [WHITE]: [] };
       trapList = []; pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null; alkHandoff = null;
       logLines = []; mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
+      mpShakeSeq = 0; lastSeenShakeSeq = 0;
       board = unflattenBoard(data.board || flattenBoard());
       current = data.current || BLACK;
       winLength = data.winLength || 5;
@@ -1745,10 +1859,7 @@
   joinRoomBtn.addEventListener('click', () => joinRoom(joinCodeInput.value));
 
   canvas.addEventListener('click', function (e) {
-    if (!alk) {
-      handleCanvasClick(e);
-      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
-    }
+    if (!alk) handleCanvasClick(e);
   });
 
   canvas.addEventListener('mousedown', function (e) { if (alk) tryStartDrag(rawPosFromEvent(e)); });
@@ -1758,7 +1869,7 @@
   canvas.addEventListener('touchstart', function (e) {
     e.preventDefault();
     if (alk) tryStartDrag(rawPosFromEvent(e));
-    else { handleCanvasClick(e); if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); } }
+    else handleCanvasClick(e);
   }, { passive: false });
   canvas.addEventListener('touchmove', function (e) {
     e.preventDefault();
@@ -1772,6 +1883,33 @@
   undoBtn.addEventListener('click', () => { if (mode !== 'multiplayer') undo(); });
   resetBtn.addEventListener('click', () => { if (mode !== 'multiplayer') init(); });
   cancelBtn.addEventListener('click', cancelTarget);
+
+  confirmYesBtn.addEventListener('click', () => {
+    if (pendingPlacement) {
+      const pos = pendingPlacement;
+      pendingPlacement = null;
+      hideConfirmBar();
+      handlePlace(pos);
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+    } else if (pendingCardUse) {
+      const { player, idx } = pendingCardUse;
+      pendingCardUse = null;
+      hideConfirmBar();
+      useCard(player, idx);
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+    } else if (pendingTargetCell) {
+      const pos = pendingTargetCell;
+      pendingTargetCell = null;
+      hideConfirmBar();
+      handleTargetClick(pos);
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+    }
+  });
+
+  confirmNoBtn.addEventListener('click', () => {
+    clearAllPending();
+    draw();
+  });
 
   showScreen('menu');
 })();
