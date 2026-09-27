@@ -286,7 +286,12 @@
   const SIZE = 15;
   const CELL = 34;
   const PAD = 28;
-  const DIM = PAD * 2 + CELL * (SIZE - 1);
+  const EXTRA_X = 22;    // 가로 방향 여백 추가분 (좌우 각각)
+  const EXTRA_BOTTOM = 64; // 세로 방향 하단 여백 추가분 (알까기 당기는 선 공간 확보)
+  const GRID_SPAN = CELL * (SIZE - 1);
+  const GRID_OFFSET_X = PAD + EXTRA_X; // 격자가 캔버스 안에서 시작하는 x좌표
+  const DIM_W = PAD * 2 + GRID_SPAN + EXTRA_X * 2;
+  const DIM_H = PAD * 2 + GRID_SPAN + EXTRA_BOTTOM;
   const INTERVAL = 3;   // 자신의 돌을 N개 놓을 때마다 카드 1장 획득
   const HAND_LIMIT = 4;
   const EMPTY = 0, BLACK = 1, WHITE = 2;
@@ -322,8 +327,8 @@
   const boardWrapEl = document.querySelector('.board-wrap');
   const ctx = canvas.getContext('2d');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = DIM * dpr; canvas.height = DIM * dpr;
-  canvas.style.width = DIM + 'px'; canvas.style.height = DIM + 'px';
+  canvas.width = DIM_W * dpr; canvas.height = DIM_H * dpr;
+  canvas.style.width = DIM_W + 'px'; canvas.style.height = DIM_H + 'px';
   ctx.scale(dpr, dpr);
 
   const statusText = document.getElementById('status-text');
@@ -387,8 +392,7 @@
   const BOT_DIFFICULTY = 5; // 1~10
 
   function getCardPool() {
-    // 알까기는 봇전에서는 제외 (봇이 드래그 발사를 판단하도록 만들기 전까지는 봇 손패에서 뺌)
-    return mode === 'bot' ? CARD_POOL.filter(c => c.type !== 'alkkagi') : CARD_POOL;
+    return CARD_POOL; // 모든 모드에서 알까기 포함
   }
 
   function waitForFb(timeoutMs) {
@@ -560,24 +564,24 @@
     });
   }
 
-  function cellCenter(r, c) { return { x: PAD + c * CELL, y: PAD + r * CELL }; }
+  function cellCenter(r, c) { return { x: GRID_OFFSET_X + c * CELL, y: PAD + r * CELL }; }
   function getVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
   function drawBoardBase() {
-    ctx.clearRect(0, 0, DIM, DIM);
-    const grad = ctx.createLinearGradient(0, 0, DIM, DIM);
+    ctx.clearRect(0, 0, DIM_W, DIM_H);
+    const grad = ctx.createLinearGradient(0, 0, DIM_W, DIM_H);
     grad.addColorStop(0, getVar('--wood-light'));
     grad.addColorStop(1, getVar('--wood-dark'));
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, DIM, DIM);
+    ctx.fillRect(0, 0, DIM_W, DIM_H);
 
     ctx.strokeStyle = getVar('--line');
     ctx.lineWidth = 1;
     for (let i = 0; i < SIZE; i++) {
-      const x = PAD + i * CELL;
-      ctx.beginPath(); ctx.moveTo(x, PAD); ctx.lineTo(x, DIM - PAD); ctx.stroke();
+      const x = GRID_OFFSET_X + i * CELL;
+      ctx.beginPath(); ctx.moveTo(x, PAD); ctx.lineTo(x, PAD + GRID_SPAN); ctx.stroke();
       const y = PAD + i * CELL;
-      ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(DIM - PAD, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(GRID_OFFSET_X, y); ctx.lineTo(GRID_OFFSET_X + GRID_SPAN, y); ctx.stroke();
     }
     const stars = [3, 7, 11];
     ctx.fillStyle = getVar('--line');
@@ -603,9 +607,11 @@
       alk.physStones.forEach(s => drawStoneAt(s.x, s.y, s.color));
       if (alk.dragging && alk.dragCurrent) {
         const ns = alk.physStones[alk.newIndex];
-        ctx.strokeStyle = getVar('--purple'); ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 3; ctx.setLineDash([6, 5]);
         ctx.beginPath(); ctx.moveTo(ns.x, ns.y); ctx.lineTo(alk.dragCurrent.x, alk.dragCurrent.y); ctx.stroke();
         ctx.setLineDash([]);
+        ctx.fillStyle = getVar('--gold');
+        ctx.beginPath(); ctx.arc(alk.dragCurrent.x, alk.dragCurrent.y, 6, 0, Math.PI * 2); ctx.fill();
       }
       return;
     }
@@ -650,7 +656,7 @@
     if (pendingTarget) {
       ctx.strokeStyle = getVar('--purple');
       ctx.lineWidth = 3;
-      ctx.strokeRect(2, 2, DIM - 4, DIM - 4);
+      ctx.strokeRect(2, 2, DIM_W - 4, DIM_H - 4);
     }
     if (pendingTarget && pendingTarget.type === 'trade' && pendingTarget.firstPos) {
       const p = cellCenter(pendingTarget.firstPos.r, pendingTarget.firstPos.c);
@@ -680,13 +686,13 @@
     else if (evt.changedTouches && evt.changedTouches.length) { clientX = evt.changedTouches[0].clientX; clientY = evt.changedTouches[0].clientY; }
     else { clientX = evt.clientX; clientY = evt.clientY; }
     const rect = canvas.getBoundingClientRect();
-    const scaleX = DIM / rect.width, scaleY = DIM / rect.height;
+    const scaleX = DIM_W / rect.width, scaleY = DIM_H / rect.height;
     return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   }
 
   function posFromEvent(evt) {
     const raw = rawPosFromEvent(evt);
-    const c = Math.round((raw.x - PAD) / CELL), r = Math.round((raw.y - PAD) / CELL);
+    const c = Math.round((raw.x - GRID_OFFSET_X) / CELL), r = Math.round((raw.y - PAD) / CELL);
     if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return null;
     const p = cellCenter(r, c);
     if (Math.hypot(p.x - raw.x, p.y - raw.y) > CELL * 0.48) return null;
@@ -1294,7 +1300,7 @@
   }
 
   function addNewFlickStone(player) {
-    const ns = { x: DIM / 2, y: DIM - PAD / 2, vx: 0, vy: 0, color: player, isNew: true, isWindmill: false };
+    const ns = { x: GRID_OFFSET_X + GRID_SPAN / 2, y: PAD + GRID_SPAN + EXTRA_BOTTOM / 2, vx: 0, vy: 0, color: player, isNew: true, isWindmill: false };
     alk.physStones.push(ns);
     alk.newIndex = alk.physStones.length - 1;
     alk.awaitingLaunch = true;
@@ -1317,6 +1323,7 @@
     };
     addNewFlickStone(player);
     updateStatus(); updateHandUI(); draw();
+    checkBotAlkTurn();
   }
 
   function beginMyAlkTurn(turnOrder, turnIndex) {
@@ -1377,9 +1384,9 @@
 
     for (const s of stones) {
       if (s.x < R) { s.x = R; s.vx = Math.abs(s.vx) * 0.6; }
-      if (s.x > DIM - R) { s.x = DIM - R; s.vx = -Math.abs(s.vx) * 0.6; }
+      if (s.x > DIM_W - R) { s.x = DIM_W - R; s.vx = -Math.abs(s.vx) * 0.6; }
       if (s.y < R) { s.y = R; s.vy = Math.abs(s.vy) * 0.6; }
-      if (s.y > DIM - R) { s.y = DIM - R; s.vy = -Math.abs(s.vy) * 0.6; }
+      if (s.y > DIM_H - R) { s.y = DIM_H - R; s.vy = -Math.abs(s.vy) * 0.6; }
     }
 
     for (let i = 0; i < stones.length; i++) {
@@ -1489,6 +1496,7 @@
       addNewFlickStone(nextPlayer);
       addLog((nextPlayer === BLACK ? '흑' : '백') + ': 알까기 차례');
       updateStatus(); draw();
+      checkBotAlkTurn();
     } else {
       alk = null;
       addLog('🪀 알까기 종료 — 오목판으로 복귀');
@@ -1738,7 +1746,7 @@
     if (!usedCardThisTurn[botColor] && hand[botColor].length > 0 && Math.random() < 0.5) {
       botUseCard(botColor);
     }
-    if (!gameOver && current === botColor && !draftOpen && !pendingTarget) {
+    if (!gameOver && current === botColor && !draftOpen && !pendingTarget && !alk) {
       botPlaceStone(botColor);
     }
   }
@@ -1839,6 +1847,45 @@
     const pool = scored.slice(0, Math.min(topN, scored.length));
     const pick = pool[Math.floor(Math.random() * pool.length)];
     handlePlace({ r: pick.r, c: pick.c });
+  }
+
+  // ---- 봇의 알까기 발사 판단 ----
+  function checkBotAlkTurn() {
+    if (mode !== 'bot' || !alk || !alk.awaitingLaunch || alk.simulating) return;
+    const botColor = other(myColor);
+    const flicker = alk.turnOrder[alk.turnIndex];
+    if (flicker !== botColor) return;
+    setTimeout(botDoAlkFlick, 700);
+  }
+
+  function botDoAlkFlick() {
+    if (mode !== 'bot' || !alk || !alk.awaitingLaunch || alk.simulating) return;
+    const botColor = other(myColor);
+    if (alk.turnOrder[alk.turnIndex] !== botColor) return;
+    const ns = alk.physStones[alk.newIndex];
+    const oppColor = other(botColor);
+
+    // 상대 돌들의 무게중심을 대충 겨냥 (없으면 보드 중앙), 약간의 무작위 편차 추가
+    let sx = 0, sy = 0, n = 0;
+    alk.physStones.forEach(s => {
+      if (s !== ns && s.color === oppColor) { sx += s.x; sy += s.y; n++; }
+    });
+    let targetX = n > 0 ? sx / n : GRID_OFFSET_X + GRID_SPAN / 2;
+    let targetY = n > 0 ? sy / n : PAD + GRID_SPAN / 2;
+    targetX += (Math.random() - 0.5) * CELL * 4;
+    targetY += (Math.random() - 0.5) * CELL * 4;
+
+    let dx = targetX - ns.x, dy = targetY - ns.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = CELL * (0.6 + Math.random() * 0.8);
+    ns.vx = (dx / dist) * speed;
+    ns.vy = (dy / dist) * speed;
+
+    alk.awaitingLaunch = false;
+    alk.simulating = true;
+    alk.frameCount = 0;
+    updateStatus();
+    requestAnimationFrame(simulateAlkTick);
   }
 
   // ================= 메뉴 / 로비 UI =================
