@@ -922,6 +922,7 @@
     } else {
       updateStatus(); updatePips(); updateHandUI(); draw();
     }
+    if (mode === 'multiplayer') syncPublicState();
   }
 
   // ---- 카드 사용 ----
