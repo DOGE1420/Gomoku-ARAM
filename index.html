@@ -506,7 +506,7 @@
     { id: 'teleport', name: '순간이동', icon: '✨', desc: '내 돌 1개를 무작위 빈 칸으로 이동시킵니다.', type: 'teleport', weight: 12 },
     { id: 'earthquake', name: '지진', icon: '🫨', desc: '보드의 모든 돌이 각자 주변의 무작위 빈 칸으로 흔들려 이동합니다.', type: 'earthquake', weight: 8 },
     { id: 'blockade', name: '봉쇄', icon: '🚫', desc: '상대가 다음에 사용하는 카드 1장을 무효화합니다 (카드는 소모됨). (희귀 카드)', type: 'blockade', weight: 3 },
-    { id: 'trap', name: '함정', icon: '🪤', desc: '빈 칸에 함정을 설치합니다. 상대가 그 칸에 두면 돌이 사라지고 나는 카드를 얻습니다. 설치 사실은 상대에게 공개됩니다.', type: 'trap', weight: 10 },
+    { id: 'trap', name: '함정', icon: '🪤', desc: '빈 칸에 함정을 설치합니다. 상대가 그 칸에 두면 돌이 사라지고 나는 카드를 얻습니다. 설치했다는 사실만 상대에게 알려지고, 위치는 나에게만 보입니다.', type: 'trap', weight: 10 },
     { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다. 오목/육목이 완성되는 돌은 제외되며, 사용 즉시 내 턴이 종료됩니다.', type: 'infection', weight: 8 },
   ];
 
@@ -538,7 +538,7 @@
     teleport: { name: 'Teleport', desc: 'Move one of your stones to a random empty cell.', short: 'Move 1 stone at random' },
     earthquake: { name: 'Earthquake', desc: 'Every stone on the board shakes into a random nearby empty cell.', short: 'Shake every stone' },
     blockade: { name: 'Blockade', desc: 'Nullify the next card your opponent uses (the card is still spent).', short: "Nullify opponent's next card" },
-    trap: { name: 'Trap', desc: 'Set a trap on an empty cell. If your opponent plays there, their stone vanishes and you get a card. Both players are told a trap was set.', short: 'Set a trap on an empty cell' },
+    trap: { name: 'Trap', desc: 'Set a trap on an empty cell. If your opponent plays there, their stone vanishes and you get a card. Your opponent is told a trap was set, but only you can see where.', short: 'Set a trap on an empty cell' },
     infection: { name: 'Infection', desc: 'Convert 2 random enemy stones touching yours (up/down/left/right) to your color. Stones that would complete a winning line are skipped. Your turn ends immediately.', short: 'Convert 2 touching enemies (turn ends)' },
   };
 
@@ -1173,6 +1173,23 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('🎡', p.x, p.y);
     });
+
+    // 함정: 설치한 사람에게만 보임 (멀티=내 함정, 봇전=사람 함정, 로컬=지금 차례인 사람의 함정)
+    const trapViewer = mode === 'local' ? current : myColor;
+    for (const tr of trapList || []) {
+      if (tr.owner !== trapViewer || board[tr.r][tr.c] !== EMPTY) continue;
+      const p = cellCenter(tr.r, tr.c);
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(140, 70, 20, 0.85)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.4, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.85;
+      ctx.font = Math.round(CELL * 0.46) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🪤', p.x, p.y + 1);
+      ctx.restore();
+    }
 
     if (lastMovePos) {
       const p = cellCenter(lastMovePos.r, lastMovePos.c);
