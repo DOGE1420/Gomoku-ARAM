@@ -85,6 +85,12 @@
   }
   .board-wrap.shake { animation: board-shake 0.55s ease-in-out; }
   canvas { display: block; touch-action: none; max-width: 100%; height: auto; cursor: pointer; }
+  .rematch-bar { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--font-main); }
+  .rematch-bar[hidden] { display: none; }
+  .rematch-text { font-size: 14.5px; font-weight: 700; text-align: center; }
+  .rematch-options { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .rematch-options[hidden] { display: none; }
+  .rematch-options button { border-color: var(--gold); }
   .controls { display: flex; gap: 10px; font-family: var(--font-main); flex-wrap: wrap; justify-content: center; }
   button.plain { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 9px 18px; border-radius: 999px; font-size: 15.5px; font-family: inherit; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
   button.plain:hover { background: var(--line); color: var(--paper); }
@@ -318,6 +324,13 @@
       <button class="plain" id="undo-btn" data-i18n="undo">한 수 무르기</button>
       <button class="plain" id="reset-btn" data-i18n="reset">새 게임</button>
     </div>
+    <div class="rematch-bar" id="rematch-bar" hidden>
+      <span class="rematch-text" id="rematch-text"></span>
+      <div class="rematch-options" id="rematch-options">
+        <button class="plain" type="button" data-rematch="first" data-i18n="rematch.first">선공(흑)으로</button>
+        <button class="plain" type="button" data-rematch="second" data-i18n="rematch.second">후공(백)으로</button>
+      </div>
+    </div>
     </div>
 
     <aside class="side-panel side-left">
@@ -482,6 +495,10 @@
       'confirm.card': '{card} 사용할까요?', 'confirm.target': '이 대상을 선택할까요?', 'confirm.place': '이 위치에 착수할까요?',
       'banner.win': '{color} 승리', 'banner.draw': '무승부', 'banner.left': '{color}이(가) 게임을 나갔습니다',
       'banner.suffix': ' — 새 게임을 눌러 다시 시작하세요',
+      'banner.suffixLoser': ' — 선공/후공을 골라 재대결하세요', 'banner.suffixWinner': ' — 상대가 선공/후공을 고르는 중',
+      'rematch.loser': '졌습니다. 재대결에서 선공/후공을 고르세요', 'rematch.winner': '진 쪽이 선공/후공을 고르는 중입니다...',
+      'rematch.first': '선공(흑)으로', 'rematch.second': '후공(백)으로',
+      'notice.rematchFirst': '🔁 재대결 — 진 쪽이 선공(흑)을 골랐습니다', 'notice.rematchSecond': '🔁 재대결 — 진 쪽이 후공(백)을 골랐습니다',
       'menu.mpFail': '멀티플레이 서버 연결에 실패했습니다. 잠시 후 다시 열어주세요.',
       'lobby.connErr': '연결 오류가 발생했습니다. 새로고침 후 다시 시도해주세요.',
       'lobby.connecting': '서버에 연결하는 중입니다. 잠시 후 다시 눌러주세요.',
@@ -553,6 +570,10 @@
       'confirm.card': 'Use {card}?', 'confirm.target': 'Select this target?', 'confirm.place': 'Place a stone here?',
       'banner.win': '{color} wins', 'banner.draw': 'Draw', 'banner.left': '{color} left the game',
       'banner.suffix': ' — press New game to play again',
+      'banner.suffixLoser': ' — pick first or second for the rematch', 'banner.suffixWinner': ' — your opponent is picking first or second',
+      'rematch.loser': 'You lost. Pick first or second for the rematch', 'rematch.winner': 'The loser is picking first or second...',
+      'rematch.first': 'Go first (Black)', 'rematch.second': 'Go second (White)',
+      'notice.rematchFirst': '🔁 Rematch — the loser chose to go first (Black)', 'notice.rematchSecond': '🔁 Rematch — the loser chose to go second (White)',
       'menu.mpFail': "Couldn't reach the multiplayer server. Please reopen the page in a moment.",
       'lobby.connErr': 'Connection error. Please refresh and try again.',
       'lobby.connecting': 'Connecting to the server. Please try again in a moment.',
@@ -651,6 +672,9 @@
   const banner = document.getElementById('banner');
   const undoBtn = document.getElementById('undo-btn');
   const resetBtn = document.getElementById('reset-btn');
+  const rematchBar = document.getElementById('rematch-bar');
+  const rematchText = document.getElementById('rematch-text');
+  const rematchOptions = document.getElementById('rematch-options');
   const cancelBtn = document.getElementById('cancel-btn');
   const confirmBar = document.getElementById('confirm-bar');
   const confirmText = document.getElementById('confirm-text');
@@ -787,13 +811,22 @@
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
     mpShakeSeq = 0; lastSeenShakeSeq = 0;
     mpRestartSeq = 0; lastSeenRestartSeq = 0;
-    banner.classList.remove('show');
+    banner.classList.remove('show'); lastBannerMsg = null;
     draftOverlay.classList.remove('show');
     winLenBadge.classList.remove('show');
     updateLog();
     draw();
     startupQueue = mode === 'multiplayer' ? [myColor] : [BLACK, WHITE];
     runStartupDraft();
+  }
+
+  function renderRematchBar() {
+    const show = loserPicksSide();
+    rematchBar.hidden = !show;
+    if (!show) return;
+    const iLost = bannerWinner(lastBannerMsg) !== myColor;
+    rematchText.textContent = iLost ? t('rematch.loser') : t('rematch.winner');
+    rematchOptions.hidden = !iLost;
   }
 
   function turnText() {
@@ -805,7 +838,8 @@
   function updateStatus() {
     if (mode === 'bot') scheduleMaybeBotTurn();
     undoBtn.style.display = mode === 'multiplayer' ? 'none' : 'inline-block';
-    resetBtn.style.display = (mode === 'multiplayer' && !gameOver) ? 'none' : 'inline-block';
+    resetBtn.style.display = ((mode === 'multiplayer' && !gameOver) || loserPicksSide()) ? 'none' : 'inline-block';
+    renderRematchBar();
     if (gameOver) return;
     if (alk) { updateAlkStatus(); return; }
     if (alkHandoff) {
@@ -1200,11 +1234,27 @@
     return false;
   }
 
+  // 결과 배너에 기록된 승자 색 (무승부·나감·옛 버전 문자열이면 null)
+  function bannerWinner(msg) {
+    return msg && typeof msg === 'object' && msg.k === 'banner.win' && msg.p ? msg.p.color : null;
+  }
+  // 진 사람이 선후공을 고르는 상황인지: 멀티플레이는 양쪽 모두, 봇전은 사람이 졌을 때만
+  function loserPicksSide() {
+    const w = bannerWinner(lastBannerMsg);
+    if (!gameOver || w === null || w === undefined) return false;
+    if (mode === 'multiplayer') return true;
+    if (mode === 'bot') return w !== myColor;
+    return false;
+  }
   let lastBannerMsg = null;
   function renderBannerOnly(msg) {
     lastBannerMsg = msg;
-    banner.textContent = fmt(msg) + t('banner.suffix');
+    let suffix = t('banner.suffix');
+    if (loserPicksSide()) suffix = bannerWinner(msg) === myColor ? t('banner.suffixWinner') : t('banner.suffixLoser');
+    banner.textContent = fmt(msg) + suffix;
     banner.classList.add('show');
+    resetBtn.style.display = ((mode === 'multiplayer' && !gameOver) || loserPicksSide()) ? 'none' : 'inline-block';
+    renderRematchBar();
   }
   function showBanner(text, skipSync) {
     mpBannerText = text;
@@ -2047,6 +2097,21 @@
     lastMovePos = data.lastMovePos || null;
     mpPlayers = data.players || mpPlayers;
 
+    let restarted = false;
+    if (typeof data.restartSeq === 'number' && data.restartSeq > lastSeenRestartSeq) {
+      lastSeenRestartSeq = data.restartSeq;
+      restarted = true;
+      // 진 쪽이 선후공을 바꿨을 수 있으므로 players에서 내 색을 다시 확인
+      if (mpPlayers[BLACK] === myUserId) myColor = BLACK;
+      else if (mpPlayers[WHITE] === myUserId) myColor = WHITE;
+      hand = { [BLACK]: [], [WHITE]: [] };
+      trapList = [];
+      logLines = []; updateLog();
+      lastSeenNoticeSeq = 0; lastSeenShakeSeq = 0; lastBannerMsg = null;
+      pendingTarget = null; draftOpen = false; draftPlayer = null;
+      pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
+    }
+
     if (data.noticeSeq && data.noticeSeq > lastSeenNoticeSeq) {
       lastSeenNoticeSeq = data.noticeSeq;
       if (data.notice) addLog(data.notice);
@@ -2055,12 +2120,8 @@
       lastSeenShakeSeq = data.shakeSeq;
       triggerBoardShake();
     }
-    if (typeof data.restartSeq === 'number' && data.restartSeq > lastSeenRestartSeq) {
-      lastSeenRestartSeq = data.restartSeq;
-      hand[myColor] = [];
-      trapList = [];
-      pendingTarget = null; draftOpen = false; draftPlayer = null;
-      pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
+
+    if (restarted) {
       startupQueue = [myColor];
       runStartupDraft();
     }
@@ -2211,7 +2272,13 @@
   });
   renderFirstPick();
 
-  function startRematch() {
+  function startRematch(newColor) {
+    // 진 사람이 고른 색으로 자리 바꾸기 (players 매핑을 통째로 교환)
+    const swap = newColor && newColor !== myColor;
+    if (swap) {
+      mpPlayers = { [BLACK]: mpPlayers[WHITE] || null, [WHITE]: mpPlayers[BLACK] || null };
+      myColor = newColor;
+    }
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
     current = BLACK;
     moveHistory = [];
@@ -2231,10 +2298,15 @@
     pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
     alk = null; alkHandoff = null;
     trapList = [];
-    hand[myColor] = []; // 내 손패만 초기화 — 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
+    hand = { [BLACK]: [], [WHITE]: [] }; // 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
     logLines = [];
-    mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
+    mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null; lastBannerMsg = null;
     mpShakeSeq = 0; lastSeenShakeSeq = 0;
+    if (newColor) {
+      const note = L(newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond');
+      setNotice(note);
+      addLog(note);
+    }
     mpRestartSeq++; lastSeenRestartSeq = mpRestartSeq; // 내 화면은 스스로 에코 처리하지 않도록
     banner.classList.remove('show'); draftOverlay.classList.remove('show'); updateLog();
     syncPublicState();
@@ -2968,6 +3040,19 @@
     }
   });
   cancelBtn.addEventListener('click', cancelTarget);
+  rematchOptions.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-rematch]');
+    if (!b || !loserPicksSide() || bannerWinner(lastBannerMsg) === myColor) return;
+    const newColor = b.dataset.rematch === 'first' ? BLACK : WHITE;
+    if (mode === 'multiplayer') {
+      startRematch(newColor);
+    } else if (mode === 'bot') {
+      myColor = newColor;
+      init();
+      addLog(L(newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond'));
+      addLog(L('bot.log', { n: botLevel }));
+    }
+  });
 
   confirmYesBtn.addEventListener('click', () => {
     if (pendingPlacement) {
