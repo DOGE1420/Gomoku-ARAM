@@ -537,7 +537,7 @@
       'bot.hint.10': '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
       'bot.hint.20': '얼티밋 — 수당 약 2.5초 동안 최대한 깊이 읽고, 상대의 필승 수순까지 끊음',
       'bot.ultimate': '얼티밋', 'bot.thinking': '🤖 봇이 생각 중...',
-      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '슈퍼 울트라 짱짱맨 — 수당 약 5초, 열린 3까지 섞은 연속 공격을 찾고 상대의 것도 끊음',
+      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '슈퍼 울트라 짱짱맨 — 수당 약 5초, 상대의 연속 공격 수순을 미리 끊고 상대 패까지 읽음',
       'side.title': '선공/후공 선택', 'side.sub': '흑이 먼저 둡니다', 'side.first': '선공 (흑)', 'side.second': '후공 (백)', 'side.random': '랜덤',
       'side.prompt': '선공/후공을 고르세요', 'log.sideFirst': '🤖 봇전 — 내가 선공(흑)', 'log.sideSecond': '🤖 봇전 — 내가 후공(백)',
       'tgt.windmill': '풍차로 만들 내 돌을 클릭하세요', 'tgt.selfRemove': '제거할 내 돌을 클릭하세요',
@@ -617,7 +617,7 @@
       'bot.hint.10': 'Master — reads 4 moves ahead and hunts forcing four sequences',
       'bot.hint.20': 'Ultimate — thinks ~2.5s per move as deep as it can and breaks your forced wins',
       'bot.ultimate': 'Ultimate', 'bot.thinking': '🤖 Bot is thinking...',
-      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': 'Super Ultra Awesome — ~5s per move, finds forcing three/four attacks and shuts down yours',
+      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': "Super Ultra Awesome — ~5s per move, shuts down your forcing attacks and reads your hand",
       'side.title': 'Choose your side', 'side.sub': 'Black moves first', 'side.first': 'First (Black)', 'side.second': 'Second (White)', 'side.random': 'Random',
       'side.prompt': 'Choose first or second', 'log.sideFirst': '🤖 vs Bot — you play first (Black)', 'log.sideSecond': '🤖 vs Bot — you play second (White)',
       'tgt.windmill': 'Click one of your stones to make a windmill', 'tgt.selfRemove': 'Click one of your stones to remove',
@@ -2470,9 +2470,10 @@
     10: { radius: 3, depth: 4, width: 10, topN: 1, defense: 1,    missChance: 0,   patterns: true,  smartCards: true,  vcf: true  },
     // 얼티밋: 시간 제한 안에서 최대한 깊이 읽음 (반복 심화 + 치환표 + 위협 가지치기 + 상대 VCF 차단)
     20: { radius: 2, depth: 12, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, timeMs: 2500 },
-    // 슈퍼 울트라 짱짱맨: 얼티밋 + 연속 위협(VCT) 공격·방어 + 더 넓은 후보 + 수당 약 5초
-    50: { radius: 2, depth: 14, width: 18, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, vct: true, timeMs: 5000,
-          rootWidth: 20, widths: [18, 12, 10, 8, 7, 6, 5, 5, 4, 4, 4, 4, 4, 4], readCards: true },
+    // 슈퍼 울트라 짱짱맨: 얼티밋 + 수당 약 5초 + 상대의 연속 위협(VCT) 차단 + 상대 패 읽기
+    // (VCT 공격은 봇끼리 대국에서 오히려 불리해 꺼 둠: 막는 수를 일부 놓쳐 이기지 못하는 공격을 걸게 됨)
+    50: { radius: 2, depth: 14, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, vct: true, vctAttack: false, timeMs: 5000,
+          readCards: true },
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
