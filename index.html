@@ -408,7 +408,7 @@
     { id: 'chain', name: '연속 착수', icon: '⚡', desc: '이번 턴에 총 3번까지 착수할 수 있습니다 (단, 이번 턴에 이미 둔 자리 포함 2칸 이내에는 놓을 수 없음).', type: 'chain_move', weight: 10 },
     { id: 'windmill', name: '풍차', icon: '🎡', desc: '내 돌 1개를 풍차로 만듭니다. 주변 8칸은 상대가 둘 수 없습니다.', type: 'windmill', weight: 10 },
     { id: 'sixsense', name: '식스센스', icon: '👁️', desc: '승리 조건이 5목에서 6목으로 영구히 바뀝니다.', type: 'six_sense', weight: 8 },
-    { id: 'trade', name: '맞교환', icon: '🔄', desc: '상하좌우로 맞닿은 흑돌과 백돌 한 쌍을 골라 서로 색을 바꿉니다.', type: 'trade', weight: 10 },
+    { id: 'trade', name: '맞교환', icon: '🔄', desc: '상하좌우로 맞닿은 흑돌과 백돌 한 쌍을 골라 서로 색을 바꿉니다. 사용 즉시 내 턴이 종료됩니다.', type: 'trade', weight: 10 },
     { id: 'bomb', name: '폭파', icon: '💥', desc: '상대 돌 1개를 제거합니다. 대가로 다음 내 턴을 건너뜁니다.', type: 'remove_enemy', weight: 5 },
     { id: 'reversal', name: '전세 역전', icon: '☯️', desc: '보드의 모든 흑돌과 백돌을 통째로 뒤바꿉니다. 사용 즉시 내 턴이 종료됩니다. (가장 희귀)', type: 'reversal', weight: 2 },
     { id: 'alkkagi', name: '알까기 모드', icon: '🪀', desc: '흑, 백 순서로 한 번씩 알까기로 새 돌을 발사합니다. 흩어진 돌은 가장 가까운 자리로 고정됩니다.', type: 'alkkagi', weight: 8 },
@@ -424,7 +424,7 @@
     chain: '이번 턴 3번 착수',
     windmill: '내 돌 주변 8칸 봉쇄',
     sixsense: '승리 조건 6목으로',
-    trade: '맞닿은 흑·백 돌 색 교환',
+    trade: '맞닿은 흑·백 돌 색 교환 (턴 종료)',
     bomb: '상대 돌 1개 제거 (다음 턴 휴식)',
     reversal: '모든 돌 색 반전 (턴 종료)',
     alkkagi: '알까기로 새 돌 발사',
@@ -1461,7 +1461,7 @@
         const a = t.firstPos, bColor = board[r][c];
         board[a.r][a.c] = bColor;
         board[r][c] = a.color;
-        addLog(`${pname}: 🔄 맞교환 발동`);
+        addLog(`${pname}: 🔄 맞교환 발동 (턴 종료)`);
         resolved = true;
       }
     }
@@ -1474,6 +1474,7 @@
       updateHandUI();
       draw();
       if (t.type === 'trade' || t.type === 'teleport') endIfBoardWin(true);
+      if (t.type === 'trade' && !gameOver) passTurn();
     }
   }
 
@@ -2526,7 +2527,7 @@
             board[a.r][a.c] = opp; board[b.r][b.c] = botColor;
             if (gain > bestGain) { bestGain = gain; bestPair = [a, b]; }
           }
-          if (bestPair && bestGain > 400) consider(idx, bestGain, bestPair);
+          if (bestPair && bestGain > 1500) consider(idx, bestGain, bestPair); // 턴이 끝나므로 이득이 클 때만
           break;
         }
         case 'six_sense': {
