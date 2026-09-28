@@ -64,7 +64,7 @@
     font-size: 14.5px;
   }
   .confirm-bar.show { display: flex; }
-  .confirm-bar button { padding: 5px 14px; font-size: 13.5px; }
+  .confirm-bar button { padding: 5px 14px; font-size: 13.5px; white-space: nowrap; flex-shrink: 0; }
   .confirm-bar .confirm-yes { border-color: var(--gold); color: var(--gold); font-weight: 700; }
   .confirm-bar .confirm-no { opacity: 0.7; }
   .board-wrap { position: relative; max-width: 100%; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); overflow: hidden; }
@@ -89,15 +89,19 @@
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #banner { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,14,8,0.6); color: #f6ecd9; font-size: clamp(20px, 5.5vw, 28px); font-weight: 700; text-align: center; padding: 20px; }
   #banner.show { display: flex; }
-  #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(15,10,20,0.85); backdrop-filter: blur(2px); padding: 16px; }
+  #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(14,10,18,0.93); backdrop-filter: blur(3px); padding: 16px; }
   #draft-overlay.show { display: flex; }
-  .draft-title { color: #f2e9d8; font-family: var(--font-main); font-weight: 700; font-size: clamp(18px, 4.5vw, 22px); text-align: center; }
-  .draft-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
-  .aug-card { width: 130px; background: linear-gradient(160deg, #2a2333, #1a1520); border: 1px solid rgba(201,162,39,0.5); border-radius: 10px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease; font-family: var(--font-main); }
-  .aug-card:hover { transform: translateY(-4px); border-color: var(--gold); }
-  .aug-icon { font-size: 30px; }
-  .aug-name { color: #f2e9d8; font-size: 15.5px; font-weight: 700; }
-  .aug-desc { color: #cfc5b8; font-size: 12.5px; line-height: 1.4; text-align: center; }
+  .draft-title { color: #f6eedf; font-family: var(--font-main); font-weight: 700; font-size: clamp(18px, 4.5vw, 23px); text-align: center; }
+  .draft-sub { color: #cdbfa6; font-family: var(--font-main); font-size: 13px; margin-top: -8px; }
+  .draft-cards { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: stretch; max-width: 100%; }
+  .aug-card { position: relative; width: 168px; background: linear-gradient(165deg, #342b40, #1f1927); border: 1.5px solid rgba(201,162,39,0.55); border-radius: 12px; padding: 16px 12px 14px; display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; font-family: var(--font-main); color: #f2e9d8; box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+  .aug-card:hover, .aug-card:focus-visible { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 10px 22px rgba(0,0,0,0.45), 0 0 0 1px var(--gold); outline: none; }
+  .aug-card.rare { border-color: rgba(214,120,255,0.75); background: linear-gradient(165deg, #3d2a4d, #211829); }
+  .aug-rarity { position: absolute; top: 7px; right: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; color: #e3b6ff; background: rgba(214,120,255,0.16); border: 1px solid rgba(214,120,255,0.45); border-radius: 999px; padding: 1px 7px; }
+  .aug-icon { font-size: 34px; line-height: 1.1; }
+  .aug-name { color: #fff7e8; font-size: 17px; font-weight: 700; letter-spacing: 0.01em; }
+  .aug-short { color: #f0c955; font-size: 13px; font-weight: 700; text-align: center; line-height: 1.35; word-break: keep-all; padding-bottom: 8px; border-bottom: 1px solid rgba(201,162,39,0.3); width: 100%; }
+  .aug-desc { color: #e4dccd; font-size: 13px; line-height: 1.55; text-align: center; word-break: keep-all; overflow-wrap: anywhere; }
   .hands { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 10px; font-family: var(--font-main); }
   .hand-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 10px; border-radius: 12px; }
   .hand-row.active-turn { background: rgba(169, 128, 68, 0.15); }
@@ -175,12 +179,18 @@
     .hand-card .hc-desc { display: none; }
     #draft-overlay { padding: 10px 8px; gap: 8px; justify-content: safe center; overflow-y: auto; }
     .draft-cards { flex-wrap: nowrap; gap: 6px; width: 100%; }
-    .aug-card { width: auto; flex: 1 1 0; min-width: 0; padding: 8px 5px; gap: 5px; }
-    .aug-icon { font-size: 24px; }
-    .aug-name { font-size: 13.5px; }
-    .aug-desc { font-size: 11px; line-height: 1.35; }
+    .draft-sub { font-size: 12px; margin-top: -4px; }
+    .aug-card { width: auto; flex: 1 1 0; min-width: 0; padding: 18px 6px 10px; gap: 5px; }
+    .aug-rarity { top: 4px; right: 50%; transform: translateX(50%); font-size: 9.5px; padding: 0 6px; }
+    .aug-icon { font-size: 26px; }
+    .aug-name { font-size: 14.5px; }
+    .aug-short { font-size: 11.5px; padding-bottom: 6px; }
+    .aug-desc { font-size: 11px; line-height: 1.45; }
     .code-input { font-size: 17px; letter-spacing: 2px; }
     .mode-btn { padding: 14px; }
+    .confirm-bar { gap: 8px; padding: 5px 8px 5px 14px; font-size: 13.5px; max-width: 100%; }
+    .confirm-bar button { padding: 5px 11px; }
+    #confirm-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   }
 
   .menu-screen, .lobby-screen, .game-screen { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -196,6 +206,12 @@
   .mode-icon { font-size: 32px; }
   .mode-name { font-size: 18.5px; font-weight: 700; }
   .mode-desc { font-family: var(--font-main); font-size: 13.5px; opacity: 0.7; }
+  .bot-level { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: -4px; font-family: var(--font-main); }
+  .bot-level-label { font-size: 13px; opacity: 0.7; }
+  .bot-level-options { display: flex; gap: 6px; }
+  .bot-level-options button { appearance: none; min-width: 48px; padding: 7px 0; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-family: inherit; font-size: 15px; cursor: pointer; }
+  .bot-level-options button[aria-checked="true"] { background: var(--line); color: var(--paper); font-weight: 700; }
+  .bot-level-hint { font-size: 12.5px; opacity: 0.65; text-align: center; min-height: 16px; }
   .menu-note { font-family: var(--font-main); font-size: 13.5px; opacity: 0.6; text-align: center; min-height: 16px; }
 
   .lobby-body { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -222,8 +238,13 @@
     <button class="mode-btn" id="mode-bot-btn">
       <div class="mode-icon">🤖</div>
       <div class="mode-name">봇전</div>
-      <div class="mode-desc">AI를 상대로 대전 (난이도 5/10)</div>
+      <div class="mode-desc" id="bot-mode-desc">AI를 상대로 대전 (난이도 5)</div>
     </button>
+    <div class="bot-level" role="radiogroup" aria-label="봇 난이도">
+      <span class="bot-level-label">봇 난이도</span>
+      <div class="bot-level-options" id="bot-level-options"></div>
+      <div class="bot-level-hint" id="bot-level-hint"></div>
+    </div>
     <button class="mode-btn" id="mode-mp-btn">
       <div class="mode-icon">🌐</div>
       <div class="mode-name">멀티플레이</div>
@@ -269,6 +290,7 @@
       <div id="banner"></div>
       <div id="draft-overlay">
         <div class="draft-title" id="draft-title">카드 획득</div>
+        <div class="draft-sub">한 장을 골라 패에 넣으세요</div>
         <div class="draft-cards" id="draft-cards"></div>
       </div>
     </div>
@@ -483,7 +505,6 @@
   let mpNotice = null, mpNoticeSeq = 0, lastSeenNoticeSeq = 0, mpBannerText = null;
   let mpShakeSeq = 0, lastSeenShakeSeq = 0;
   let mpRestartSeq = 0, lastSeenRestartSeq = 0;
-  const BOT_DIFFICULTY = 5; // 1~10
 
   function getCardPool() {
     return CARD_POOL; // 모든 모드에서 알까기 포함
@@ -600,7 +621,7 @@
     statusText.classList.add('alkkagi');
     statusText.textContent = alk.simulating
       ? '알까기 진행 중...'
-      : (flicker === BLACK ? '흑' : '백') + ' 알까기 — 아래쪽 돌을 당겼다 놓아 발사하세요';
+      : (flicker === BLACK ? '흑' : '백') + ' 알까기 · 아래 돌을 당겨 발사';
     cancelBtn.classList.remove('show');
   }
 
@@ -669,7 +690,7 @@
         pendingPlacement = null;
         pendingTargetCell = null;
         pendingCardUse = { player, idx };
-        showConfirmBar(`${card.name} 카드를 사용할까요?`);
+        showConfirmBar(`${card.name} 사용할까요?`);
       });
       container.appendChild(btn);
     });
@@ -997,10 +1018,10 @@
   function openDraft(player) {
     const picks = weightedSample(getCardPool(), 3);
     if (mode === 'bot' && player !== myColor) {
-      // 봇은 UI 없이 무작위로 한 장 선택
+      // 봇은 UI 없이 선택 (저난이도는 무작위, 고난이도는 강한 카드 우선)
       draftPlayer = player;
       draftOpen = false;
-      pickCardIntoHand(picks[Math.floor(Math.random() * picks.length)]);
+      pickCardIntoHand(botPickDraft(picks));
       return;
     }
     draftOpen = true;
@@ -1009,8 +1030,12 @@
     draftCardsEl.innerHTML = '';
     picks.forEach(card => {
       const btn = document.createElement('button');
-      btn.className = 'aug-card';
-      btn.innerHTML = `<div class="aug-icon">${card.icon}</div><div class="aug-name">${card.name}</div><div class="aug-desc">${card.desc}</div>`;
+      const rare = (card.weight || 10) <= 3;
+      const desc = card.desc.replace(/\s*\((가장 희귀|희귀 카드)\)/g, ''); // 희귀 표시는 배지로 대신함
+      btn.className = 'aug-card' + (rare ? ' rare' : '');
+      btn.innerHTML = (rare ? '<span class="aug-rarity">희귀</span>' : '') +
+        `<div class="aug-icon">${card.icon}</div><div class="aug-name">${card.name}</div>` +
+        `<div class="aug-short">${CARD_SHORT_DESC[card.id] || ''}</div><div class="aug-desc">${desc}</div>`;
       btn.addEventListener('click', () => pickCardIntoHand(card));
       draftCardsEl.appendChild(btn);
     });
@@ -2005,7 +2030,24 @@
     }
   }
 
-  // ================= 봇 AI (난이도 5/10) =================
+  // ================= 봇 AI (난이도 1 / 3 / 5 / 7 / 10) =================
+  // radius: 돌 주변 몇 칸까지 후보로 보는지 (인지 영역)
+  // depth: 몇 수 앞까지 읽는지 (0 = 현재 수만 평가), width: 탐색 시 각 단계에서 검토하는 후보 수
+  // topN: 상위 몇 개 후보 중 무작위로 고르는지, defense: 수비 가중치
+  // missChance: 상대 위협을 못 보고 넘어갈 확률, patterns: 띈 3·4·쌍삼 등 패턴 인식 여부
+  // smartCards: 카드를 상황에 맞게 쓰는지 (아니면 무작위), vcf: 연속 4로 끝내는 수순 탐색 여부
+  const BOT_LEVELS = {
+    1:  { radius: 1, depth: 0, width: 0,  topN: 6, defense: 0.5,  missChance: 0.4, patterns: false, smartCards: false, vcf: false },
+    3:  { radius: 2, depth: 0, width: 0,  topN: 3, defense: 0.85, missChance: 0.1, patterns: false, smartCards: false, vcf: false },
+    5:  { radius: 2, depth: 0, width: 0,  topN: 1, defense: 0.9,  missChance: 0,   patterns: true,  smartCards: true,  vcf: false },
+    7:  { radius: 2, depth: 2, width: 12, topN: 1, defense: 1,    missChance: 0,   patterns: true,  smartCards: true,  vcf: false },
+    10: { radius: 3, depth: 4, width: 10, topN: 1, defense: 1,    missChance: 0,   patterns: true,  smartCards: true,  vcf: true  },
+  };
+  const BOT_LEVEL_LIST = [1, 3, 5, 7, 10];
+  let botLevel = 5;
+  try { const saved = parseInt(localStorage.getItem('omok_bot_level'), 10); if (BOT_LEVELS[saved]) botLevel = saved; } catch (e) {}
+  function botCfg() { return BOT_LEVELS[botLevel] || BOT_LEVELS[5]; }
+
   let botTimer = null;
   function scheduleMaybeBotTurn() {
     if (botTimer) return;
@@ -2016,14 +2058,16 @@
     if (mode !== 'bot' || gameOver || draftOpen || pendingTarget || alk) return;
     const botColor = other(myColor);
     if (current !== botColor) return;
-    if (!usedCardThisTurn[botColor] && hand[botColor].length > 0 && Math.random() < 0.5) {
-      botUseCard(botColor);
+    if (!usedCardThisTurn[botColor] && hand[botColor].length > 0) {
+      if (botCfg().smartCards) botUseCardSmart(botColor);
+      else if (Math.random() < 0.5) botUseCard(botColor);
     }
     if (!gameOver && current === botColor && !draftOpen && !pendingTarget && !alk) {
       botPlaceStone(botColor);
     }
   }
 
+  // ---- 저난이도: 무작위 카드 사용 ----
   function botUseCard(botColor) {
     const opp = other(botColor);
     const usable = hand[botColor].map((c, i) => ({ c, i })).filter(({ c }) => {
@@ -2065,10 +2109,31 @@
     }
   }
 
-  function collectCandidates(player) {
+  // ---- 공통 보조 함수 ----
+  const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  function inBoard(r, c) { return r >= 0 && r < SIZE && c >= 0 && c < SIZE; }
+
+  // player가 둘 수 없는 칸 (상대 풍차 주변) 표시
+  function buildBlockedGrid(player) {
+    const g = new Uint8Array(SIZE * SIZE);
+    for (const w of windmillList) {
+      if (!isStone(board[w.r][w.c]) || board[w.r][w.c] === player) continue;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const r = w.r + dr, c = w.c + dc;
+        if (inBoard(r, c)) g[r * SIZE + c] = 1;
+      }
+    }
+    return g;
+  }
+  function makeBlocked() { return { [BLACK]: buildBlockedGrid(BLACK), [WHITE]: buildBlockedGrid(WHITE) }; }
+
+  function collectCandidates(player, radius, blocked, respectChain) {
+    radius = radius || 2;
     let any = false;
     for (let r = 0; r < SIZE && !any; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) { any = true; break; }
-    const chainActive = turnPlacementsDone > 0 && turnPlacedPositions.length > 0;
+    const chainActive = respectChain !== false && turnPlacementsDone > 0 && turnPlacedPositions.length > 0;
+    const isBlocked = (r, c) => blocked ? blocked[player][r * SIZE + c] : isBlockedForPlayer(r, c, player);
     function farEnough(r, c) {
       if (!chainActive) return true;
       return !turnPlacedPositions.some(p => Math.max(Math.abs(r - p.r), Math.abs(c - p.c)) <= 2);
@@ -2076,31 +2141,32 @@
     if (!any) return [{ r: 7, c: 7 }];
     const cands = [];
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
-      if (board[r][c] !== EMPTY || isBlockedForPlayer(r, c, player)) continue;
+      if (board[r][c] !== EMPTY || isBlocked(r, c)) continue;
       if (!farEnough(r, c)) continue;
       let near = false;
-      for (let dr = -2; dr <= 2 && !near; dr++) for (let dc = -2; dc <= 2 && !near; dc++) {
+      for (let dr = -radius; dr <= radius && !near; dr++) for (let dc = -radius; dc <= radius && !near; dc++) {
         const nr = r + dr, nc = c + dc;
-        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && isStone(board[nr][nc])) near = true;
+        if (inBoard(nr, nc) && isStone(board[nr][nc])) near = true;
       }
       if (near) cands.push({ r, c });
     }
     if (cands.length) return cands;
     const fallback = [];
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
-      if (board[r][c] === EMPTY && !isBlockedForPlayer(r, c, player) && farEnough(r, c)) fallback.push({ r, c });
+      if (board[r][c] === EMPTY && !isBlocked(r, c) && farEnough(r, c)) fallback.push({ r, c });
     }
-    return fallback.length ? fallback : [{ r: 7, c: 7 }];
+    return fallback;
   }
 
+  // ---- 저난이도용 단순 평가: 연속으로 붙은 돌만 셈 ----
   function lineScore(r, c, dr, dc, player) {
     let count = 1, openEnds = 0;
     let rr = r + dr, cc = c + dc;
-    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { count++; rr += dr; cc += dc; }
-    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === EMPTY) openEnds++;
+    while (inBoard(rr, cc) && board[rr][cc] === player) { count++; rr += dr; cc += dc; }
+    if (inBoard(rr, cc) && board[rr][cc] === EMPTY) openEnds++;
     rr = r - dr; cc = c - dc;
-    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { count++; rr -= dr; cc -= dc; }
-    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === EMPTY) openEnds++;
+    while (inBoard(rr, cc) && board[rr][cc] === player) { count++; rr -= dr; cc -= dc; }
+    if (inBoard(rr, cc) && board[rr][cc] === EMPTY) openEnds++;
 
     if (count >= winLength) return 10000000;
     const gap = winLength - count;
@@ -2110,27 +2176,366 @@
     return count * 2 + openEnds;
   }
 
-  function scoreCell(r, c, player) {
+  function simpleCellScore(r, c, player, defense) {
     const opp = other(player);
-    const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
     board[r][c] = player;
     let offense = 0;
-    for (const [dr, dc] of dirs) offense = Math.max(offense, lineScore(r, c, dr, dc, player));
+    for (const [dr, dc] of DIRS) offense = Math.max(offense, lineScore(r, c, dr, dc, player));
     board[r][c] = opp;
-    let defense = 0;
-    for (const [dr, dc] of dirs) defense = Math.max(defense, lineScore(r, c, dr, dc, opp));
+    let def = 0;
+    for (const [dr, dc] of DIRS) def = Math.max(def, lineScore(r, c, dr, dc, opp));
     board[r][c] = EMPTY;
-    return offense + defense * 0.85;
+    return offense + def * defense;
+  }
+
+  // ---- 패턴 인식: 한 방향으로 winLength 칸짜리 창(window)을 밀면서 모양을 판단 ----
+  // board[r][c]에 player 돌이 놓였다고 가정하고 호출
+  function lineShape(r, c, dr, dc, player, blk) {
+    const L = winLength;
+    let best = 0, winCell = -1, winCells = 0, near = 0;
+    for (let s = -(L - 1); s <= 0; s++) {
+      let n = 0, ok = true, empty = -1;
+      for (let k = 0; k < L; k++) {
+        const rr = r + (s + k) * dr, cc = c + (s + k) * dc;
+        if (!inBoard(rr, cc)) { ok = false; break; }
+        const v = board[rr][cc];
+        if (v === player) n++;
+        else if (v === EMPTY && !blk[rr * SIZE + cc]) empty = rr * SIZE + cc;
+        else { ok = false; break; }
+      }
+      if (!ok) continue;
+      if (n > best) best = n;
+      if (n === L - 1 && empty !== winCell) { if (winCell === -1 || winCells < 2) winCells++; winCell = empty; }
+      if (n === L - 2) near++;
+    }
+    return { best, winCells, near };
+  }
+
+  const P_FIVE = 10000000, P_OPEN4 = 1000000, P_FOUR = 100000, P_OPEN3 = 10000, P_THREE = 1000, P_OPEN2 = 300, P_TWO = 50;
+
+  // player가 (r,c)에 두었을 때의 공격 가치
+  function attackValue(r, c, player, blk) {
+    const L = winLength;
+    board[r][c] = player;
+    let score = 0, fours = 0, open3 = 0, five = false;
+    for (const [dr, dc] of DIRS) {
+      const s = lineShape(r, c, dr, dc, player, blk);
+      if (s.best >= L) { five = true; break; }
+      if (s.winCells >= 2) { score += P_OPEN4; fours += 2; }
+      else if (s.winCells === 1) { score += P_FOUR; fours++; }
+      else if (s.best === L - 2) { if (s.near >= 2) { score += P_OPEN3; open3++; } else score += P_THREE; }
+      else if (s.best === L - 3) score += s.near >= 1 ? P_OPEN2 : P_TWO;
+      else score += s.best;
+    }
+    board[r][c] = EMPTY;
+    if (five) return { score: P_FIVE, five: true, fours: 0 };
+    if (fours >= 2 || (fours >= 1 && open3 >= 1)) score += P_OPEN4 / 2; // 4-4, 4-3: 사실상 필승
+    else if (open3 >= 2) score += P_OPEN3 * 5;                           // 3-3
+    return { score, five: false, fours };
+  }
+
+  function patternCellScore(r, c, player, blocked, defense) {
+    const opp = other(player);
+    const a = attackValue(r, c, player, blocked[player]);
+    const d = blocked[opp][r * SIZE + c] ? { score: 0, five: false } : attackValue(r, c, opp, blocked[opp]);
+    return { score: a.score + d.score * defense, win: a.five, mustBlock: d.five, fours: a.fours };
+  }
+
+  // ---- 판 전체 평가 (탐색의 말단에서 사용) ----
+  function windowWeight(n) {
+    const g = winLength - n;
+    return g <= 0 ? 10000000 : g === 1 ? 800 : g === 2 ? 70 : g === 3 ? 8 : g === 4 ? 1 : 0;
+  }
+  function evalBoard(me, blocked) {
+    const opp = other(me), L = winLength;
+    let sMe = 0, sOpp = 0;
+    for (const [dr, dc] of DIRS) {
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+        const er = r + (L - 1) * dr, ec = c + (L - 1) * dc;
+        if (!inBoard(er, ec)) continue;
+        let nMe = 0, nOpp = 0, bMe = false, bOpp = false;
+        for (let k = 0; k < L; k++) {
+          const rr = r + k * dr, cc = c + k * dc, v = board[rr][cc];
+          if (v === me) nMe++;
+          else if (v === opp) nOpp++;
+          else { const i = rr * SIZE + cc; if (blocked[me][i]) bMe = true; if (blocked[opp][i]) bOpp = true; }
+        }
+        if (nOpp === 0 && nMe > 0 && !bMe) sMe += windowWeight(nMe);
+        if (nMe === 0 && nOpp > 0 && !bOpp) sOpp += windowWeight(nOpp);
+      }
+    }
+    return sMe - sOpp * 1.1;
+  }
+
+  // ---- 수 읽기 (알파-베타 탐색) ----
+  const WIN_SCORE = 1e9;
+  let searchDeadline = 0;
+
+  function orderedMoves(player, blocked, cfg, width, isRoot) {
+    const cands = collectCandidates(player, cfg.radius, blocked, isRoot);
+    const scored = [];
+    let blocks = [];
+    for (const p of cands) {
+      const s = patternCellScore(p.r, p.c, player, blocked, cfg.defense);
+      if (s.win) return { win: p, list: [p] };
+      if (s.mustBlock) blocks.push({ r: p.r, c: p.c, score: s.score });
+      scored.push({ r: p.r, c: p.c, score: s.score });
+    }
+    // 상대가 다음 수에 이기는 자리가 있으면 그 자리를 막는 수만 검토
+    const list = blocks.length ? blocks : scored;
+    list.sort((a, b) => b.score - a.score);
+    return { win: null, list: width ? list.slice(0, width) : list, forced: blocks.length > 0 };
+  }
+
+  function negamax(player, depth, alpha, beta, blocked, cfg) {
+    const moves = orderedMoves(player, blocked, cfg, cfg.width, false);
+    if (moves.win) return WIN_SCORE + depth;
+    if (!moves.list.length) return 0;
+    if (depth <= 0 || Date.now() > searchDeadline) return evalBoard(player, blocked);
+    const opp = other(player);
+    let best = -Infinity;
+    for (const m of moves.list) {
+      board[m.r][m.c] = player;
+      const v = -negamax(opp, depth - 1, -beta, -alpha, blocked, cfg);
+      board[m.r][m.c] = EMPTY;
+      if (v > best) best = v;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+
+  // ---- 연속 4(VCF) 탐색: 계속 4를 만들어 상대가 막을 수밖에 없게 몰아 이기는 수순 ----
+  function findWinCells(player, blk) {
+    const cells = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== EMPTY || blk[r * SIZE + c]) continue;
+      board[r][c] = player;
+      const w = checkWin(r, c, player);
+      board[r][c] = EMPTY;
+      if (w) cells.push({ r, c });
+    }
+    return cells;
+  }
+
+  function vcf(player, depth, blocked, isRoot) {
+    if (depth <= 0 || Date.now() > searchDeadline) return null;
+    const opp = other(player);
+    if (findWinCells(opp, blocked[opp]).length) return null; // 상대가 먼저 이길 수 있으면 불가
+    const cands = collectCandidates(player, 2, blocked, !!isRoot);
+    for (const p of cands) {
+      const a = attackValue(p.r, p.c, player, blocked[player]);
+      if (a.five) return p;
+      if (a.fours < 1) continue;
+      board[p.r][p.c] = player;
+      const wins = findWinCells(player, blocked[player]);
+      let ok = false;
+      if (wins.length >= 2) ok = true;
+      else if (wins.length === 1) {
+        const w = wins[0];
+        if (!blocked[opp][w.r * SIZE + w.c]) {
+          board[w.r][w.c] = opp;
+          ok = !checkWin(w.r, w.c, opp) && vcf(player, depth - 1, blocked) !== null;
+          board[w.r][w.c] = EMPTY;
+        } else ok = true; // 상대가 막을 수 없는 자리
+      }
+      board[p.r][p.c] = EMPTY;
+      if (ok) return p;
+    }
+    return null;
+  }
+
+  function botChooseMove(botColor) {
+    const cfg = botCfg();
+    const blocked = makeBlocked();
+    const opp = other(botColor);
+
+    if (!cfg.patterns) {
+      const cands = collectCandidates(botColor, cfg.radius, blocked, true);
+      if (!cands.length) return null;
+      const defense = Math.random() < cfg.missChance ? 0.1 : cfg.defense;
+      const scored = cands.map(p => ({ r: p.r, c: p.c, score: simpleCellScore(p.r, p.c, botColor, defense) }));
+      scored.sort((a, b) => b.score - a.score);
+      const pool = scored.slice(0, Math.min(cfg.topN, scored.length));
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    searchDeadline = Date.now() + 1500;
+    const root = orderedMoves(botColor, blocked, cfg, 0, true);
+    if (root.win) return root.win;
+    if (!root.list.length) return null;
+    if (root.forced && root.list.length === 1) return root.list[0];
+
+    if (cfg.vcf && !root.forced) {
+      const v = vcf(botColor, 8, blocked, true);
+      if (v) return v;
+    }
+
+    if (cfg.depth <= 0) return root.list[0];
+
+    const moves = root.list.slice(0, cfg.width);
+    let best = moves[0], bestVal = -Infinity, alpha = -Infinity;
+    for (const m of moves) {
+      board[m.r][m.c] = botColor;
+      const v = -negamax(opp, cfg.depth - 1, -Infinity, -alpha, blocked, cfg) + m.score * 1e-6; // 동점이면 패턴 점수가 높은 수
+      board[m.r][m.c] = EMPTY;
+      if (v > bestVal) { bestVal = v; best = m; }
+      if (v > alpha) alpha = v;
+      if (Date.now() > searchDeadline) break;
+    }
+    return best;
   }
 
   function botPlaceStone(botColor) {
-    const cands = collectCandidates(botColor);
-    const scored = cands.map(p => ({ r: p.r, c: p.c, score: scoreCell(p.r, p.c, botColor) }));
-    scored.sort((a, b) => b.score - a.score);
-    const topN = Math.max(1, Math.round((10 - BOT_DIFFICULTY) / 2) + 1);
-    const pool = scored.slice(0, Math.min(topN, scored.length));
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    handlePlace({ r: pick.r, c: pick.c });
+    const pick = botChooseMove(botColor);
+    if (pick) handlePlace({ r: pick.r, c: pick.c });
+    // 규칙상 거부된 경우(연속 착수 거리 제한 등) 둘 수 있는 자리 중 하나로 대신 둔다
+    if (pick && board[pick.r][pick.c] === EMPTY && current === botColor && !gameOver) {
+      const legal = collectCandidates(botColor, 2, null, true);
+      if (legal.length) {
+        const alt = legal.map(p => ({ p, s: simpleCellScore(p.r, p.c, botColor, 1) })).sort((a, b) => b.s - a.s)[0].p;
+        handlePlace(alt);
+      }
+    }
+  }
+
+  // ---- 고난이도: 상황을 보고 카드 사용 ----
+  function listStones(color) {
+    const out = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === color) out.push({ r, c });
+    return out;
+  }
+
+  function botUseCardSmart(botColor) {
+    const opp = other(botColor);
+    const blocked = makeBlocked();
+    const myWins = findWinCells(botColor, blocked[botColor]);
+    if (myWins.length) return; // 바로 이길 수 있으면 카드 없이 둔다
+    const oppWins = findWinCells(opp, blocked[opp]);
+    const base = evalBoard(botColor, blocked);
+    const oppHasCards = hand[opp].length > 0;
+    let best = null;
+    const consider = (idx, value, targets) => { if (value > 0 && (!best || value > best.value)) best = { idx, value, targets }; };
+
+    hand[botColor].forEach((card, idx) => {
+      switch (card.type) {
+        case 'chain_move':
+          consider(idx, 3000 + (oppWins.length >= 2 ? 50000 : 0));
+          break;
+        case 'remove_enemy': {
+          // 다음 턴을 쉬는 대가가 크므로, 상대의 막을 수 없는 위협을 끊을 때만 사용
+          if (oppWins.length < 2) break;
+          let bestT = null, bestGain = -Infinity;
+          for (const s of listStones(opp)) {
+            board[s.r][s.c] = EMPTY;
+            const remain = findWinCells(opp, blocked[opp]).length;
+            const gain = evalBoard(botColor, blocked) - base - remain * 1e6;
+            board[s.r][s.c] = opp;
+            if (gain > bestGain) { bestGain = gain; bestT = s; }
+          }
+          if (bestT) consider(idx, 40000, [bestT]);
+          break;
+        }
+        case 'windmill': {
+          // 상대가 둬야 할 자리를 풍차로 막는다
+          let bestT = null, bestGain = 0;
+          for (const s of listStones(botColor)) {
+            if (windmillList.some(w => w.r === s.r && w.c === s.c)) continue;
+            let gain = 0;
+            for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+              const r = s.r + dr, c = s.c + dc;
+              if ((!dr && !dc) || !inBoard(r, c) || board[r][c] !== EMPTY || blocked[opp][r * SIZE + c]) continue;
+              gain += Math.min(attackValue(r, c, opp, blocked[opp]).score, P_OPEN4);
+            }
+            if (gain > bestGain) { bestGain = gain; bestT = s; }
+          }
+          if (bestT && bestGain >= P_THREE) consider(idx, Math.min(bestGain, 60000), [bestT]);
+          break;
+        }
+        case 'trade': {
+          let bestPair = null, bestGain = 0;
+          const mine = listStones(botColor), theirs = listStones(opp);
+          for (const a of theirs) for (const b of mine) {
+            board[a.r][a.c] = botColor; board[b.r][b.c] = opp;
+            const makesWin = checkWin(a.r, a.c, botColor) || checkWin(b.r, b.c, opp);
+            const gain = makesWin ? -Infinity : evalBoard(botColor, blocked) - base;
+            board[a.r][a.c] = opp; board[b.r][b.c] = botColor;
+            if (gain > bestGain) { bestGain = gain; bestPair = [a, b]; }
+          }
+          if (bestPair && bestGain > 400) consider(idx, bestGain, bestPair);
+          break;
+        }
+        case 'six_sense': {
+          if (winLength === 6) break;
+          winLength = 6;
+          const gain = evalBoard(botColor, blocked) - base * 0.2; // 규칙이 바뀌면 점수 규모가 달라지므로 보정
+          const oppWins6 = findWinCells(opp, blocked[opp]).length;
+          winLength = 5;
+          if (oppWins.length && !oppWins6) consider(idx, 45000);
+          else if (gain > 800) consider(idx, gain);
+          break;
+        }
+        case 'reversal': {
+          const flipped = -evalBoard(botColor, blocked); // 색이 바뀌면 상대 관점 평가가 내 평가가 됨
+          if (flipped - base > 3000) consider(idx, flipped - base);
+          break;
+        }
+        case 'trap': {
+          // 상대가 가장 두고 싶어하는 자리 (내가 둘 자리와는 겹치지 않게)
+          const cands = collectCandidates(opp, 2, blocked, false)
+            .filter(p => !trapList.some(t => t.r === p.r && t.c === p.c))
+            .map(p => ({ p, s: attackValue(p.r, p.c, opp, blocked[opp]).score - attackValue(p.r, p.c, botColor, blocked[botColor]).score }))
+            .sort((a, b) => b.s - a.s);
+          if (cands.length) consider(idx, 1500, [cands[0].p]);
+          break;
+        }
+        case 'blockade':
+          if (oppHasCards) consider(idx, 1200);
+          break;
+        case 'infection': {
+          if (oppWins.length) break; // 턴이 끝나므로 막아야 할 때는 쓰지 않음
+          const targets = getOrthogonalEnemyNeighbors(botColor);
+          if (targets.length < 2) break;
+          let sum = 0;
+          for (const t of targets) {
+            board[t.r][t.c] = botColor;
+            sum += evalBoard(botColor, blocked) - base;
+            board[t.r][t.c] = opp;
+          }
+          const expected = (sum / targets.length) * Math.min(2, targets.length);
+          if (expected > 2500) consider(idx, expected);
+          break;
+        }
+        case 'earthquake':
+        case 'alkkagi':
+          // 무작위성이 큰 카드는 크게 불리할 때만
+          if (oppWins.length >= 2 || base < -4000) consider(idx, 800);
+          break;
+        case 'teleport':
+          break;
+      }
+    });
+
+    if (!best) return;
+    useCard(botColor, best.idx);
+    const t = pendingTarget;
+    if (!t || t.forPlayer !== botColor) return;
+    if (best.targets && best.targets.length) {
+      for (const pos of best.targets) {
+        if (!pendingTarget) break;
+        handleTargetClick(pos);
+      }
+      if (pendingTarget) cancelTarget();
+    } else {
+      resolveBotPendingTarget();
+    }
+  }
+
+  // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
+  const BOT_CARD_PRIORITY = ['chain', 'windmill', 'bomb', 'trap', 'sixsense', 'trade', 'blockade', 'infection', 'reversal', 'teleport', 'earthquake', 'alkkagi'];
+  function botPickDraft(picks) {
+    if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
+    return picks.slice().sort((a, b) => BOT_CARD_PRIORITY.indexOf(a.id) - BOT_CARD_PRIORITY.indexOf(b.id))[0];
   }
 
   // ---- 봇의 알까기 발사 판단 ----
@@ -2174,7 +2579,40 @@
 
   // ================= 메뉴 / 로비 UI =================
   modeLocalBtn.addEventListener('click', () => { mode = 'local'; myColor = BLACK; init(); showScreen('game'); });
-  modeBotBtn.addEventListener('click', () => { mode = 'bot'; myColor = BLACK; init(); showScreen('game'); });
+  modeBotBtn.addEventListener('click', () => {
+    mode = 'bot'; myColor = BLACK; init(); showScreen('game');
+    addLog(`🤖 봇 난이도 ${botLevel}`);
+  });
+
+  const BOT_LEVEL_HINTS = {
+    1: '입문 — 바로 옆만 보고, 위협을 자주 놓침',
+    3: '초급 — 붙은 돌만 세고 가끔 실수함',
+    5: '중급 — 띈 3·4, 쌍삼을 알아보고 카드를 상황에 맞게 씀',
+    7: '고급 — 2수 앞까지 읽음',
+    10: '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
+  };
+  const botLevelOptions = document.getElementById('bot-level-options');
+  const botLevelHint = document.getElementById('bot-level-hint');
+  const botModeDesc = document.getElementById('bot-mode-desc');
+  function renderBotLevel() {
+    botLevelOptions.innerHTML = '';
+    for (const lv of BOT_LEVEL_LIST) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(lv === botLevel));
+      b.textContent = lv;
+      b.addEventListener('click', () => {
+        botLevel = lv;
+        try { localStorage.setItem('omok_bot_level', String(lv)); } catch (e) {}
+        renderBotLevel();
+      });
+      botLevelOptions.appendChild(b);
+    }
+    botLevelHint.textContent = BOT_LEVEL_HINTS[botLevel];
+    botModeDesc.textContent = `AI를 상대로 대전 (난이도 ${botLevel})`;
+  }
+  renderBotLevel();
   modeMpBtn.addEventListener('click', () => {
     lobbyStatus.textContent = '';
     joinCodeInput.value = '';
