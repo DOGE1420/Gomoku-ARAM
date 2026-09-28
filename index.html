@@ -199,6 +199,9 @@
     .aug-desc { font-size: 11px; line-height: 1.45; }
     .code-input { font-size: 17px; letter-spacing: 2px; }
     .mode-btn { padding: 14px; }
+    .bot-level .bot-level-options { gap: 5px; }
+    .bot-level .bot-level-options button { min-width: 40px; font-size: 14px; }
+    .bot-level .bot-level-options button.ultimate { padding: 7px 10px; }
     .confirm-bar { gap: 8px; padding: 5px 8px 5px 14px; font-size: 13.5px; max-width: 100%; }
     .confirm-bar button { padding: 5px 11px; }
     #confirm-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -219,8 +222,9 @@
   .mode-desc { font-family: var(--font-main); font-size: 13.5px; opacity: 0.7; }
   .bot-level { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: -4px; font-family: var(--font-main); }
   .bot-level-label { font-size: 13px; opacity: 0.7; }
-  .bot-level-options { display: flex; gap: 6px; }
+  .bot-level-options { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .bot-level-options button { appearance: none; min-width: 48px; padding: 7px 0; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-family: inherit; font-size: 15px; cursor: pointer; }
+  .bot-level-options button.ultimate { padding: 7px 12px; border-color: #b8860b; }
   .bot-level-options button[aria-checked="true"] { background: var(--line); color: var(--paper); font-weight: 700; }
   .bot-level-hint { font-size: 12.5px; opacity: 0.65; text-align: center; min-height: 16px; }
   .menu-note { font-family: var(--font-main); font-size: 13.5px; opacity: 0.6; text-align: center; min-height: 16px; }
@@ -513,6 +517,8 @@
       'bot.hint.5': '중급 — 띈 3·4, 쌍삼을 알아보고 카드를 상황에 맞게 씀',
       'bot.hint.7': '고급 — 2수 앞까지 읽음',
       'bot.hint.10': '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
+      'bot.hint.20': '얼티밋 — 수당 약 2.5초 동안 최대한 깊이 읽고, 상대의 필승 수순까지 끊음',
+      'bot.ultimate': '얼티밋', 'bot.thinking': '🤖 봇이 생각 중...',
       'tgt.windmill': '풍차로 만들 내 돌을 클릭하세요', 'tgt.selfRemove': '제거할 내 돌을 클릭하세요',
       'tgt.remove': '제거할 상대 돌을 클릭하세요', 'tgt.trade1': '교환할 돌 하나를 클릭하세요 (반대 색 돌과 맞닿은 돌)',
       'tgt.trade2': '맞닿은 반대 색 돌을 클릭하세요', 'tgt.teleport': '이동시킬 내 돌을 클릭하세요', 'tgt.trap': '함정을 설치할 빈 칸을 클릭하세요',
@@ -588,6 +594,8 @@
       'bot.hint.5': 'Intermediate — spots split threes/fours and double threats, plays cards wisely',
       'bot.hint.7': 'Advanced — reads 2 moves ahead',
       'bot.hint.10': 'Master — reads 4 moves ahead and hunts forcing four sequences',
+      'bot.hint.20': 'Ultimate — thinks ~2.5s per move as deep as it can and breaks your forced wins',
+      'bot.ultimate': 'Ultimate', 'bot.thinking': '🤖 Bot is thinking...',
       'tgt.windmill': 'Click one of your stones to make a windmill', 'tgt.selfRemove': 'Click one of your stones to remove',
       'tgt.remove': "Click an opponent's stone to remove", 'tgt.trade1': 'Click a stone to swap (one touching an opposite color)',
       'tgt.trade2': 'Now click the touching opposite stone', 'tgt.teleport': 'Click one of your stones to teleport', 'tgt.trap': 'Click an empty cell to set a trap',
@@ -2426,11 +2434,14 @@
     5:  { radius: 2, depth: 0, width: 0,  topN: 1, defense: 0.9,  missChance: 0,   patterns: true,  smartCards: true,  vcf: false },
     7:  { radius: 2, depth: 2, width: 12, topN: 1, defense: 1,    missChance: 0,   patterns: true,  smartCards: true,  vcf: false },
     10: { radius: 3, depth: 4, width: 10, topN: 1, defense: 1,    missChance: 0,   patterns: true,  smartCards: true,  vcf: true  },
+    // 얼티밋: 시간 제한 안에서 최대한 깊이 읽음 (반복 심화 + 치환표 + 위협 가지치기 + 상대 VCF 차단)
+    20: { radius: 2, depth: 12, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, timeMs: 2500 },
   };
-  const BOT_LEVEL_LIST = [1, 3, 5, 7, 10];
+  const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20];
   let botLevel = 5;
   try { const saved = parseInt(localStorage.getItem('omok_bot_level'), 10); if (BOT_LEVELS[saved]) botLevel = saved; } catch (e) {}
   function botCfg() { return BOT_LEVELS[botLevel] || BOT_LEVELS[5]; }
+  function botLevelName(lv) { return lv === 20 ? t('bot.ultimate') : String(lv); }
 
   let botTimer = null;
   function scheduleMaybeBotTurn() {
@@ -2438,10 +2449,18 @@
     botTimer = setTimeout(() => { botTimer = null; maybeBotTurn(); }, 650);
   }
 
+  let botThinkingShown = false;
   function maybeBotTurn() {
     if (mode !== 'bot' || gameOver || draftOpen || pendingTarget || alk) return;
     const botColor = other(myColor);
     if (current !== botColor) return;
+    // 얼티밋은 계산이 길어서, 먼저 '생각 중' 표시를 그린 뒤 계산
+    if (botCfg().ultimate && !botThinkingShown) {
+      statusText.textContent = t('bot.thinking');
+      botThinkingShown = true;
+      setTimeout(() => { maybeBotTurn(); botThinkingShown = false; }, 30);
+      return;
+    }
     if (!usedCardThisTurn[botColor] && hand[botColor].length > 0) {
       if (botCfg().smartCards) botUseCardSmart(botColor);
       else if (Math.random() < 0.5) botUseCard(botColor);
@@ -2730,6 +2749,134 @@
     return null;
   }
 
+
+  // ---- 얼티밋: 반복 심화 + 치환표 + 위협 가지치기 + 양쪽 VCF 확인 ----
+  const ZOB = (() => {
+    const r32 = () => (Math.random() * 4294967296) >>> 0;
+    const z = { [BLACK]: [], [WHITE]: [] };
+    for (let i = 0; i < SIZE * SIZE; i++) { z[BLACK].push([r32(), r32() & 0x7FFFF]); z[WHITE].push([r32(), r32() & 0x7FFFF]); }
+    return z;
+  })();
+  const U_WIDTHS = [14, 10, 8, 7, 6, 5, 5, 4, 4, 4, 4, 4];
+  let uTT = new Map(), uAborted = false, uNodes = 0;
+
+  function uHashBoard() {
+    let h1 = 0, h2 = 0;
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const v = board[r][c];
+      if (isStone(v)) { const z = ZOB[v][r * SIZE + c]; h1 ^= z[0]; h2 ^= z[1]; }
+    }
+    return [h1 >>> 0, h2];
+  }
+  function uKey(h, player) { return ((h[0] * 524288 + h[1]) * 2) + (player === BLACK ? 0 : 1); }
+  function uPlace(h, r, c, player) { const z = ZOB[player][r * SIZE + c]; return [(h[0] ^ z[0]) >>> 0, h[1] ^ z[1]]; }
+
+  // 후보 정렬 + 위협 가지치기: 상대가 이기는 자리 → 그 자리만, 상대가 열린 4를 만들 자리 → 막는 수·내 4만
+  function uOrdered(player, blocked, width, isRoot) {
+    const opp = other(player);
+    const cands = collectCandidates(player, 2, blocked, isRoot);
+    const all = [], blocks = [], critical = [];
+    for (const p of cands) {
+      const i = p.r * SIZE + p.c;
+      const a = attackValue(p.r, p.c, player, blocked[player]);
+      if (a.five) return { win: p, list: [p] };
+      const d = blocked[opp][i] ? { score: 0, five: false } : attackValue(p.r, p.c, opp, blocked[opp]);
+      const m = { r: p.r, c: p.c, score: a.score + d.score * 0.95 };
+      all.push(m);
+      if (d.five) blocks.push(m);
+      else if (d.score >= P_OPEN4 || a.fours >= 1) critical.push(m);
+    }
+    let list = all, forced = false;
+    if (blocks.length) { list = blocks; forced = true; }
+    else if (critical.length && critical.some(m => m.score >= P_OPEN4 * 0.9)) list = critical;
+    list.sort((a, b) => b.score - a.score);
+    return { win: null, list: width ? list.slice(0, width) : list, forced };
+  }
+
+  function uSearch(player, depth, alpha, beta, blocked, h, ply) {
+    if ((++uNodes & 255) === 0 && Date.now() > searchDeadline) uAborted = true;
+    if (uAborted) return 0;
+    const key = uKey(h, player);
+    const e = uTT.get(key);
+    const alpha0 = alpha;
+    if (e && e.depth >= depth) {
+      if (e.flag === 0) return e.value;
+      if (e.flag === 1 && e.value > alpha) alpha = e.value;
+      else if (e.flag === 2 && e.value < beta) beta = e.value;
+      if (alpha >= beta) return e.value;
+    }
+    const moves = uOrdered(player, blocked, U_WIDTHS[Math.min(ply, U_WIDTHS.length - 1)], false);
+    if (moves.win) return WIN_SCORE - ply;
+    if (!moves.list.length) return 0;
+    if (depth <= 0) return evalBoard(player, blocked);
+    if (e && e.best !== undefined) {
+      const bi = moves.list.findIndex(m => m.r * SIZE + m.c === e.best);
+      if (bi > 0) moves.list.unshift(moves.list.splice(bi, 1)[0]);
+    }
+    const opp = other(player);
+    let best = -Infinity, bestIdx;
+    for (const m of moves.list) {
+      board[m.r][m.c] = player;
+      const v = -uSearch(opp, depth - 1, -beta, -alpha, blocked, uPlace(h, m.r, m.c, player), ply + 1);
+      board[m.r][m.c] = EMPTY;
+      if (uAborted) return 0;
+      if (v > best) { best = v; bestIdx = m.r * SIZE + m.c; }
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    uTT.set(key, { depth, value: best, flag: best <= alpha0 ? 2 : best >= beta ? 1 : 0, best: bestIdx });
+    return best;
+  }
+
+  function ultimateChooseMove(botColor, blocked, budgetMs) {
+    const opp = other(botColor);
+    searchDeadline = Date.now() + budgetMs;
+    const root = uOrdered(botColor, blocked, 0, true);
+    if (root.win) return root.win;
+    if (!root.list.length) return null;
+    if (root.forced && root.list.length === 1) return root.list[0];
+
+    if (!root.forced) {
+      const v = vcf(botColor, 14, blocked, true);
+      if (v) return v;
+    }
+
+    let moves = root.list.slice(0, 16);
+    // 상대에게 연속 4로 이기는 수순이 있으면, 그걸 끊는 수만 남긴다
+    if (!root.forced && vcf(opp, 12, blocked, false)) {
+      const safe = moves.filter(m => {
+        board[m.r][m.c] = botColor;
+        const threat = vcf(opp, 12, blocked, false);
+        board[m.r][m.c] = EMPTY;
+        return !threat;
+      });
+      if (safe.length) moves = safe;
+    }
+    if (moves.length === 1) return moves[0];
+
+    uTT = new Map(); uAborted = false; uNodes = 0;
+    const h0 = uHashBoard();
+    let bestMove = moves[0];
+    for (let depth = 2; depth <= 12; depth++) {
+      let iterBest = null, iterVal = -Infinity, alpha = -Infinity;
+      // 직전 반복의 최선 수를 먼저 탐색
+      const ordered = [bestMove].concat(moves.filter(m => m !== bestMove));
+      for (const m of ordered) {
+        board[m.r][m.c] = botColor;
+        const v = -uSearch(opp, depth - 1, -Infinity, -alpha, blocked, uPlace(h0, m.r, m.c, botColor), 1) + m.score * 1e-7;
+        board[m.r][m.c] = EMPTY;
+        if (uAborted) break;
+        if (v > iterVal) { iterVal = v; iterBest = m; }
+        if (v > alpha) alpha = v;
+      }
+      if (uAborted) { if (iterBest && iterVal > -WIN_SCORE / 2 && iterBest === ordered[0]) bestMove = iterBest; break; }
+      bestMove = iterBest || bestMove;
+      if (iterVal >= WIN_SCORE / 2) break; // 이기는 수순을 찾음
+      if (Date.now() > searchDeadline - budgetMs * 0.45) break; // 다음 깊이를 끝낼 시간이 부족
+    }
+    return bestMove;
+  }
+
   function botChooseMove(botColor) {
     const cfg = botCfg();
     const blocked = makeBlocked();
@@ -2744,6 +2891,8 @@
       const pool = scored.slice(0, Math.min(cfg.topN, scored.length));
       return pool[Math.floor(Math.random() * pool.length)];
     }
+
+    if (cfg.ultimate) return ultimateChooseMove(botColor, blocked, turnPlacementsDone > 0 ? 900 : cfg.timeMs);
 
     searchDeadline = Date.now() + 1500;
     const root = orderedMoves(botColor, blocked, cfg, 0, true);
@@ -3002,7 +3151,7 @@
   modeLocalBtn.addEventListener('click', () => { mode = 'local'; myColor = BLACK; init(); showScreen('game'); });
   modeBotBtn.addEventListener('click', () => {
     mode = 'bot'; myColor = BLACK; init(); showScreen('game');
-    addLog(L('bot.log', { n: botLevel }));
+    addLog(L('bot.log', { n: botLevelName(botLevel) }));
   });
 
   const botLevelOptions = document.getElementById('bot-level-options');
@@ -3015,7 +3164,8 @@
       b.type = 'button';
       b.setAttribute('role', 'radio');
       b.setAttribute('aria-checked', String(lv === botLevel));
-      b.textContent = lv;
+      b.textContent = botLevelName(lv);
+      if (lv === 20) b.classList.add('ultimate');
       b.addEventListener('click', () => {
         botLevel = lv;
         try { localStorage.setItem('omok_bot_level', String(lv)); } catch (e) {}
@@ -3024,7 +3174,7 @@
       botLevelOptions.appendChild(b);
     }
     botLevelHint.textContent = t('bot.hint.' + botLevel);
-    botModeDesc.textContent = t('mode.bot.desc', { n: botLevel });
+    botModeDesc.textContent = t('mode.bot.desc', { n: botLevelName(botLevel) });
   }
   renderBotLevel();
   modeMpBtn.addEventListener('click', () => {
@@ -3091,7 +3241,7 @@
       myColor = newColor;
       init();
       addLog(L(newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond'));
-      addLog(L('bot.log', { n: botLevel }));
+      addLog(L('bot.log', { n: botLevelName(botLevel) }));
     }
   });
 
