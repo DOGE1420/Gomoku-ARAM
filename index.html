@@ -428,7 +428,7 @@
     { id: 'windmill', name: '풍차', icon: '🎡', desc: '내 돌 1개를 풍차로 만듭니다. 주변 8칸은 상대가 둘 수 없습니다.', type: 'windmill', weight: 10 },
     { id: 'sixsense', name: '식스센스', icon: '👁️', desc: '승리 조건이 5목에서 6목으로 영구히 바뀝니다.', type: 'six_sense', weight: 8 },
     { id: 'trade', name: '맞교환', icon: '🔄', desc: '상하좌우로 맞닿은 흑돌과 백돌 한 쌍을 골라 서로 색을 바꿉니다. 사용 즉시 내 턴이 종료됩니다.', type: 'trade', weight: 10 },
-    { id: 'bomb', name: '폭파', icon: '💥', desc: '상대 돌 1개를 제거합니다. 대가로 다음 내 턴을 건너뜁니다.', type: 'remove_enemy', weight: 5 },
+    { id: 'bomb', name: '폭파', icon: '💥', desc: '상대 돌 1개를 제거합니다. 터진 자리는 폭파 구멍이 되어 2턴 동안 아무도 둘 수 없습니다.', type: 'remove_enemy', weight: 5 },
     { id: 'reversal', name: '전세 역전', icon: '☯️', desc: '보드의 모든 흑돌과 백돌을 통째로 뒤바꿉니다. 사용 즉시 내 턴이 종료됩니다. (가장 희귀)', type: 'reversal', weight: 2 },
     { id: 'alkkagi', name: '알까기 모드', icon: '🪀', desc: '흑, 백 순서로 한 번씩 알까기로 새 돌을 발사합니다. 흩어진 돌은 가장 가까운 자리로 고정됩니다.', type: 'alkkagi', weight: 8 },
     { id: 'teleport', name: '순간이동', icon: '✨', desc: '내 돌 1개를 무작위 빈 칸으로 이동시킵니다.', type: 'teleport', weight: 12 },
@@ -444,7 +444,7 @@
     windmill: '내 돌 주변 8칸 봉쇄',
     sixsense: '승리 조건 6목으로',
     trade: '맞닿은 흑·백 돌 색 교환 (턴 종료)',
-    bomb: '상대 돌 1개 제거 (다음 턴 휴식)',
+    bomb: '상대 돌 1개 제거 (2턴간 그 자리 착수 금지)',
     reversal: '모든 돌 색 반전 (턴 종료)',
     alkkagi: '알까기로 새 돌 발사',
     teleport: '내 돌 1개 무작위 이동',
@@ -460,7 +460,7 @@
     windmill: { name: 'Windmill', desc: 'Turn one of your stones into a windmill. Your opponent cannot play on the 8 cells around it.', short: 'Block 8 cells around a stone' },
     sixsense: { name: 'Sixth Sense', desc: 'The win condition permanently changes from 5 to 6 in a row.', short: '6 in a row to win' },
     trade: { name: 'Swap', desc: 'Pick a black and a white stone touching up/down/left/right and swap their colors. Your turn ends immediately.', short: 'Swap touching B/W stones (turn ends)' },
-    bomb: { name: 'Bomb', desc: "Remove one of your opponent's stones. In return, you skip your next turn.", short: 'Remove 1 enemy stone (skip next turn)' },
+    bomb: { name: 'Bomb', desc: "Remove one of your opponent's stones. The blast leaves a crater that nobody can play on for 2 turns.", short: 'Remove 1 enemy stone (crater for 2 turns)' },
     reversal: { name: 'Reversal', desc: 'Swap the colors of every black and white stone on the board. Your turn ends immediately.', short: 'Flip every stone (turn ends)' },
     alkkagi: { name: 'Flick Mode', desc: 'Black, then White, each flick a new stone onto the board. Scattered stones snap to the nearest point.', short: 'Flick a new stone in' },
     teleport: { name: 'Teleport', desc: 'Move one of your stones to a random empty cell.', short: 'Move 1 stone at random' },
@@ -536,7 +536,7 @@
       'log.noEmptyTrap': '{color}: 함정을 설치할 빈 칸 없음', 'log.noInfectTarget': '{color}: 감염시킬 인접 상대 돌 없음',
       'log.noSafeInfect': '{color}: 감염할 수 있는 안전한 대상 없음 (오목/육목 완성 방지)',
       'log.infectUsed': '{color}: {icon} 감염 발동 — 상대 돌 {n}개 전향 (턴 종료)',
-      'log.bombDone': '{color}: 💥 상대 돌 제거 (대가: 다음 턴 건너뜀)', 'log.selfRemove': '{color}: 🫳 내 돌 회수',
+      'log.bombDone': '{color}: 💥 상대 돌 제거 — 그 자리는 2턴 동안 착수 금지', 'log.craterBlocked': '💥 폭파 구멍이라 아직 둘 수 없는 칸입니다', 'log.selfRemove': '{color}: 🫳 내 돌 회수',
       'log.noEmptyCell': '이동할 빈 칸이 없습니다', 'log.teleportDone': '{color}: ✨ 순간이동 발동',
       'log.trapExists': '이미 함정이 있는 칸입니다. 다른 칸을 클릭하세요',
       'log.trapSet': '⚠️ {color}이(가) 함정을 설치했습니다! 상대는 조심하세요', 'notice.trapSet': '⚠️ 상대가 함정을 설치했습니다! 조심하세요',
@@ -611,7 +611,7 @@
       'log.noEmptyTrap': '{color}: no empty cell for a trap', 'log.noInfectTarget': '{color}: no touching enemy stone to infect',
       'log.noSafeInfect': '{color}: no safe target to infect (it would complete a line)',
       'log.infectUsed': '{color}: {icon} Infection — {n} enemy stone(s) converted (turn ends)',
-      'log.bombDone': '{color}: 💥 removed an enemy stone (cost: skips next turn)', 'log.selfRemove': '{color}: 🫳 took back a stone',
+      'log.bombDone': '{color}: 💥 removed an enemy stone — nobody can play there for 2 turns', 'log.craterBlocked': "💥 That cell is a bomb crater — you can't play there yet", 'log.selfRemove': '{color}: 🫳 took back a stone',
       'log.noEmptyCell': 'No empty cell to move to', 'log.teleportDone': '{color}: ✨ Teleport!',
       'log.trapExists': 'There is already a trap here. Pick another cell',
       'log.trapSet': '⚠️ {color} set a trap! Watch your step', 'notice.trapSet': '⚠️ Your opponent set a trap! Be careful',
@@ -720,6 +720,19 @@
   let pendingCardUse = null;    // { player, idx } — 확인 대기 중인 카드 사용
   let pendingTargetCell = null; // { r, c } — 확인 대기 중인 카드 대상 선택
   let trapList; // { r, c, owner }[]
+  // 폭파 구멍: 터진 자리 { r, c, turns, fresh } — 폭파한 턴 + 이후 2턴 동안 누구도 착수 불가
+  let craterList = [];
+  function isCrater(r, c) { return craterList.some(cr => cr.r === r && cr.c === c); }
+  // 턴이 넘어갈 때 호출: 폭파한 턴이 끝나면(fresh) 그대로 두고, 이후 턴마다 1씩 줄여 0이 되면 제거
+  function tickCraters() {
+    craterList = craterList.filter(cr => {
+      if (cr.fresh) { cr.fresh = false; return true; }
+      cr.turns--;
+      return cr.turns > 0;
+    });
+  }
+  // 알까기·지진 등으로 돌이 들어간 구멍은 메워진 것으로 처리
+  function pruneCraters() { craterList = craterList.filter(cr => board[cr.r][cr.c] === EMPTY); }
   let cardLockNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 다음 턴 카드 사용 봉쇄
   let skipNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 폭파/전세역전 대가로 다음 내 턴을 건너뜀
   let startupQueue; // 게임 시작 시 초기 카드 뽑기 순서 (흑→백)
@@ -806,6 +819,7 @@
     pendingCardUse = null;
     pendingTargetCell = null;
     trapList = [];
+    craterList = [];
     cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
     skipNextTurn = { [BLACK]: false, [WHITE]: false };
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
@@ -993,6 +1007,21 @@
       return;
     }
 
+    craterList.forEach(cr => {
+      if (board[cr.r][cr.c] !== EMPTY) return;
+      const p = cellCenter(cr.r, cr.c);
+      const g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, CELL * 0.46);
+      g.addColorStop(0, 'rgba(40,20,10,0.85)');
+      g.addColorStop(0.7, 'rgba(90,45,20,0.55)');
+      g.addColorStop(1, 'rgba(90,45,20,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.46, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd27a';
+      ctx.font = 'bold ' + Math.round(CELL * 0.36) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(cr.turns), p.x, p.y + 1);
+    });
+
     windmillList.forEach(w => {
       if (!isStone(board[w.r][w.c])) return;
       const p = cellCenter(w.r, w.c);
@@ -1102,7 +1131,7 @@
     const { r, c } = pos;
     if (board[r][c] !== EMPTY) return;
     if (isBlockedForPlayer(r, c, current)) {
-      addLog(L('log.windmillBlocked'));
+      addLog(L(isCrater(r, c) ? 'log.craterBlocked' : 'log.windmillBlocked'));
       return;
     }
     pendingCardUse = null;
@@ -1112,6 +1141,7 @@
   }
 
   function isBlockedForPlayer(r, c, player) {
+    if (isCrater(r, c)) return true;
     for (const w of windmillList) {
       if (!isStone(board[w.r][w.c])) continue;
       if (board[w.r][w.c] === player) continue;
@@ -1125,7 +1155,7 @@
     const { r, c } = pos;
     if (board[r][c] !== EMPTY) return;
     if (isBlockedForPlayer(r, c, current)) {
-      addLog(L('log.windmillBlocked'));
+      addLog(L(isCrater(r, c) ? 'log.craterBlocked' : 'log.windmillBlocked'));
       return;
     }
     if (turnPlacementsDone > 0 && turnPlacedPositions.length > 0) {
@@ -1188,6 +1218,7 @@
   }
 
   function passTurn() {
+    tickCraters();
     current = other(current);
     turnPlacementsDone = 0;
     turnPlacementsNeeded = 1;
@@ -1431,6 +1462,7 @@
         const key = nr + ',' + nc;
         if (occSet.has(key)) continue;      // 원래 다른 돌이 있던 칸은 제외
         if (claimed.has(key)) continue;      // 이번 지진에서 이미 배정된 칸은 제외
+        if (isCrater(nr, nc)) continue;      // 폭파 구멍으로는 이동하지 않음
         neighbors.push({ r: nr, c: nc, key });
       }
       if (neighbors.length > 0) {
@@ -1656,7 +1688,8 @@
     if (t.type === 'remove' && board[r][c] === t.opponent) {
       board[r][c] = EMPTY;
       moveHistory = moveHistory.filter(m => !(m.r === r && m.c === c));
-      skipNextTurn[t.forPlayer] = true;
+      trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
+      craterList.push({ r, c, turns: 2, fresh: true });
       addLog(L('log.bombDone', C));
       resolved = true;
 
@@ -1938,6 +1971,7 @@
     });
     if (newStonePos) lastMovePos = newStonePos;
     pruneInvalidTraps();
+    pruneCraters();
     draw();
 
     const turnOrder = alk.turnOrder;
@@ -1991,7 +2025,7 @@
     const alkOrderNow = alk ? alk.turnOrder : (alkHandoff ? alkHandoff.turnOrder : null);
     const alkIndexNow = alk ? alk.turnIndex : (alkHandoff ? alkHandoff.turnIndex : null);
     return {
-      board: flattenBoard(), current, winLength, windmillList,
+      board: flattenBoard(), current, winLength, windmillList, craterList,
       turnPlacementsDone, turnPlacementsNeeded,
       usedCardThisTurn, cardLockNextTurn, skipNextTurn, placedCount,
       gameOver, winLine, lastMovePos,
@@ -2084,6 +2118,7 @@
     if (data.current) current = data.current;
     if (data.winLength) winLength = data.winLength;
     windmillList = data.windmillList || [];
+    craterList = data.craterList || [];
     turnPlacementsDone = data.turnPlacementsDone || 0;
     turnPlacementsNeeded = data.turnPlacementsNeeded || 1;
     usedCardThisTurn = data.usedCardThisTurn || { [BLACK]: false, [WHITE]: false };
@@ -2298,6 +2333,7 @@
     pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
     alk = null; alkHandoff = null;
     trapList = [];
+    craterList = [];
     hand = { [BLACK]: [], [WHITE]: [] }; // 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
     logLines = [];
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null; lastBannerMsg = null;
@@ -2348,6 +2384,7 @@
       current = data.current || BLACK;
       winLength = data.winLength || 5;
       windmillList = data.windmillList || [];
+      craterList = data.craterList || [];
       turnPlacementsDone = data.turnPlacementsDone || 0;
       turnPlacementsNeeded = data.turnPlacementsNeeded || 1;
       turnPlacedPositions = [];
@@ -2463,6 +2500,7 @@
   // player가 둘 수 없는 칸 (상대 풍차 주변) 표시
   function buildBlockedGrid(player) {
     const g = new Uint8Array(SIZE * SIZE);
+    for (const cr of craterList) g[cr.r * SIZE + cr.c] = 1;
     for (const w of windmillList) {
       if (!isStone(board[w.r][w.c]) || board[w.r][w.c] === player) continue;
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
@@ -2770,17 +2808,20 @@
           consider(idx, 3000 + (oppWins.length >= 2 ? 50000 : 0));
           break;
         case 'remove_enemy': {
-          // 다음 턴을 쉬는 대가가 크므로, 상대의 막을 수 없는 위협을 끊을 때만 사용
-          if (oppWins.length < 2) break;
+          // 대가가 없으므로 상대 공격의 핵심 돌을 끊는 데 사용 (터진 자리는 2턴간 막힘)
           let bestT = null, bestGain = -Infinity;
           for (const s of listStones(opp)) {
             board[s.r][s.c] = EMPTY;
+            blocked[opp][s.r * SIZE + s.c] = 1; blocked[botColor][s.r * SIZE + s.c] = 1;
             const remain = findWinCells(opp, blocked[opp]).length;
             const gain = evalBoard(botColor, blocked) - base - remain * 1e6;
+            blocked[opp][s.r * SIZE + s.c] = 0; blocked[botColor][s.r * SIZE + s.c] = 0;
             board[s.r][s.c] = opp;
             if (gain > bestGain) { bestGain = gain; bestT = s; }
           }
-          if (bestT) consider(idx, 40000, [bestT]);
+          if (!bestT) break;
+          if (oppWins.length >= 2) consider(idx, 40000, [bestT]);
+          else if (bestGain > 700) consider(idx, 2000 + bestGain, [bestT]);
           break;
         }
         case 'windmill': {
