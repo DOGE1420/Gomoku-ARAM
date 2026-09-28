@@ -756,6 +756,9 @@
   let trapList; // { r, c, owner }[]
   // 폭파 구멍: 터진 자리 { r, c, turns, fresh } — 폭파한 턴 + 이후 2턴 동안 누구도 착수 불가
   let craterList = [];
+  // 멀티플레이 알까기 관전: 내가 보낸 발사 정보 / 상대 알까기를 내 화면에 재현하는 상태
+  let mpAlkLaunch = null;
+  let alkView = null, lastSeenLaunchId = null, lastPublicData = null;
   function isCrater(r, c) { return craterList.some(cr => cr.r === r && cr.c === c); }
   // 턴이 넘어갈 때 호출: 폭파한 턴이 끝나면(fresh) 그대로 두고, 이후 턴마다 1씩 줄여 0이 되면 제거
   function tickCraters() {
@@ -854,6 +857,7 @@
     pendingTargetCell = null;
     trapList = [];
     craterList = [];
+    alkView = null; mpAlkLaunch = null;
     cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
     skipNextTurn = { [BLACK]: false, [WHITE]: false };
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
@@ -1045,6 +1049,23 @@
         ctx.setLineDash([]);
         ctx.fillStyle = getVar('--gold');
         ctx.beginPath(); ctx.arc(alk.dragCurrent.x, alk.dragCurrent.y, 6, 0, Math.PI * 2); ctx.fill();
+      }
+      return;
+    }
+
+    // 상대의 알까기: 조준 모습과 발사 후 움직임을 그대로 보여줌
+    if (alkView) {
+      alkView.physStones.forEach(s => drawStoneAt(s.x, s.y, s.color));
+      if (!alkView.playing && alkView.aim && alkView.newIndex !== undefined) {
+        const ns = alkView.physStones[alkView.newIndex];
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 3; ctx.setLineDash([6, 5]);
+        ctx.beginPath(); ctx.moveTo(ns.x, ns.y); ctx.lineTo(alkView.aim.x, alkView.aim.y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = getVar('--gold');
+        ctx.beginPath(); ctx.arc(alkView.aim.x, alkView.aim.y, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
       return;
     }
@@ -1898,13 +1919,73 @@
     if (Math.hypot(pos.x - ns.x, pos.y - ns.y) <= CELL * 0.9) {
       alk.dragging = true;
       alk.dragCurrent = pos;
+      sendAlkAim(pos, true);
       draw();
     }
   }
   function updateDrag(pos) {
     if (!alk || !alk.dragging) return;
     alk.dragCurrent = pos;
+    sendAlkAim(pos, false);
     draw();
+  }
+
+  // ---- 멀티플레이 알까기 관전: 조준 위치는 가끔, 발사는 출발 상태 전체를 한 번 전송 ----
+  let lastAimSent = 0;
+  function sendAlkAim(pos, force) {
+    if (mode !== 'multiplayer' || !dbApi || !roomCode || !alk) return;
+    const now = Date.now();
+    if (!force && now - lastAimSent < 150) return;
+    lastAimSent = now;
+    const aim = pos ? { turnIndex: alk.turnIndex, color: myColor, x: Math.round(pos.x), y: Math.round(pos.y) } : null;
+    dbApi.updatePath('games/' + roomCode, { alkAim: aim }).catch(() => {});
+  }
+  function broadcastAlkLaunch() {
+    if (mode !== 'multiplayer' || !alk) return;
+    mpAlkLaunch = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      turnIndex: alk.turnIndex, color: myColor,
+      stones: alk.physStones.map(s => ({ x: s.x, y: s.y, vx: s.vx, vy: s.vy, color: s.color, isNew: !!s.isNew, isWindmill: !!s.isWindmill })),
+    };
+    syncPublicState();
+  }
+
+  // 상대가 알까기 중일 때 내 화면에 보여줄 상태 { physStones, newIndex, turnIndex, aim, playing, frame }
+  function updateAlkSpectate(data) {
+    if (mode !== 'multiplayer') { alkView = null; return; }
+    const launch = data.alkLaunch;
+    if (launch && launch.id !== lastSeenLaunchId && launch.color !== myColor && Array.isArray(launch.stones)) {
+      lastSeenLaunchId = launch.id;
+      alkView = { physStones: launch.stones.map(s => Object.assign({}, s)), playing: true, frame: 0, aim: null };
+      requestAnimationFrame(spectateAlkTick);
+      return;
+    }
+    if (alkView && alkView.playing) return;
+    const turnOrder = data.alkTurnOrder, turnIndex = data.alkTurnIndex;
+    const flicker = data.alkActive && turnOrder && typeof turnIndex === 'number' ? turnOrder[turnIndex] : null;
+    if (!flicker || flicker === myColor) { alkView = null; return; }
+    if (!alkView || alkView.turnIndex !== turnIndex) {
+      // 동기화된 판에서 상대가 쏠 돌의 출발 상태를 똑같이 만든다
+      const phys = buildPhysFromBoard();
+      phys.push({ x: GRID_OFFSET_X + GRID_SPAN / 2, y: PAD + GRID_SPAN + EXTRA_BOTTOM / 2, vx: 0, vy: 0, color: flicker, isNew: true, isWindmill: false });
+      alkView = { physStones: phys, newIndex: phys.length - 1, turnIndex, playing: false, aim: null };
+    }
+    const aim = data.alkAim;
+    alkView.aim = aim && aim.turnIndex === turnIndex && aim.color === flicker ? aim : null;
+  }
+  function spectateAlkTick() {
+    if (!alkView || !alkView.playing) return;
+    alkPhysStep(alkView.physStones);
+    alkView.frame++;
+    draw();
+    if (alkMaxSpeed(alkView.physStones) < ALK_MIN_SPEED || alkView.frame > ALK_MAX_FRAMES) {
+      // 재생이 끝나면 발사한 쪽이 보낸 최종 판으로 맞춘다
+      alkView = null;
+      if (lastPublicData) { updateAlkSpectate(lastPublicData); syncAlkFromPublic(lastPublicData); }
+      updateStatus(); updatePips(); updateHandUI(); draw();
+    } else {
+      requestAnimationFrame(spectateAlkTick);
+    }
   }
   function releaseDrag(pos) {
     if (!alk || !alk.dragging) return;
@@ -1914,21 +1995,40 @@
     let pullDist = Math.hypot(pullX, pullY);
     const MAXPULL = CELL * 4;
     if (pullDist > MAXPULL) { pullX *= MAXPULL / pullDist; pullY *= MAXPULL / pullDist; pullDist = MAXPULL; }
-    if (pullDist < 6) { alk.dragCurrent = null; draw(); return; } // 너무 약하면 다시 시도
+    if (pullDist < 6) { alk.dragCurrent = null; sendAlkAim(null, true); draw(); return; } // 너무 약하면 다시 시도
     const POWER = 0.32;
     ns.vx = -pullX * POWER; ns.vy = -pullY * POWER;
     alk.awaitingLaunch = false;
     alk.simulating = true;
     alk.frameCount = 0;
     alk.dragCurrent = null;
+    broadcastAlkLaunch();
     updateStatus();
     requestAnimationFrame(simulateAlkTick);
   }
 
+  const ALK_MIN_SPEED = 0.05, ALK_MAX_FRAMES = 480;
   function simulateAlkTick() {
     if (!alk || !alk.simulating) return;
     const stones = alk.physStones;
-    const FRICTION = 0.965, MIN_SPEED = 0.05;
+    alkPhysStep(stones);
+    draw();
+    alk.frameCount++;
+    if (alkMaxSpeed(stones) < ALK_MIN_SPEED || alk.frameCount > ALK_MAX_FRAMES) {
+      alk.simulating = false;
+      finishAlkFlick();
+    } else {
+      requestAnimationFrame(simulateAlkTick);
+    }
+  }
+
+  function alkMaxSpeed(stones) { return stones.reduce((m, s) => Math.max(m, Math.hypot(s.vx, s.vy)), 0); }
+
+  // 알까기 물리 한 프레임 (무작위 요소 없음 — 같은 입력이면 어느 화면에서나 같은 움직임)
+  function alkPhysStep(stones) {
+    const FRICTION = 0.965;
+
+    for (const s of stones) { s.x += s.vx; s.y += s.vy; s.vx *= FRICTION; s.vy *= FRICTION; }
 
     for (const s of stones) { s.x += s.vx; s.y += s.vy; s.vx *= FRICTION; s.vy *= FRICTION; }
 
@@ -1957,16 +2057,6 @@
           b.vx = bvtx + avn * nx; b.vy = bvty + avn * ny;
         }
       }
-    }
-
-    draw();
-    alk.frameCount++;
-    const maxSpeed = stones.reduce((m, s) => Math.max(m, Math.hypot(s.vx, s.vy)), 0);
-    if (maxSpeed < MIN_SPEED || alk.frameCount > 480) {
-      alk.simulating = false;
-      finishAlkFlick();
-    } else {
-      requestAnimationFrame(simulateAlkTick);
     }
   }
 
@@ -2079,6 +2169,7 @@
       alkActive: !!(alk || alkHandoff),
       alkTurnOrder: alkOrderNow,
       alkTurnIndex: alkIndexNow,
+      alkLaunch: mpAlkLaunch,
     };
   }
 
@@ -2203,6 +2294,8 @@
       runStartupDraft();
     }
 
+    lastPublicData = data;
+    updateAlkSpectate(data); // 상대 발사가 새로 왔으면 먼저 재생을 시작
     syncAlkFromPublic(data);
     checkMyTrapsAgainstBoard();
 
@@ -2216,6 +2309,7 @@
   }
 
   function syncAlkFromPublic(data) {
+    if (alkView && alkView.playing) return; // 상대 발사 재생이 끝난 뒤에 다음 차례로 넘어감
     if (!data.alkActive) {
       if (alk || alkHandoff) { alk = null; alkHandoff = null; }
       return;
@@ -2376,6 +2470,7 @@
     alk = null; alkHandoff = null;
     trapList = [];
     craterList = [];
+    alkView = null; mpAlkLaunch = null;
     hand = { [BLACK]: [], [WHITE]: [] }; // 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
     logLines = [];
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null; lastBannerMsg = null;
