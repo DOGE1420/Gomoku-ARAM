@@ -215,6 +215,11 @@
   .menu-note { font-family: var(--font-main); font-size: 13.5px; opacity: 0.6; text-align: center; min-height: 16px; }
 
   .lobby-body { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .first-pick { display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--font-main); }
+  .first-pick-label { font-size: 13px; opacity: 0.7; }
+  .first-pick-options { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .first-pick-options button { appearance: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-family: inherit; font-size: 14px; cursor: pointer; }
+  .first-pick-options button[aria-checked="true"] { background: var(--line); color: var(--paper); font-weight: 700; }
   .lobby-or { font-family: var(--font-main); font-size: 13.5px; opacity: 0.6; }
   .code-input {
     width: 100%; text-align: center; letter-spacing: 4px; text-transform: uppercase;
@@ -256,6 +261,14 @@
   <div id="lobby-screen" class="lobby-screen" style="display:none;">
     <button class="plain" id="lobby-back-btn">← 메뉴로</button>
     <div class="lobby-body" id="lobby-body">
+      <div class="first-pick" role="radiogroup" aria-label="선공">
+        <span class="first-pick-label">선공</span>
+        <div class="first-pick-options" id="first-pick-options">
+          <button type="button" role="radio" data-first="random" aria-checked="true">🎲 랜덤</button>
+          <button type="button" role="radio" data-first="me" aria-checked="false">내가 먼저</button>
+          <button type="button" role="radio" data-first="opp" aria-checked="false">상대 먼저</button>
+        </div>
+      </div>
       <button class="plain" id="create-room-btn">새 방 만들기</button>
       <div class="lobby-or">또는</div>
       <input class="code-input" id="join-code-input" placeholder="방 코드 입력" maxlength="5">
@@ -609,6 +622,7 @@
     statusText.classList.remove('targeting', 'alkkagi');
     turnDot.className = 'turn-dot ' + (current === BLACK ? 'black' : 'white');
     statusText.textContent = (current === BLACK ? '흑' : '백') + ' 차례';
+    if (mode === 'multiplayer') statusText.textContent += current === myColor ? ' (내 차례)' : ' (상대 차례)';
     cancelBtn.classList.remove('show');
     winLenBadge.textContent = winLength + '목 규칙';
     winLenBadge.classList.toggle('show', winLength !== 5);
@@ -1957,15 +1971,33 @@
   async function createRoom() {
     if (!dbApi || !myUserId) { lobbyStatus.textContent = '서버에 연결하는 중입니다. 잠시 후 다시 눌러주세요.'; return; }
     mode = 'multiplayer';
-    myColor = BLACK;
+    // 선공(흑) 결정: 랜덤 / 방장 / 참가자
+    const iGoFirst = firstPickMode === 'me' ? true : firstPickMode === 'opp' ? false : Math.random() < 0.5;
+    myColor = iGoFirst ? BLACK : WHITE;
     roomCode = randomRoomCode();
-    mpPlayers = { [BLACK]: myUserId, [WHITE]: null };
+    mpPlayers = { [BLACK]: null, [WHITE]: null };
+    mpPlayers[myColor] = myUserId;
     lobbyStatus.textContent = '방을 만드는 중...';
     init();
     subscribePublic();
     await syncPublicState();
-    lobbyStatus.textContent = '방 코드: ' + roomCode + ' — 상대를 기다리는 중...';
+    lobbyStatus.textContent = '방 코드: ' + roomCode + ' — 상대를 기다리는 중... (나: ' + (myColor === BLACK ? '흑, 선공' : '백, 후공') + ')';
   }
+
+  let firstPickMode = 'random';
+  try { const v = localStorage.getItem('omok_first_pick'); if (v === 'random' || v === 'me' || v === 'opp') firstPickMode = v; } catch (e) {}
+  const firstPickOptions = document.getElementById('first-pick-options');
+  function renderFirstPick() {
+    firstPickOptions.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.first === firstPickMode)));
+  }
+  firstPickOptions.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-first]');
+    if (!b) return;
+    firstPickMode = b.dataset.first;
+    try { localStorage.setItem('omok_first_pick', firstPickMode); } catch (e2) {}
+    renderFirstPick();
+  });
+  renderFirstPick();
 
   function startRematch() {
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
