@@ -233,6 +233,7 @@
   .bot-level-options { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .bot-level-options button { appearance: none; min-width: 48px; padding: 7px 0; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-family: inherit; font-size: 15px; cursor: pointer; }
   .bot-level-options button.ultimate { padding: 7px 12px; border-color: #b8860b; }
+  .bot-level-options button.super { border-color: #c04dff; background: linear-gradient(90deg, rgba(255,80,80,0.12), rgba(255,200,0,0.12), rgba(80,200,255,0.12), rgba(200,80,255,0.12)); }
   .bot-level-options button[aria-checked="true"] { background: var(--line); color: var(--paper); font-weight: 700; }
   .bot-level-hint { font-size: 12.5px; opacity: 0.65; text-align: center; min-height: 16px; }
   .menu-note { font-family: var(--font-main); font-size: 13.5px; opacity: 0.6; text-align: center; min-height: 16px; }
@@ -536,6 +537,7 @@
       'bot.hint.10': '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
       'bot.hint.20': '얼티밋 — 수당 약 2.5초 동안 최대한 깊이 읽고, 상대의 필승 수순까지 끊음',
       'bot.ultimate': '얼티밋', 'bot.thinking': '🤖 봇이 생각 중...',
+      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '슈퍼 울트라 짱짱맨 — 수당 약 5초, 열린 3까지 섞은 연속 공격을 찾고 상대의 것도 끊음',
       'side.title': '선공/후공 선택', 'side.sub': '흑이 먼저 둡니다', 'side.first': '선공 (흑)', 'side.second': '후공 (백)', 'side.random': '랜덤',
       'side.prompt': '선공/후공을 고르세요', 'log.sideFirst': '🤖 봇전 — 내가 선공(흑)', 'log.sideSecond': '🤖 봇전 — 내가 후공(백)',
       'tgt.windmill': '풍차로 만들 내 돌을 클릭하세요', 'tgt.selfRemove': '제거할 내 돌을 클릭하세요',
@@ -615,6 +617,7 @@
       'bot.hint.10': 'Master — reads 4 moves ahead and hunts forcing four sequences',
       'bot.hint.20': 'Ultimate — thinks ~2.5s per move as deep as it can and breaks your forced wins',
       'bot.ultimate': 'Ultimate', 'bot.thinking': '🤖 Bot is thinking...',
+      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': 'Super Ultra Awesome — ~5s per move, finds forcing three/four attacks and shuts down yours',
       'side.title': 'Choose your side', 'side.sub': 'Black moves first', 'side.first': 'First (Black)', 'side.second': 'Second (White)', 'side.random': 'Random',
       'side.prompt': 'Choose first or second', 'log.sideFirst': '🤖 vs Bot — you play first (Black)', 'log.sideSecond': '🤖 vs Bot — you play second (White)',
       'tgt.windmill': 'Click one of your stones to make a windmill', 'tgt.selfRemove': 'Click one of your stones to remove',
@@ -2467,12 +2470,15 @@
     10: { radius: 3, depth: 4, width: 10, topN: 1, defense: 1,    missChance: 0,   patterns: true,  smartCards: true,  vcf: true  },
     // 얼티밋: 시간 제한 안에서 최대한 깊이 읽음 (반복 심화 + 치환표 + 위협 가지치기 + 상대 VCF 차단)
     20: { radius: 2, depth: 12, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, timeMs: 2500 },
+    // 슈퍼 울트라 짱짱맨: 얼티밋 + 연속 위협(VCT) 공격·방어 + 더 넓은 후보 + 수당 약 5초
+    50: { radius: 2, depth: 14, width: 18, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, vct: true, timeMs: 5000,
+          rootWidth: 20, widths: [18, 12, 10, 8, 7, 6, 5, 5, 4, 4, 4, 4, 4, 4], readCards: true },
   };
-  const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20];
+  const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
   try { const saved = parseInt(localStorage.getItem('omok_bot_level'), 10); if (BOT_LEVELS[saved]) botLevel = saved; } catch (e) {}
   function botCfg() { return BOT_LEVELS[botLevel] || BOT_LEVELS[5]; }
-  function botLevelName(lv) { return lv === 20 ? t('bot.ultimate') : String(lv); }
+  function botLevelName(lv) { return lv === 20 ? t('bot.ultimate') : lv === 50 ? t('bot.super') : String(lv); }
 
   let botTimer = null;
   function scheduleMaybeBotTurn() {
@@ -2789,6 +2795,18 @@
     return z;
   })();
   const U_WIDTHS = [14, 10, 8, 7, 6, 5, 5, 4, 4, 4, 4, 4];
+  let uWidths = U_WIDTHS;
+  // 상대 패 읽기 (짱짱맨): 탐색에 반영할 보정값
+  let uDefense = 0.95, uBot = null, uFlipRisk = false;
+
+  // 상대가 다음 턴에 쓸 수 있는 카드 (봉쇄에 걸려 있으면 다음 카드는 무효이므로 없는 것으로 봄)
+  function readOppCards(botColor) {
+    const opp = other(botColor);
+    const has = {};
+    const locked = cardLockNextTurn && cardLockNextTurn[opp];
+    if (!locked) for (const c of (hand && hand[opp]) || []) has[c.id] = true;
+    return has;
+  }
   let uTT = new Map(), uAborted = false, uNodes = 0;
 
   function uHashBoard() {
@@ -2812,7 +2830,7 @@
       const a = attackValue(p.r, p.c, player, blocked[player]);
       if (a.five) return { win: p, list: [p] };
       const d = blocked[opp][i] ? { score: 0, five: false } : attackValue(p.r, p.c, opp, blocked[opp]);
-      const m = { r: p.r, c: p.c, score: a.score + d.score * 0.95 };
+      const m = { r: p.r, c: p.c, score: a.score + d.score * uDefense };
       all.push(m);
       if (d.five) blocks.push(m);
       else if (d.score >= P_OPEN4 || a.fours >= 1) critical.push(m);
@@ -2836,10 +2854,15 @@
       else if (e.flag === 2 && e.value < beta) beta = e.value;
       if (alpha >= beta) return e.value;
     }
-    const moves = uOrdered(player, blocked, U_WIDTHS[Math.min(ply, U_WIDTHS.length - 1)], false);
+    const moves = uOrdered(player, blocked, uWidths[Math.min(ply, uWidths.length - 1)], false);
     if (moves.win) return WIN_SCORE - ply;
     if (!moves.list.length) return 0;
-    if (depth <= 0) return evalBoard(player, blocked);
+    if (depth <= 0) {
+      let v = evalBoard(player, blocked);
+      // 상대가 전세 역전을 쥐고 있으면, 봇 쪽 우세는 뒤집힐 수 있으므로 할인
+      if (uFlipRisk) { const vb = player === uBot ? v : -v; const adj = vb > 0 ? vb * 0.35 : vb; v = player === uBot ? adj : -adj; }
+      return v;
+    }
     if (e && e.best !== undefined) {
       const bi = moves.list.findIndex(m => m.r * SIZE + m.c === e.best);
       if (bi > 0) moves.list.unshift(moves.list.splice(bi, 1)[0]);
@@ -2859,20 +2882,91 @@
     return best;
   }
 
-  function ultimateChooseMove(botColor, blocked, budgetMs) {
+
+  // ---- 연속 위협(VCT) 탐색: 4 또는 열린 3을 계속 만들어, 상대가 어떻게 막아도 이기는 수순 ----
+  // 상대가 막는 도중 자기 4를 만들면(반격) 실패로 보는 보수적 탐색
+  function vct(att, depth, blocked, isRoot, deadline) {
+    if (depth <= 0 || Date.now() > deadline) return null;
+    const def = other(att);
+    if (findWinCells(def, blocked[def]).length) return null;
+    const threats = [];
+    for (const p of collectCandidates(att, 2, blocked, isRoot)) {
+      const a = attackValue(p.r, p.c, att, blocked[att]);
+      if (a.five) return p;
+      if (a.fours >= 1 || a.score >= P_OPEN3) threats.push({ p, s: a.score });
+    }
+    threats.sort((x, y) => y.s - x.s);
+    for (const t of threats.slice(0, 10)) {
+      board[t.p.r][t.p.c] = att;
+      const ok = vctDefend(att, depth, blocked, deadline);
+      board[t.p.r][t.p.c] = EMPTY;
+      if (ok) return t.p;
+      if (Date.now() > deadline) return null;
+    }
+    return null;
+  }
+
+  function vctDefend(att, depth, blocked, deadline) {
+    const def = other(att);
+    const attWins = findWinCells(att, blocked[att]);
+    if (findWinCells(def, blocked[def]).length) return false;
+    if (attWins.length >= 2) return true;
+    let defenses;
+    if (attWins.length === 1) {
+      const w = attWins[0];
+      if (blocked[def][w.r * SIZE + w.c]) return true; // 막을 수 없는 자리
+      defenses = [w];
+    } else {
+      // 열린 3: 공격자가 열린 4를 만들 자리 + 수비자가 4로 반격할 자리
+      defenses = [];
+      for (const p of collectCandidates(def, 2, blocked, false)) {
+        const a = attackValue(p.r, p.c, att, blocked[att]);
+        const d = attackValue(p.r, p.c, def, blocked[def]);
+        if (a.score >= P_OPEN4 || d.fours >= 1) defenses.push({ r: p.r, c: p.c, s: a.score + d.score });
+      }
+      if (!defenses.length) return false; // 실질적인 위협이 아님
+      defenses.sort((x, y) => y.s - x.s);
+      defenses = defenses.slice(0, 8);
+    }
+    for (const d of defenses) {
+      board[d.r][d.c] = def;
+      const lost = checkWin(d.r, d.c, def);
+      const cont = !lost && vct(att, depth - 1, blocked, false, deadline) !== null;
+      board[d.r][d.c] = EMPTY;
+      if (!cont) return false;
+    }
+    return true;
+  }
+
+  function ultimateChooseMove(botColor, blocked, budgetMs, cfg) {
     const opp = other(botColor);
+    uWidths = (cfg && cfg.widths) || U_WIDTHS;
+    const oppCards = cfg && cfg.readCards ? readOppCards(botColor) : {};
+    uBot = botColor;
+    uDefense = oppCards.chain ? 1.35 : 0.95;      // 연속 착수가 있으면 상대 위협을 더 무겁게
+    uFlipRisk = !!oppCards.reversal;              // 전세 역전이 있으면 우세를 과신하지 않음
+    const trustForcing = !oppCards.bomb;          // 폭파가 있으면 연속 4/3 몰아치기는 끊길 수 있음
+    if (cfg && cfg.readCards) {
+      // 상대가 설치한 함정 칸에는 두지 않음
+      for (const tr of trapList || []) if (tr.owner === opp && board[tr.r][tr.c] === EMPTY) blocked[botColor][tr.r * SIZE + tr.c] = 1;
+    }
     searchDeadline = Date.now() + budgetMs;
     const root = uOrdered(botColor, blocked, 0, true);
     if (root.win) return root.win;
     if (!root.list.length) return null;
     if (root.forced && root.list.length === 1) return root.list[0];
 
-    if (!root.forced) {
+    if (!root.forced && trustForcing) {
       const v = vcf(botColor, 14, blocked, true);
       if (v) return v;
     }
+    // 짱짱맨: 열린 3까지 섞은 연속 공격으로 이기는 수순
+    if (cfg && cfg.vct && !root.forced && trustForcing) {
+      const v = vct(botColor, 6, blocked, true, Date.now() + budgetMs * 0.2);
+      if (v) return v;
+    }
 
-    let moves = root.list.slice(0, 16);
+    let moves = root.list.slice(0, (cfg && cfg.rootWidth) || 16);
     // 상대에게 연속 4로 이기는 수순이 있으면, 그걸 끊는 수만 남긴다
     if (!root.forced && vcf(opp, 12, blocked, false)) {
       const safe = moves.filter(m => {
@@ -2882,6 +2976,20 @@
         return !threat;
       });
       if (safe.length) moves = safe;
+    }
+    // 짱짱맨: 상대의 연속 위협(VCT) 수순도 미리 끊는다
+    if (cfg && cfg.vct && !root.forced && moves.length > 1) {
+      const dl = Date.now() + budgetMs * 0.2;
+      if (vct(opp, 5, blocked, false, dl)) {
+        const safe = moves.filter(m => {
+          if (Date.now() > dl) return true;
+          board[m.r][m.c] = botColor;
+          const threat = vct(opp, 5, blocked, false, dl);
+          board[m.r][m.c] = EMPTY;
+          return !threat;
+        });
+        if (safe.length) moves = safe;
+      }
     }
     if (moves.length === 1) return moves[0];
 
@@ -2923,7 +3031,7 @@
       return pool[Math.floor(Math.random() * pool.length)];
     }
 
-    if (cfg.ultimate) return ultimateChooseMove(botColor, blocked, turnPlacementsDone > 0 ? 900 : cfg.timeMs);
+    if (cfg.ultimate) return ultimateChooseMove(botColor, blocked, turnPlacementsDone > 0 ? 900 : cfg.timeMs, cfg);
 
     searchDeadline = Date.now() + 1500;
     const root = orderedMoves(botColor, blocked, cfg, 0, true);
@@ -2979,8 +3087,18 @@
     const oppWins = findWinCells(opp, blocked[opp]);
     const base = evalBoard(botColor, blocked);
     const oppHasCards = hand[opp].length > 0;
+    const reads = botCfg().readCards;
+    const oppCards = reads ? readOppCards(botColor) : {};
     let best = null;
     const consider = (idx, value, targets) => { if (value > 0 && (!best || value > best.value)) best = { idx, value, targets }; };
+
+    // 짱짱맨: 봉쇄에 걸려 있으면 가장 덜 중요한 카드로 무효화를 먼저 소진
+    if (reads && cardLockNextTurn[botColor] && hand[botColor].length > 1) {
+      const junkOrder = BOT_CARD_PRIORITY.slice().reverse();
+      let junk = -1, junkRank = Infinity;
+      hand[botColor].forEach((c, i) => { const r = junkOrder.indexOf(c.id); if (r !== -1 && r < junkRank) { junkRank = r; junk = i; } });
+      if (junk !== -1) { useCard(botColor, junk); return; }
+    }
 
     hand[botColor].forEach((card, idx) => {
       switch (card.type) {
@@ -3059,7 +3177,9 @@
           break;
         }
         case 'blockade':
-          if (oppHasCards) consider(idx, 1200);
+          // 짱짱맨: 상대가 위험한 카드를 쥐고 있으면 먼저 봉쇄
+          if (reads && (oppCards.reversal || oppCards.bomb || oppCards.chain || oppCards.sixsense)) consider(idx, 6000);
+          else if (oppHasCards) consider(idx, 1200);
           break;
         case 'infection': {
           if (oppWins.length) break; // 턴이 끝나므로 막아야 할 때는 쓰지 않음
@@ -3207,7 +3327,8 @@
       b.setAttribute('role', 'radio');
       b.setAttribute('aria-checked', String(lv === botLevel));
       b.textContent = botLevelName(lv);
-      if (lv === 20) b.classList.add('ultimate');
+      if (lv === 20 || lv === 50) b.classList.add('ultimate');
+      if (lv === 50) b.classList.add('super');
       b.addEventListener('click', () => {
         botLevel = lv;
         try { localStorage.setItem('omok_bot_level', String(lv)); } catch (e) {}
