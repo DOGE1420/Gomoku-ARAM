@@ -1366,7 +1366,7 @@
       // 봇은 UI 없이 선택 (저난이도는 무작위, 고난이도는 강한 카드 우선)
       draftPlayer = player;
       draftOpen = false;
-      pickCardIntoHand(botPickDraft(picks));
+      pickCardIntoHand(botPickDraft(picks, player));
       return;
     }
     draftOpen = true;
@@ -3080,6 +3080,18 @@
     return out;
   }
 
+  // player가 다음 수에 열린 4(또는 4-4, 4-3)를 만들 수 있는지
+  function hasOpenFourThreat(player, blocked) {
+    for (const p of collectCandidates(player, 2, blocked, false)) {
+      if (attackValue(p.r, p.c, player, blocked[player]).score >= P_OPEN4) return true;
+    }
+    return false;
+  }
+  function scanBoardForWinOf(player) {
+    const f = scanBoardForWin();
+    return f && f.player === player ? f : null;
+  }
+
   function botUseCardSmart(botColor) {
     const opp = other(botColor);
     const blocked = makeBlocked();
@@ -3092,6 +3104,12 @@
     const oppCards = reads ? readOppCards(botColor) : {};
     let best = null;
     const consider = (idx, value, targets) => { if (value > 0 && (!best || value > best.value)) best = { idx, value, targets }; };
+    // 쓰지 않으면 버려질 상황: 패가 꽉 찼고 다음 착수로 카드를 또 받으면 가장 오래된 카드가 소멸
+    const handLen = hand[botColor].length;
+    const draftSoon = placedCount[botColor] % INTERVAL === INTERVAL - 1;
+    const overflowSoon = handLen >= HAND_LIMIT && draftSoon;
+    const scale = overflowSoon ? 0.25 : handLen >= 3 ? 0.6 : 1; // 급할수록 사용 기준을 낮춤
+    const oppCritical = oppWins.length > 0 || hasOpenFourThreat(opp, blocked);
 
     // 짱짱맨: 봉쇄에 걸려 있으면 가장 덜 중요한 카드로 무효화를 먼저 소진
     if (reads && cardLockNextTurn[botColor] && hand[botColor].length > 1) {
@@ -3120,7 +3138,8 @@
           }
           if (!bestT) break;
           if (oppWins.length >= 2) consider(idx, 40000, [bestT]);
-          else if (bestGain > 700) consider(idx, 2000 + bestGain, [bestT]);
+          else if (oppCritical && bestGain > 0) consider(idx, 4000 + bestGain, [bestT]); // 상대가 열린 4를 만들 수 있으면 핵심 돌 제거
+          else if (bestGain > 700 * scale) consider(idx, 2000 + bestGain, [bestT]);
           break;
         }
         case 'windmill': {
@@ -3145,27 +3164,30 @@
           for (const a of theirs) for (const b of mine) {
             if (!isOrthoAdjacent(a, b)) continue;
             board[a.r][a.c] = botColor; board[b.r][b.c] = opp;
-            const makesWin = checkWin(a.r, a.c, botColor) || checkWin(b.r, b.c, opp);
-            const gain = makesWin ? -Infinity : evalBoard(botColor, blocked) - base;
+            const oppFive = checkWin(b.r, b.c, opp) || !!scanBoardForWinOf(opp);
+            const myFive = checkWin(a.r, a.c, botColor);
+            // 교환으로 내 5목이 완성되면 즉시 승리, 상대 5목이 생기면 절대 금지
+            const gain = oppFive ? -Infinity : myFive ? 1e6 : evalBoard(botColor, blocked) - base;
             board[a.r][a.c] = opp; board[b.r][b.c] = botColor;
             if (gain > bestGain) { bestGain = gain; bestPair = [a, b]; }
           }
-          if (bestPair && bestGain > 1500) consider(idx, bestGain, bestPair); // 턴이 끝나므로 이득이 클 때만
+          if (bestPair && bestGain > 900 * scale) consider(idx, bestGain, bestPair); // 턴이 끝나므로 이득이 클 때만
           break;
         }
         case 'six_sense': {
           if (winLength === 6) break;
           winLength = 6;
-          const gain = evalBoard(botColor, blocked) - base * 0.2; // 규칙이 바뀌면 점수 규모가 달라지므로 보정
+          const gain = evalBoard(botColor, blocked) - base; // 6목 규칙에서 판세가 얼마나 좋아지는지
           const oppWins6 = findWinCells(opp, blocked[opp]).length;
           winLength = 5;
           if (oppWins.length && !oppWins6) consider(idx, 45000);
-          else if (gain > 800) consider(idx, gain);
+          else if (gain > 150 * scale) consider(idx, 300 + gain);
+          else if (overflowSoon && idx === 0 && gain > -150) consider(idx, 200); // 버려지기 전에 손해가 크지 않으면 사용
           break;
         }
         case 'reversal': {
           const flipped = -evalBoard(botColor, blocked); // 색이 바뀌면 상대 관점 평가가 내 평가가 됨
-          if (flipped - base > 3000) consider(idx, flipped - base);
+          if (flipped - base > Math.max(800, 3000 * scale)) consider(idx, flipped - base);
           break;
         }
         case 'trap': {
@@ -3193,16 +3215,28 @@
             board[t.r][t.c] = opp;
           }
           const expected = (sum / targets.length) * Math.min(2, targets.length);
-          if (expected > 2500) consider(idx, expected);
+          if (expected > 450 * scale) consider(idx, expected);
           break;
         }
         case 'earthquake':
         case 'alkkagi':
-          // 무작위성이 큰 카드는 크게 불리할 때만
-          if (oppWins.length >= 2 || base < -4000) consider(idx, 800);
+          // 무작위성이 큰 카드는 불리할 때 판을 흔드는 용도, 곧 버려질 카드면 크게 이기고 있지 않을 때 사용
+          if (oppWins.length >= 2 || base < -1500) consider(idx, 800);
+          else if (overflowSoon && idx === 0 && base < 1500) consider(idx, 150);
           break;
-        case 'teleport':
+        case 'teleport': {
+          // 곧 버려질 카드면, 판에 가장 도움이 덜 되는 내 돌을 옮김
+          if (!(overflowSoon || (handLen >= 3 && idx === 0))) break;
+          let bestT = null, leastLoss = Infinity;
+          for (const st of listStones(botColor)) {
+            board[st.r][st.c] = EMPTY;
+            const loss = base - evalBoard(botColor, blocked);
+            board[st.r][st.c] = botColor;
+            if (loss < leastLoss) { leastLoss = loss; bestT = st; }
+          }
+          if (bestT && leastLoss < 60) consider(idx, 120, [bestT]);
           break;
+        }
       }
     });
 
@@ -3223,9 +3257,19 @@
 
   // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
   const BOT_CARD_PRIORITY = ['chain', 'windmill', 'bomb', 'trap', 'sixsense', 'trade', 'blockade', 'infection', 'reversal', 'teleport', 'earthquake', 'alkkagi'];
-  function botPickDraft(picks) {
+  function botPickDraft(picks, player) {
     if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
-    return picks.slice().sort((a, b) => BOT_CARD_PRIORITY.indexOf(a.id) - BOT_CARD_PRIORITY.indexOf(b.id))[0];
+    const me = player || other(myColor), opp = other(me);
+    let base = 0, oppThreat = false;
+    try { const blk = makeBlocked(); base = evalBoard(me, blk); oppThreat = hasOpenFourThreat(opp, blk); } catch (e) {}
+    const score = (c) => {
+      let v = BOT_CARD_PRIORITY.length - BOT_CARD_PRIORITY.indexOf(c.id);
+      v -= 4 * hand[me].filter(h => h.id === c.id).length;      // 같은 카드는 겹쳐 쥐지 않음
+      if (base < -1500 && (c.id === 'reversal' || c.id === 'earthquake' || c.id === 'alkkagi')) v += 6; // 불리하면 판을 뒤집는 카드
+      if (oppThreat && (c.id === 'bomb' || c.id === 'sixsense' || c.id === 'windmill')) v += 4;       // 상대 공격을 끊는 카드
+      return v;
+    };
+    return picks.slice().sort((a, b) => score(b) - score(a))[0];
   }
 
   // ---- 봇의 알까기 발사 판단 ----
