@@ -134,6 +134,18 @@
   .log-list li:first-child { font-weight: 700; }
   .log-list li:not(:first-child) { opacity: 0.7; }
   .log-empty { opacity: 0.45; font-style: italic; }
+  .side-right { display: flex; flex-direction: column; gap: 12px; }
+  .chat-side { border: 1px solid rgba(169, 128, 68, 0.35); border-radius: 12px; padding: 10px 12px; font-family: var(--font-main); }
+  .chat-side[hidden] { display: none; }
+  .chat-list { list-style: none; margin: 0 0 8px 0; padding: 0; height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.4; }
+  .chat-msg { align-self: flex-start; max-width: 85%; padding: 6px 10px; border-radius: 12px; background: rgba(169, 128, 68, 0.15); overflow-wrap: anywhere; }
+  .chat-msg.mine { align-self: flex-end; background: rgba(201, 162, 39, 0.3); }
+  .chat-who { font-size: 11.5px; font-weight: 700; opacity: 0.7; margin-bottom: 2px; }
+  .chat-empty { opacity: 0.45; font-style: italic; align-self: center; margin: auto 0; }
+  .chat-form { display: flex; gap: 6px; }
+  .chat-input { flex: 1; min-width: 0; font-family: inherit; font-size: 16px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+  .chat-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chat-send { padding: 7px 14px; font-size: 14px; }
 
   /* 넓은 화면: 왼쪽 카드 · 가운데 보드 · 오른쪽 기록 */
   @media (min-width: 1080px) {
@@ -149,6 +161,7 @@
     .side-left .hand-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .side-left .hand-empty { padding-top: 0; }
     .log-list { max-height: 560px; }
+    .side-right:has(.chat-side:not([hidden])) .log-list { max-height: 240px; }
   }
 
   @media (max-width: 430px) {
@@ -279,16 +292,26 @@
     </div>
     </aside>
 
-    <aside class="side-panel side-right log-side">
-      <div class="side-title">기록</div>
-      <ol class="log-list" id="log-panel"></ol>
+    <aside class="side-panel side-right">
+      <section class="log-side">
+        <div class="side-title">기록</div>
+        <ol class="log-list" id="log-panel"></ol>
+      </section>
+      <section class="chat-side" id="chat-panel" hidden>
+        <div class="side-title">채팅</div>
+        <ol class="chat-list" id="chat-list"></ol>
+        <form class="chat-form" id="chat-form" autocomplete="off">
+          <input class="chat-input" id="chat-input" maxlength="200" placeholder="메시지 입력" aria-label="채팅 메시지">
+          <button class="plain chat-send" type="submit">전송</button>
+        </form>
+      </section>
     </aside>
     </div>
   </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, set, get, update, onValue, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyB-eP5kD_xudBE6-MXt1KLkKxZEKmD6-Sg",
@@ -315,6 +338,13 @@
       onPath: (path, cb, errCb) => onValue(ref(rtdb, path), (snap) => {
         const ex = snap.exists();
         cb({ exists: ex, data: () => (ex ? snap.val() : undefined) });
+      }, errCb),
+      pushPath: (path, data) => push(ref(rtdb, path), data),
+      // path 아래 자식들 중 최근 n개를 배열로 전달
+      onPathLast: (path, n, cb, errCb) => onValue(query(ref(rtdb, path), limitToLast(n)), (snap) => {
+        const items = [];
+        snap.forEach((child) => { items.push(child.val()); });
+        cb(items);
       }, errCb),
     };
   } catch (e) {
@@ -385,6 +415,10 @@
   const confirmNoBtn = document.getElementById('confirm-no-btn');
   const pipRow = document.getElementById('pip-row');
   const logPanel = document.getElementById('log-panel');
+  const chatPanel = document.getElementById('chat-panel');
+  const chatList = document.getElementById('chat-list');
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
   const draftOverlay = document.getElementById('draft-overlay');
   const draftTitle = document.getElementById('draft-title');
   const draftCardsEl = document.getElementById('draft-cards');
@@ -1767,7 +1801,66 @@
     }
   }
 
+  // ---- 채팅 (멀티플레이 전용) ----
+  const CHAT_MAX_LEN = 200;
+  const CHAT_HISTORY = 50;
+  let unsubChat = null;
+
+  function subscribeChat() {
+    unsubscribeChat();
+    chatPanel.hidden = false;
+    renderChat([]);
+    unsubChat = dbApi.onPathLast('chats/' + roomCode, CHAT_HISTORY, renderChat, function () {
+      renderChat([], '채팅 서버에 연결할 수 없습니다');
+    });
+  }
+
+  function unsubscribeChat() {
+    if (unsubChat) { unsubChat(); unsubChat = null; }
+    chatPanel.hidden = true;
+    chatInput.value = '';
+  }
+
+  function renderChat(messages, emptyText) {
+    chatList.innerHTML = '';
+    if (!messages.length) {
+      const li = document.createElement('li');
+      li.className = 'chat-empty';
+      li.textContent = emptyText || '아직 메시지가 없습니다';
+      chatList.appendChild(li);
+      return;
+    }
+    for (const m of messages) {
+      if (!m || typeof m.text !== 'string') continue;
+      const li = document.createElement('li');
+      li.className = 'chat-msg' + (m.uid === myUserId ? ' mine' : '');
+      const who = document.createElement('div');
+      who.className = 'chat-who';
+      who.textContent = m.uid === myUserId ? '나' : (m.color === BLACK ? '흑' : m.color === WHITE ? '백' : '상대');
+      const text = document.createElement('div');
+      text.textContent = m.text.slice(0, CHAT_MAX_LEN);
+      li.appendChild(who); li.appendChild(text);
+      chatList.appendChild(li);
+    }
+    chatList.scrollTop = chatList.scrollHeight;
+  }
+
+  async function sendChat() {
+    const text = chatInput.value.trim().slice(0, CHAT_MAX_LEN);
+    if (!text || mode !== 'multiplayer' || !dbApi || !roomCode) return;
+    chatInput.value = '';
+    try {
+      await dbApi.pushPath('chats/' + roomCode, { uid: myUserId, color: myColor, text, ts: Date.now() });
+    } catch (e) {
+      chatInput.value = text;
+      addLog('💬 메시지를 보내지 못했습니다');
+    }
+  }
+
+  chatForm.addEventListener('submit', function (e) { e.preventDefault(); sendChat(); });
+
   function subscribePublic() {
+    subscribeChat();
     if (unsubPublic) { unsubPublic(); unsubPublic = null; }
     unsubPublic = dbApi.onPath('games/' + roomCode, function (snap) {
       if (!snap.exists) return;
@@ -2073,6 +2166,7 @@
   });
   lobbyBackBtn.addEventListener('click', () => {
     if (unsubPublic) { unsubPublic(); unsubPublic = null; }
+    unsubscribeChat();
     showScreen('menu');
   });
   gameBackBtn.addEventListener('click', () => {
@@ -2081,6 +2175,7 @@
       showBanner((myColor === BLACK ? '흑' : '백') + '이(가) 게임을 나갔습니다');
     }
     if (unsubPublic) { unsubPublic(); unsubPublic = null; }
+    unsubscribeChat();
     mode = 'local';
     showScreen('menu');
   });
