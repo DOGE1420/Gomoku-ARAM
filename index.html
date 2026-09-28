@@ -89,15 +89,19 @@
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #banner { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,14,8,0.6); color: #f6ecd9; font-size: clamp(20px, 5.5vw, 28px); font-weight: 700; text-align: center; padding: 20px; }
   #banner.show { display: flex; }
-  #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(15,10,20,0.85); backdrop-filter: blur(2px); padding: 16px; }
+  #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(14,10,18,0.93); backdrop-filter: blur(3px); padding: 16px; }
   #draft-overlay.show { display: flex; }
-  .draft-title { color: #f2e9d8; font-family: var(--font-main); font-weight: 700; font-size: clamp(18px, 4.5vw, 22px); text-align: center; }
-  .draft-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
-  .aug-card { width: 130px; background: linear-gradient(160deg, #2a2333, #1a1520); border: 1px solid rgba(201,162,39,0.5); border-radius: 10px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease; font-family: var(--font-main); }
-  .aug-card:hover { transform: translateY(-4px); border-color: var(--gold); }
-  .aug-icon { font-size: 30px; }
-  .aug-name { color: #f2e9d8; font-size: 15.5px; font-weight: 700; }
-  .aug-desc { color: #cfc5b8; font-size: 12.5px; line-height: 1.4; text-align: center; }
+  .draft-title { color: #f6eedf; font-family: var(--font-main); font-weight: 700; font-size: clamp(18px, 4.5vw, 23px); text-align: center; }
+  .draft-sub { color: #cdbfa6; font-family: var(--font-main); font-size: 13px; margin-top: -8px; }
+  .draft-cards { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: stretch; max-width: 100%; }
+  .aug-card { position: relative; width: 168px; background: linear-gradient(165deg, #342b40, #1f1927); border: 1.5px solid rgba(201,162,39,0.55); border-radius: 12px; padding: 16px 12px 14px; display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; font-family: var(--font-main); color: #f2e9d8; box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+  .aug-card:hover, .aug-card:focus-visible { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 10px 22px rgba(0,0,0,0.45), 0 0 0 1px var(--gold); outline: none; }
+  .aug-card.rare { border-color: rgba(214,120,255,0.75); background: linear-gradient(165deg, #3d2a4d, #211829); }
+  .aug-rarity { position: absolute; top: 7px; right: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; color: #e3b6ff; background: rgba(214,120,255,0.16); border: 1px solid rgba(214,120,255,0.45); border-radius: 999px; padding: 1px 7px; }
+  .aug-icon { font-size: 34px; line-height: 1.1; }
+  .aug-name { color: #fff7e8; font-size: 17px; font-weight: 700; letter-spacing: 0.01em; }
+  .aug-short { color: #f0c955; font-size: 13px; font-weight: 700; text-align: center; line-height: 1.35; word-break: keep-all; padding-bottom: 8px; border-bottom: 1px solid rgba(201,162,39,0.3); width: 100%; }
+  .aug-desc { color: #e4dccd; font-size: 13px; line-height: 1.55; text-align: center; word-break: keep-all; overflow-wrap: anywhere; }
   .hands { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 10px; font-family: var(--font-main); }
   .hand-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 10px; border-radius: 12px; }
   .hand-row.active-turn { background: rgba(169, 128, 68, 0.15); }
@@ -175,10 +179,13 @@
     .hand-card .hc-desc { display: none; }
     #draft-overlay { padding: 10px 8px; gap: 8px; justify-content: safe center; overflow-y: auto; }
     .draft-cards { flex-wrap: nowrap; gap: 6px; width: 100%; }
-    .aug-card { width: auto; flex: 1 1 0; min-width: 0; padding: 8px 5px; gap: 5px; }
-    .aug-icon { font-size: 24px; }
-    .aug-name { font-size: 13.5px; }
-    .aug-desc { font-size: 11px; line-height: 1.35; }
+    .draft-sub { font-size: 12px; margin-top: -4px; }
+    .aug-card { width: auto; flex: 1 1 0; min-width: 0; padding: 18px 6px 10px; gap: 5px; }
+    .aug-rarity { top: 4px; right: 50%; transform: translateX(50%); font-size: 9.5px; padding: 0 6px; }
+    .aug-icon { font-size: 26px; }
+    .aug-name { font-size: 14.5px; }
+    .aug-short { font-size: 11.5px; padding-bottom: 6px; }
+    .aug-desc { font-size: 11px; line-height: 1.45; }
     .code-input { font-size: 17px; letter-spacing: 2px; }
     .mode-btn { padding: 14px; }
     .confirm-bar { gap: 8px; padding: 5px 8px 5px 14px; font-size: 13.5px; max-width: 100%; }
@@ -283,6 +290,7 @@
       <div id="banner"></div>
       <div id="draft-overlay">
         <div class="draft-title" id="draft-title">카드 획득</div>
+        <div class="draft-sub">한 장을 골라 패에 넣으세요</div>
         <div class="draft-cards" id="draft-cards"></div>
       </div>
     </div>
@@ -1022,8 +1030,12 @@
     draftCardsEl.innerHTML = '';
     picks.forEach(card => {
       const btn = document.createElement('button');
-      btn.className = 'aug-card';
-      btn.innerHTML = `<div class="aug-icon">${card.icon}</div><div class="aug-name">${card.name}</div><div class="aug-desc">${card.desc}</div>`;
+      const rare = (card.weight || 10) <= 3;
+      const desc = card.desc.replace(/\s*\((가장 희귀|희귀 카드)\)/g, ''); // 희귀 표시는 배지로 대신함
+      btn.className = 'aug-card' + (rare ? ' rare' : '');
+      btn.innerHTML = (rare ? '<span class="aug-rarity">희귀</span>' : '') +
+        `<div class="aug-icon">${card.icon}</div><div class="aug-name">${card.name}</div>` +
+        `<div class="aug-short">${CARD_SHORT_DESC[card.id] || ''}</div><div class="aug-desc">${desc}</div>`;
       btn.addEventListener('click', () => pickCardIntoHand(card));
       draftCardsEl.appendChild(btn);
     });
