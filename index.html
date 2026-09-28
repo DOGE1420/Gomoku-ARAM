@@ -755,9 +755,11 @@
         return;
       }
     }
+    // 카드 획득 카운트는 턴당 1회만: 연속 착수로 추가로 둔 돌은 세지 않음
+    const countsForDraft = turnPlacementsDone === 0;
     board[r][c] = current;
     playPlaceSound();
-    moveHistory.push({ r, c, player: current });
+    moveHistory.push({ r, c, player: current, counted: countsForDraft });
     lastMovePos = { r, c };
     turnPlacedPositions.push({ r, c });
 
@@ -790,10 +792,10 @@
       gameOver = true; draw(); showBanner('무승부', true); return;
     }
 
-    placedCount[current]++;
+    if (countsForDraft) placedCount[current]++;
     turnPlacementsDone++;
 
-    const milestone = placedCount[current] % INTERVAL === 0;
+    const milestone = countsForDraft && placedCount[current] % INTERVAL === 0;
     draw();
 
     if (milestone) {
@@ -1317,7 +1319,7 @@
     if (gameOver || draftOpen || pendingTarget || alk || moveHistory.length === 0) return;
     const last = moveHistory.pop();
     board[last.r][last.c] = EMPTY;
-    placedCount[last.player] = Math.max(0, placedCount[last.player] - 1);
+    if (last.counted !== false) placedCount[last.player] = Math.max(0, placedCount[last.player] - 1);
     current = last.player;
     turnPlacementsDone = 0;
     turnPlacementsNeeded = 1;
