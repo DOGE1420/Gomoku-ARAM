@@ -2961,7 +2961,7 @@
       if (v) return v;
     }
     // 짱짱맨: 열린 3까지 섞은 연속 공격으로 이기는 수순
-    if (cfg && cfg.vct && !root.forced && trustForcing) {
+    if (cfg && cfg.vct && cfg.vctAttack !== false && !root.forced && trustForcing) {
       const v = vct(botColor, 6, blocked, true, Date.now() + budgetMs * 0.2);
       if (v) return v;
     }
@@ -2978,7 +2978,7 @@
       if (safe.length) moves = safe;
     }
     // 짱짱맨: 상대의 연속 위협(VCT) 수순도 미리 끊는다
-    if (cfg && cfg.vct && !root.forced && moves.length > 1) {
+    if (cfg && cfg.vct && cfg.vctDefend !== false && !root.forced && moves.length > 1) {
       const dl = Date.now() + budgetMs * 0.2;
       if (vct(opp, 5, blocked, false, dl)) {
         const safe = moves.filter(m => {
