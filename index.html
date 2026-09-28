@@ -395,7 +395,7 @@
     { id: 'chain', name: '연속 착수', icon: '⚡', desc: '이번 턴에 총 3번까지 착수할 수 있습니다 (단, 이번 턴에 이미 둔 자리 포함 2칸 이내에는 놓을 수 없음).', type: 'chain_move', weight: 10 },
     { id: 'windmill', name: '풍차', icon: '🎡', desc: '내 돌 1개를 풍차로 만듭니다. 주변 8칸은 상대가 둘 수 없습니다.', type: 'windmill', weight: 10 },
     { id: 'sixsense', name: '식스센스', icon: '👁️', desc: '승리 조건이 5목에서 6목으로 영구히 바뀝니다.', type: 'six_sense', weight: 8 },
-    { id: 'trade', name: '맞교환', icon: '🔄', desc: '흑돌과 백돌을 하나씩 골라 서로 색을 바꿉니다.', type: 'trade', weight: 10 },
+    { id: 'trade', name: '맞교환', icon: '🔄', desc: '상하좌우로 맞닿은 흑돌과 백돌 한 쌍을 골라 서로 색을 바꿉니다.', type: 'trade', weight: 10 },
     { id: 'bomb', name: '폭파', icon: '💥', desc: '상대 돌 1개를 제거합니다. 대가로 다음 내 턴을 건너뜁니다.', type: 'remove_enemy', weight: 5 },
     { id: 'reversal', name: '전세 역전', icon: '☯️', desc: '보드의 모든 흑돌과 백돌을 통째로 뒤바꿉니다. 사용 즉시 내 턴이 종료됩니다. (가장 희귀)', type: 'reversal', weight: 2 },
     { id: 'alkkagi', name: '알까기 모드', icon: '🪀', desc: '흑, 백 순서로 한 번씩 알까기로 새 돌을 발사합니다. 흩어진 돌은 가장 가까운 자리로 고정됩니다.', type: 'alkkagi', weight: 8 },
@@ -411,7 +411,7 @@
     chain: '이번 턴 3번 착수',
     windmill: '내 돌 주변 8칸 봉쇄',
     sixsense: '승리 조건 6목으로',
-    trade: '흑·백 돌 1개씩 색 교환',
+    trade: '맞닿은 흑·백 돌 색 교환',
     bomb: '상대 돌 1개 제거 (다음 턴 휴식)',
     reversal: '모든 돌 색 반전 (턴 종료)',
     alkkagi: '알까기로 새 돌 발사',
@@ -794,6 +794,15 @@
       const p = cellCenter(pendingTarget.firstPos.r, pendingTarget.firstPos.c);
       ctx.strokeStyle = getVar('--purple'); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
+      // 교환 가능한 상대 돌 표시
+      ctx.setLineDash([4, 3]);
+      for (const [dr, dc] of ORTHO_DIRS) {
+        const r = pendingTarget.firstPos.r + dr, c = pendingTarget.firstPos.c + dc;
+        if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || !isValidTradeSecond(pendingTarget.firstPos, r, c)) continue;
+        const q = cellCenter(r, c);
+        ctx.beginPath(); ctx.arc(q.x, q.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.setLineDash([]);
     }
 
     if (pendingPlacement) {
@@ -1179,6 +1188,25 @@
     pruneInvalidTraps();
   }
 
+  // 맞교환: 상하좌우로 맞닿은 서로 다른 색 돌끼리만 교환 가능
+  const ORTHO_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  function isOrthoAdjacent(a, b) { return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1; }
+  function hasOppositeNeighbor(r, c) {
+    const v = board[r][c];
+    if (!isStone(v)) return false;
+    return ORTHO_DIRS.some(([dr, dc]) => {
+      const rr = r + dr, cc = c + dc;
+      return rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && isStone(board[rr][cc]) && board[rr][cc] !== v;
+    });
+  }
+  function hasTradablePair() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (hasOppositeNeighbor(r, c)) return true;
+    return false;
+  }
+  function isValidTradeSecond(first, r, c) {
+    return isStone(board[r][c]) && board[r][c] !== first.color && isOrthoAdjacent(first, { r, c });
+  }
+
   function useCard(player, idx) {
     if (player !== current || gameOver || draftOpen || pendingTarget || usedCardThisTurn[player] || alkPhaseActive()) return;
     if (mode === 'multiplayer' && player !== myColor) return;
@@ -1247,9 +1275,9 @@
         return;
 
       case 'trade':
-        if (!hasStoneOf(BLACK) || !hasStoneOf(WHITE)) { addLog(`${pname}: 교환할 돌이 부족함`); return; }
+        if (!hasTradablePair()) { addLog(`${pname}: 맞닿은 흑·백 돌이 없어 교환할 수 없음`); return; }
         pendingTarget = { type: 'trade', forPlayer: player, handIndex: idx, stage: 'first', firstPos: null };
-        enterTargetMode('교환할 돌 하나를 클릭하세요');
+        enterTargetMode('교환할 돌 하나를 클릭하세요 (반대 색 돌과 맞닿은 돌)');
         return;
 
       case 'alkkagi':
@@ -1401,23 +1429,26 @@
 
     } else if (t.type === 'trade') {
       if (t.stage === 'first') {
-        if (isStone(board[r][c])) {
+        if (hasOppositeNeighbor(r, c)) {
           t.firstPos = { r, c, color: board[r][c] };
           t.stage = 'second';
-          statusText.textContent = '이제 반대 색 돌을 클릭하세요';
+          statusText.textContent = '맞닿은 반대 색 돌을 클릭하세요';
           draw();
+        } else if (isStone(board[r][c])) {
+          addLog('맞닿은 반대 색 돌이 없는 돌입니다. 다른 돌을 고르세요');
         }
         return;
       } else {
-        if (isStone(board[r][c]) && board[r][c] !== t.firstPos.color && !(r === t.firstPos.r && c === t.firstPos.c)) {
-          const a = t.firstPos, bColor = board[r][c];
-          board[a.r][a.c] = bColor;
-          board[r][c] = a.color;
-          addLog(`${pname}: 🔄 맞교환 발동`);
-          resolved = true;
-        } else {
+        if (!isValidTradeSecond(t.firstPos, r, c)) {
+          // 맞닿지 않은 돌을 누르면 그 돌을 첫 번째 돌로 다시 선택
+          if (hasOppositeNeighbor(r, c)) { t.firstPos = { r, c, color: board[r][c] }; draw(); }
           return;
         }
+        const a = t.firstPos, bColor = board[r][c];
+        board[a.r][a.c] = bColor;
+        board[r][c] = a.color;
+        addLog(`${pname}: 🔄 맞교환 발동`);
+        resolved = true;
       }
     }
 
@@ -2073,7 +2104,7 @@
     const usable = hand[botColor].map((c, i) => ({ c, i })).filter(({ c }) => {
       if (c.type === 'remove_enemy') return hasStoneOf(opp);
       if (c.type === 'self_remove' || c.type === 'windmill' || c.type === 'teleport') return hasStoneOf(botColor);
-      if (c.type === 'trade') return hasStoneOf(BLACK) && hasStoneOf(WHITE);
+      if (c.type === 'trade') return hasTradablePair();
       if (c.type === 'trap') return hasEmptyCell();
       if (c.type === 'six_sense') return winLength !== 6;
       return true;
@@ -2096,9 +2127,9 @@
       for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === EMPTY) candidates.push({ r, c });
     } else if (t.type === 'trade') {
       if (t.stage === 'first') {
-        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) candidates.push({ r, c });
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (hasOppositeNeighbor(r, c)) candidates.push({ r, c });
       } else {
-        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c]) && board[r][c] !== t.firstPos.color) candidates.push({ r, c });
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isValidTradeSecond(t.firstPos, r, c)) candidates.push({ r, c });
       }
     }
     if (candidates.length === 0) { cancelTarget(); return; }
@@ -2456,6 +2487,7 @@
           let bestPair = null, bestGain = 0;
           const mine = listStones(botColor), theirs = listStones(opp);
           for (const a of theirs) for (const b of mine) {
+            if (!isOrthoAdjacent(a, b)) continue;
             board[a.r][a.c] = botColor; board[b.r][b.c] = opp;
             const makesWin = checkWin(a.r, a.c, botColor) || checkWin(b.r, b.c, opp);
             const gain = makesWin ? -Infinity : evalBoard(botColor, blocked) - base;
