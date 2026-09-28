@@ -64,7 +64,7 @@
     font-size: 14.5px;
   }
   .confirm-bar.show { display: flex; }
-  .confirm-bar button { padding: 5px 14px; font-size: 13.5px; }
+  .confirm-bar button { padding: 5px 14px; font-size: 13.5px; white-space: nowrap; flex-shrink: 0; }
   .confirm-bar .confirm-yes { border-color: var(--gold); color: var(--gold); font-weight: 700; }
   .confirm-bar .confirm-no { opacity: 0.7; }
   .board-wrap { position: relative; max-width: 100%; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); overflow: hidden; }
@@ -181,6 +181,9 @@
     .aug-desc { font-size: 11px; line-height: 1.35; }
     .code-input { font-size: 17px; letter-spacing: 2px; }
     .mode-btn { padding: 14px; }
+    .confirm-bar { gap: 8px; padding: 5px 8px 5px 14px; font-size: 13.5px; max-width: 100%; }
+    .confirm-bar button { padding: 5px 11px; }
+    #confirm-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   }
 
   .menu-screen, .lobby-screen, .game-screen { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -600,7 +603,7 @@
     statusText.classList.add('alkkagi');
     statusText.textContent = alk.simulating
       ? '알까기 진행 중...'
-      : (flicker === BLACK ? '흑' : '백') + ' 알까기 — 아래쪽 돌을 당겼다 놓아 발사하세요';
+      : (flicker === BLACK ? '흑' : '백') + ' 알까기 · 아래 돌을 당겨 발사';
     cancelBtn.classList.remove('show');
   }
 
@@ -669,7 +672,7 @@
         pendingPlacement = null;
         pendingTargetCell = null;
         pendingCardUse = { player, idx };
-        showConfirmBar(`${card.name} 카드를 사용할까요?`);
+        showConfirmBar(`${card.name} 사용할까요?`);
       });
       container.appendChild(btn);
     });
