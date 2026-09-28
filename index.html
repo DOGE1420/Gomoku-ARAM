@@ -37,7 +37,16 @@
     padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     gap: 12px;
   }
-  .lang-toggle { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 5px 12px; font-family: var(--font-main); font-size: 13px; cursor: pointer; }
+  .top-controls { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px; display: flex; gap: 6px; align-items: center; z-index: 30; }
+  .settings-btn { appearance: none; border: 1px solid var(--line); background: transparent; border-radius: 999px; width: 32px; height: 30px; font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
+  .settings-btn:hover, .settings-btn[aria-expanded="true"] { background: var(--line); }
+  .settings-panel { position: absolute; top: calc(100% + 8px); right: 0; width: 240px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,0.25); padding: 12px 14px; font-family: var(--font-main); text-align: left; }
+  .settings-panel[hidden] { display: none; }
+  .settings-title { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+  .settings-row { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+  .settings-row input { width: 18px; height: 18px; accent-color: var(--gold); cursor: pointer; }
+  .settings-desc { margin: 6px 0 0 26px; font-size: 12px; opacity: 0.7; line-height: 1.45; }
+  .lang-toggle { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 5px 12px; font-family: var(--font-main); font-size: 13px; cursor: pointer; }
   .lang-toggle:hover { background: var(--line); color: var(--paper); }
   h1 { font-size: clamp(26px, 5.5vw, 32px); font-weight: 700; letter-spacing: 0.01em; margin: 2px 0 0 0; }
   .sub { font-family: var(--font-main); font-size: 14px; opacity: 0.65; margin: 0; text-align: center; max-width: 460px; line-height: 1.5; }
@@ -99,6 +108,34 @@
   #banner.show { display: flex; }
   #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(14,10,18,0.93); backdrop-filter: blur(3px); padding: 16px; }
   #draft-overlay.show { display: flex; }
+  /* 카드 발동 연출 (불사의 토템 느낌): 카드가 튀어나와 흔들리며 다가오고 파티클이 터짐 */
+  .totem-layer { position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; pointer-events: auto; overflow: hidden; perspective: 700px;
+    background: radial-gradient(circle at 50% 55%, rgba(255,226,120,0.28), rgba(20,14,8,0.35) 70%); animation: totem-bg 1.2s ease forwards; }
+  .totem-card { position: relative; z-index: 2; width: 150px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 10px 14px; border-radius: 14px; border: 2px solid var(--gold);
+    background: linear-gradient(165deg, #3a3048, #1f1927); color: #fff7e8; font-family: var(--font-main); box-shadow: 0 0 34px rgba(255,215,90,0.65);
+    transform-style: preserve-3d; animation: totem-pop 1.2s cubic-bezier(.2,.75,.3,1) forwards; }
+  .totem-who { font-size: 12px; font-weight: 700; color: #f0c955; letter-spacing: 0.02em; }
+  .totem-icon { font-size: 46px; line-height: 1.1; }
+  .totem-name { font-size: 19px; font-weight: 700; }
+  .totem-particle { position: absolute; z-index: 1; left: 50%; top: 55%; width: 9px; height: 9px; border-radius: 2px; background: var(--pc); box-shadow: 0 0 6px var(--pc);
+    opacity: 0; animation: totem-p 1s ease-out forwards; animation-delay: var(--d); }
+  .totem-layer.reduced { animation: totem-bg-r 0.5s ease forwards; }
+  .totem-layer.reduced .totem-card { animation: totem-fade 0.5s ease forwards; }
+  @keyframes totem-pop {
+    0%   { transform: translateY(70%) scale(0.2) rotateY(0deg); opacity: 0; }
+    16%  { transform: translateY(0) scale(1.05) rotateY(-28deg); opacity: 1; }
+    34%  { transform: scale(1.25) rotateY(22deg); }
+    52%  { transform: scale(1.45) rotateY(-14deg); }
+    72%  { transform: scale(1.6) rotateY(7deg); opacity: 1; }
+    100% { transform: scale(2.1) rotateY(0deg); opacity: 0; }
+  }
+  @keyframes totem-p {
+    0%   { transform: translate(-50%, -50%) scale(1.2) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2) rotate(var(--rot)); opacity: 0; }
+  }
+  @keyframes totem-bg { 0% { opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes totem-bg-r { 0% { opacity: 0; } 25% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes totem-fade { 0% { opacity: 0; transform: scale(0.96); } 25% { opacity: 1; transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; } }
   #side-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(14,10,18,0.9); backdrop-filter: blur(3px); padding: 16px; }
   #side-overlay.show { display: flex; }
   .side-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -185,7 +222,9 @@
   }
 
   @media (max-width: 520px) {
-    .lang-toggle { position: static; align-self: flex-end; margin-bottom: -6px; padding: 4px 11px; font-size: 12.5px; }
+    .top-controls { position: relative; top: auto; right: auto; align-self: flex-end; margin-bottom: -6px; }
+    .lang-toggle { padding: 4px 11px; font-size: 12.5px; }
+    .settings-btn { width: 30px; height: 28px; font-size: 14px; }
   }
   @media (max-width: 430px) {
     body { padding: 14px 10px calc(14px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
@@ -255,7 +294,18 @@
 </style>
 </head>
 <body>
-  <button class="lang-toggle" id="lang-toggle" type="button" data-i18n="lang.toggle" data-i18n-aria="lang.aria" aria-label="언어 바꾸기">English</button>
+  <div class="top-controls">
+    <button class="settings-btn" id="settings-btn" type="button" aria-expanded="false" aria-controls="settings-panel" data-i18n-aria="settings" aria-label="설정">⚙️</button>
+    <button class="lang-toggle" id="lang-toggle" type="button" data-i18n="lang.toggle" data-i18n-aria="lang.aria" aria-label="언어 바꾸기">English</button>
+    <div class="settings-panel" id="settings-panel" hidden>
+      <div class="settings-title" data-i18n="settings">설정</div>
+      <label class="settings-row">
+        <input type="checkbox" id="reduce-motion">
+        <span data-i18n="settings.reduceMotion">움직임 줄이기</span>
+      </label>
+      <p class="settings-desc" data-i18n="settings.reduceMotion.desc">카드 발동 연출을 짧은 페이드로 줄이고, 파티클과 판 흔들림을 끕니다.</p>
+    </div>
+  </div>
   <h1 data-i18n="title">증강 오목</h1>
   <p class="sub" id="sub-text" data-i18n="sub">3수마다 패에 카드가 쌓입니다. 내 턴에 패의 카드를 눌러 능력을 발동하세요 — 수를 두는 것과는 별개의 행동이며, 턴당 1회만 사용할 수 있습니다.</p>
 
@@ -497,6 +547,9 @@
       'title': '증강 오목',
       'sub': '3수마다 패에 카드가 쌓입니다. 내 턴에 패의 카드를 눌러 능력을 발동하세요 — 수를 두는 것과는 별개의 행동이며, 턴당 1회만 사용할 수 있습니다.',
       'lang.toggle': 'English', 'lang.aria': '언어 바꾸기',
+      'settings': '설정', 'settings.reduceMotion': '움직임 줄이기',
+      'settings.reduceMotion.desc': '카드 발동 연출을 짧은 페이드로 줄이고, 파티클과 판 흔들림을 끕니다.',
+      'fx.who': '{color} — 카드 발동', 'log.oppCard': '{color}: {icon} {card} 발동',
       'mode.local': '로컬 모드', 'mode.local.desc': '한 기기에서 흑백 번갈아 대전',
       'mode.bot': '봇전', 'mode.bot.desc': 'AI를 상대로 대전 (난이도 {n})', 'bot.level': '봇 난이도',
       'mode.mp': '멀티플레이', 'mode.mp.desc': '온라인으로 대전, 서로의 패는 비공개',
@@ -577,6 +630,9 @@
       'title': 'Augmented Gomoku',
       'sub': 'Every 3 stones you place earns a card for your hand. On your turn, tap a card in your hand to use its power — it is separate from placing a stone, and you can use one card per turn.',
       'lang.toggle': '한국어', 'lang.aria': 'Change language',
+      'settings': 'Settings', 'settings.reduceMotion': 'Reduce motion',
+      'settings.reduceMotion.desc': 'Card effects become a short fade, with no particles or board shake.',
+      'fx.who': '{color} — Card activated', 'log.oppCard': '{color}: {icon} {card} activated',
       'mode.local': 'Local', 'mode.local.desc': 'Take turns as Black and White on one device',
       'mode.bot': 'vs Bot', 'mode.bot.desc': 'Play against the AI (level {n})', 'bot.level': 'Bot level',
       'mode.mp': 'Multiplayer', 'mode.mp.desc': 'Play online; hands stay hidden from each other',
@@ -759,6 +815,15 @@
   // 멀티플레이 알까기 관전: 내가 보낸 발사 정보 / 상대 알까기를 내 화면에 재현하는 상태
   let mpAlkLaunch = null;
   let alkView = null, lastSeenLaunchId = null, lastPublicData = null;
+  // 카드 발동 연출
+  let cardAnimBusy = false, cardAnimRemote = false, deferredSnapshot = null;
+  let mpCardFx = null, lastSeenCardFxId = null;
+  let cardAnimInstant = false; // 테스트용: 연출 없이 바로 진행
+  let reduceMotion = false;
+  try {
+    const saved = localStorage.getItem('omok_reduce_motion');
+    reduceMotion = saved === null ? !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) : saved === '1';
+  } catch (e) {}
   function isCrater(r, c) { return craterList.some(cr => cr.r === r && cr.c === c); }
   // 턴이 넘어갈 때 호출: 폭파한 턴이 끝나면(fresh) 그대로 두고, 이후 턴마다 1씩 줄여 0이 되면 제거
   function tickCraters() {
@@ -987,7 +1052,7 @@
         container.appendChild(btn);
         return;
       }
-      const canUse = player === current && !gameOver && !draftOpen && !pendingTarget && !usedCardThisTurn[player] && !alkPhaseActive() && (mode === 'local' || player === myColor);
+      const canUse = player === current && !gameOver && !draftOpen && !pendingTarget && !usedCardThisTurn[player] && !alkPhaseActive() && !cardAnimBusy && (mode === 'local' || player === myColor);
       btn.className = 'hand-card' + (canUse ? '' : ' disabled');
       btn.title = cardDesc(card);
       btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${cardName(card)}</div><div class="hc-desc">${cardShort(card) || cardDesc(card)}</div>`;
@@ -1178,7 +1243,7 @@
   }
 
   function handleCanvasClick(evt) {
-    if (alkPhaseActive() || gameOver || draftOpen || awaitingSide) return;
+    if (alkPhaseActive() || gameOver || draftOpen || awaitingSide || cardAnimBusy) return;
     if (mode !== 'local' && current !== myColor) return;
     const pos = posFromEvent(evt);
     if (!pos) return;
@@ -2170,6 +2235,7 @@
       alkTurnOrder: alkOrderNow,
       alkTurnIndex: alkIndexNow,
       alkLaunch: mpAlkLaunch,
+      cardFx: mpCardFx,
     };
   }
 
@@ -2207,8 +2273,71 @@
 
   function setNotice(text) { mpNotice = text; mpNoticeSeq++; lastSeenNoticeSeq = mpNoticeSeq; }
 
+  // ---- 카드 발동 연출 ----
+  const FX_COLORS = {
+    chain: ['#ffe066', '#ffd23f', '#fff3b0'], windmill: ['#5ee6d0', '#3cc9b5', '#bff7ee'], sixsense: ['#b784ff', '#d9b8ff', '#8d5cf6'],
+    trade: ['#7fc8ff', '#ffffff', '#3f8cff'], bomb: ['#ff5a36', '#ffae42', '#ffd166'], reversal: ['#ffffff', '#222222', '#bbbbbb'],
+    alkkagi: ['#ff6b6b', '#ffd166', '#4ecdc4'], teleport: ['#fff7a8', '#c9a7ff', '#ffffff'], earthquake: ['#c0894f', '#8a5a2b', '#e8c39e'],
+    blockade: ['#ff4d6d', '#ffffff', '#c9184a'], trap: ['#c8a165', '#7f5539', '#ffd6a5'], infection: ['#7cfc00', '#2ecc71', '#b5ff6b'],
+  };
+  const FX_DEFAULT = ['#7cfc00', '#ffd700', '#adff2f']; // 토템 기본색 (초록·노랑)
+
+  function playCardAnim(cardId, player, done) {
+    const card = CARD_POOL.find(c => c.id === cardId);
+    if (cardAnimInstant || !card || !boardWrapEl) { done && done(); return; }
+    cardAnimBusy = true;
+    updateHandUI();
+    const layer = document.createElement('div');
+    layer.className = 'totem-layer' + (reduceMotion ? ' reduced' : '');
+    const cardEl = document.createElement('div');
+    cardEl.className = 'totem-card';
+    const who = document.createElement('div'); who.className = 'totem-who'; who.textContent = t('fx.who', { color: player });
+    const icon = document.createElement('div'); icon.className = 'totem-icon'; icon.textContent = card.icon;
+    const name = document.createElement('div'); name.className = 'totem-name'; name.textContent = cardName(card);
+    cardEl.append(who, icon, name);
+    layer.appendChild(cardEl);
+    if (!reduceMotion) {
+      const colors = FX_COLORS[card.id] || FX_DEFAULT;
+      for (let i = 0; i < 34; i++) {
+        const pt = document.createElement('span');
+        pt.className = 'totem-particle';
+        const ang = Math.random() * Math.PI * 2, dist = 90 + Math.random() * 190;
+        pt.style.setProperty('--dx', Math.round(Math.cos(ang) * dist) + 'px');
+        pt.style.setProperty('--dy', Math.round(Math.sin(ang) * dist - 30) + 'px');
+        pt.style.setProperty('--rot', Math.round(Math.random() * 540 - 270) + 'deg');
+        pt.style.setProperty('--d', Math.round(80 + Math.random() * 380) + 'ms');
+        pt.style.setProperty('--pc', colors[i % colors.length]);
+        layer.appendChild(pt);
+      }
+    }
+    boardWrapEl.appendChild(layer);
+    setTimeout(() => {
+      layer.remove();
+      cardAnimBusy = false;
+      cardAnimRemote = false;
+      done && done();
+      updateHandUI();
+    }, reduceMotion ? 500 : 1200);
+  }
+
+  // 카드 발동: 연출(상대 화면에도) → 끝난 뒤 실제 효과 적용
+  function activateCard(player, idx, after) {
+    const card = hand[player] && hand[player][idx];
+    if (!card || cardAnimBusy) return false;
+    if (mode === 'multiplayer') {
+      mpCardFx = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), card: card.id, color: player };
+      syncPublicState(); // 효과 적용 전 상태로 먼저 알려 상대도 연출부터 보게 함
+    }
+    playCardAnim(card.id, player, () => {
+      useCard(player, idx);
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+      if (after) after();
+    });
+    return true;
+  }
+
   function triggerBoardShake() {
-    if (!boardWrapEl) return;
+    if (!boardWrapEl || reduceMotion) return;
     boardWrapEl.classList.remove('shake');
     void boardWrapEl.offsetWidth; // 강제 리플로우로 애니메이션 재시작 가능하게
     boardWrapEl.classList.add('shake');
@@ -2247,6 +2376,26 @@
 
   function applyPublicSnapshot(data) {
     if (!data) return;
+    // 상대 카드 발동: 연출을 먼저 보여주고, 연출 중 들어온 변화(효과)는 끝난 뒤 적용
+    const fx = data.cardFx;
+    if (fx && fx.id !== lastSeenCardFxId) {
+      lastSeenCardFxId = fx.id;
+      if (fx.color !== myColor) {
+        // 상대가 쓴 카드도 내 기록창에 남김
+        const fc = CARD_POOL.find(c => c.id === fx.card);
+        if (fc) addLog(L('log.oppCard', { color: fx.color, icon: fc.icon, card: fc.id }));
+      }
+      if (fx.color !== myColor && !cardAnimBusy) {
+        cardAnimRemote = true;
+        playCardAnim(fx.card, fx.color, () => {
+          const d = deferredSnapshot; deferredSnapshot = null;
+          if (d) applyPublicSnapshot(d);
+        });
+      }
+    } else if (cardAnimBusy && cardAnimRemote) {
+      deferredSnapshot = data;
+      return;
+    }
     if (data.board) board = unflattenBoard(data.board);
     if (data.current) current = data.current;
     if (data.winLength) winLength = data.winLength;
@@ -2517,6 +2666,7 @@
       logLines = []; mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
       mpShakeSeq = 0; lastSeenShakeSeq = 0;
       mpRestartSeq = data.restartSeq || 0; lastSeenRestartSeq = mpRestartSeq;
+      lastSeenCardFxId = data.cardFx ? data.cardFx.id : null; // 들어오기 전에 쓴 카드 연출은 다시 보여주지 않음
       board = unflattenBoard(data.board || flattenBoard());
       current = data.current || BLACK;
       winLength = data.winLength || 5;
@@ -2594,17 +2744,20 @@
       setTimeout(() => { maybeBotTurn(); botThinkingShown = false; }, 30);
       return;
     }
+    if (cardAnimBusy) return;
+    const proceed = () => {
+      if (!gameOver && current === botColor && !draftOpen && !pendingTarget && !alk) botPlaceStone(botColor);
+    };
     if (!usedCardThisTurn[botColor] && hand[botColor].length > 0) {
-      if (botCfg().smartCards) botUseCardSmart(botColor);
-      else if (Math.random() < 0.5) botUseCard(botColor);
+      // 카드를 쓰면 발동 연출이 끝난 뒤 효과 적용 → 이어서 착수
+      const started = botCfg().smartCards ? botUseCardSmart(botColor, proceed) : (Math.random() < 0.5 && botUseCard(botColor, proceed));
+      if (started) return;
     }
-    if (!gameOver && current === botColor && !draftOpen && !pendingTarget && !alk) {
-      botPlaceStone(botColor);
-    }
+    proceed();
   }
 
   // ---- 저난이도: 무작위 카드 사용 ----
-  function botUseCard(botColor) {
+  function botUseCard(botColor, after) {
     const opp = other(botColor);
     const usable = hand[botColor].map((c, i) => ({ c, i })).filter(({ c }) => {
       if (c.type === 'remove_enemy') return hasStoneOf(opp);
@@ -2614,10 +2767,12 @@
       if (c.type === 'six_sense') return winLength !== 6;
       return true;
     });
-    if (usable.length === 0) return;
+    if (usable.length === 0) return false;
     const chosen = usable[Math.floor(Math.random() * usable.length)];
-    useCard(botColor, chosen.i);
-    if (pendingTarget && pendingTarget.forPlayer === botColor) resolveBotPendingTarget();
+    return activateCard(botColor, chosen.i, () => {
+      if (pendingTarget && pendingTarget.forPlayer === botColor) resolveBotPendingTarget();
+      if (after) after();
+    });
   }
 
   function resolveBotPendingTarget() {
@@ -3187,11 +3342,11 @@
     return f && f.player === player ? f : null;
   }
 
-  function botUseCardSmart(botColor) {
+  function botUseCardSmart(botColor, after) {
     const opp = other(botColor);
     const blocked = makeBlocked();
     const myWins = findWinCells(botColor, blocked[botColor]);
-    if (myWins.length) return; // 바로 이길 수 있으면 카드 없이 둔다
+    if (myWins.length) return false; // 바로 이길 수 있으면 카드 없이 둔다
     const oppWins = findWinCells(opp, blocked[opp]);
     const base = evalBoard(botColor, blocked);
     const oppHasCards = hand[opp].length > 0;
@@ -3211,7 +3366,7 @@
       const junkOrder = BOT_CARD_PRIORITY.slice().reverse();
       let junk = -1, junkRank = Infinity;
       hand[botColor].forEach((c, i) => { const r = junkOrder.indexOf(c.id); if (r !== -1 && r < junkRank) { junkRank = r; junk = i; } });
-      if (junk !== -1) { useCard(botColor, junk); return; }
+      if (junk !== -1) return activateCard(botColor, junk, after);
     }
 
     hand[botColor].forEach((card, idx) => {
@@ -3335,19 +3490,23 @@
       }
     });
 
-    if (!best) return;
-    useCard(botColor, best.idx);
-    const t = pendingTarget;
-    if (!t || t.forPlayer !== botColor) return;
-    if (best.targets && best.targets.length) {
-      for (const pos of best.targets) {
-        if (!pendingTarget) break;
-        handleTargetClick(pos);
+    if (!best) return false;
+    const choice = best;
+    return activateCard(botColor, choice.idx, () => {
+      const t = pendingTarget;
+      if (t && t.forPlayer === botColor) {
+        if (choice.targets && choice.targets.length) {
+          for (const pos of choice.targets) {
+            if (!pendingTarget) break;
+            handleTargetClick(pos);
+          }
+          if (pendingTarget) cancelTarget();
+        } else {
+          resolveBotPendingTarget();
+        }
       }
-      if (pendingTarget) cancelTarget();
-    } else {
-      resolveBotPendingTarget();
-    }
+      if (after) after();
+    });
   }
 
   // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
@@ -3434,6 +3593,23 @@
     if (draftOverlay.classList.contains('show') && lastDraft) renderDraftCards(lastDraft.player, lastDraft.picks);
     if (!chatPanel.hidden) renderChat(lastChatMessages);
   }
+  // ---- 설정: 움직임 줄이기 ----
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  const reduceMotionInput = document.getElementById('reduce-motion');
+  reduceMotionInput.checked = reduceMotion;
+  function setSettingsOpen(open) {
+    settingsPanel.hidden = !open;
+    settingsBtn.setAttribute('aria-expanded', String(open));
+  }
+  settingsBtn.addEventListener('click', (e) => { e.stopPropagation(); setSettingsOpen(settingsPanel.hidden); });
+  settingsPanel.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => { if (!settingsPanel.hidden) setSettingsOpen(false); });
+  reduceMotionInput.addEventListener('change', () => {
+    reduceMotion = reduceMotionInput.checked;
+    try { localStorage.setItem('omok_reduce_motion', reduceMotion ? '1' : '0'); } catch (e) {}
+  });
+
   document.getElementById('lang-toggle').addEventListener('click', () => {
     lang = lang === 'ko' ? 'en' : 'ko';
     try { localStorage.setItem('omok_lang', lang); } catch (e) {}
@@ -3527,7 +3703,7 @@
     if (alk && alk.dragging) releaseDrag(rawPosFromEvent(e));
   }, { passive: false });
 
-  undoBtn.addEventListener('click', () => { if (mode !== 'multiplayer') undo(); });
+  undoBtn.addEventListener('click', () => { if (mode !== 'multiplayer' && !cardAnimBusy) undo(); });
   resetBtn.addEventListener('click', () => {
     if (mode === 'multiplayer') {
       if (gameOver) startRematch();
@@ -3563,8 +3739,7 @@
       const { player, idx } = pendingCardUse;
       pendingCardUse = null;
       hideConfirmBar();
-      useCard(player, idx);
-      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+      activateCard(player, idx);
     } else if (pendingTargetCell) {
       const pos = pendingTargetCell;
       pendingTargetCell = null;
