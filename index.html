@@ -549,7 +549,7 @@
       'lang.toggle': 'English', 'lang.aria': '언어 바꾸기',
       'settings': '설정', 'settings.reduceMotion': '움직임 줄이기',
       'settings.reduceMotion.desc': '카드 발동 연출을 짧은 페이드로 줄이고, 파티클과 판 흔들림을 끕니다.',
-      'fx.who': '{color} — 카드 발동',
+      'fx.who': '{color} — 카드 발동', 'log.oppCard': '{color}: {icon} {card} 발동',
       'mode.local': '로컬 모드', 'mode.local.desc': '한 기기에서 흑백 번갈아 대전',
       'mode.bot': '봇전', 'mode.bot.desc': 'AI를 상대로 대전 (난이도 {n})', 'bot.level': '봇 난이도',
       'mode.mp': '멀티플레이', 'mode.mp.desc': '온라인으로 대전, 서로의 패는 비공개',
@@ -632,7 +632,7 @@
       'lang.toggle': '한국어', 'lang.aria': 'Change language',
       'settings': 'Settings', 'settings.reduceMotion': 'Reduce motion',
       'settings.reduceMotion.desc': 'Card effects become a short fade, with no particles or board shake.',
-      'fx.who': '{color} — Card activated',
+      'fx.who': '{color} — Card activated', 'log.oppCard': '{color}: {icon} {card} activated',
       'mode.local': 'Local', 'mode.local.desc': 'Take turns as Black and White on one device',
       'mode.bot': 'vs Bot', 'mode.bot.desc': 'Play against the AI (level {n})', 'bot.level': 'Bot level',
       'mode.mp': 'Multiplayer', 'mode.mp.desc': 'Play online; hands stay hidden from each other',
@@ -2380,6 +2380,11 @@
     const fx = data.cardFx;
     if (fx && fx.id !== lastSeenCardFxId) {
       lastSeenCardFxId = fx.id;
+      if (fx.color !== myColor) {
+        // 상대가 쓴 카드도 내 기록창에 남김
+        const fc = CARD_POOL.find(c => c.id === fx.card);
+        if (fc) addLog(L('log.oppCard', { color: fx.color, icon: fc.icon, card: fc.id }));
+      }
       if (fx.color !== myColor && !cardAnimBusy) {
         cardAnimRemote = true;
         playCardAnim(fx.card, fx.color, () => {
