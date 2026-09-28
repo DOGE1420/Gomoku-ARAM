@@ -99,6 +99,14 @@
   #banner.show { display: flex; }
   #draft-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(14,10,18,0.93); backdrop-filter: blur(3px); padding: 16px; }
   #draft-overlay.show { display: flex; }
+  #side-overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(14,10,18,0.9); backdrop-filter: blur(3px); padding: 16px; }
+  #side-overlay.show { display: flex; }
+  .side-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .side-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 118px; padding: 18px 10px 14px; border-radius: 12px; border: 1.5px solid rgba(201,162,39,0.55); background: linear-gradient(165deg, #342b40, #1f1927); color: #fff7e8; font-family: var(--font-main); font-size: 15.5px; font-weight: 700; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease; }
+  .side-btn:hover, .side-btn:focus-visible { transform: translateY(-3px); border-color: var(--gold); outline: none; }
+  .side-stone { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .side-stone.black { background: radial-gradient(circle at 35% 30%, var(--stone-black-1), var(--stone-black-2)); box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+  .side-stone.white { background: radial-gradient(circle at 35% 30%, var(--stone-white-1), var(--stone-white-2)); box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
   .draft-title { color: #f6eedf; font-family: var(--font-main); font-weight: 700; font-size: clamp(18px, 4.5vw, 23px); text-align: center; }
   .draft-sub { color: #cdbfa6; font-family: var(--font-main); font-size: 13px; margin-top: -8px; }
   .draft-cards { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: stretch; max-width: 100%; }
@@ -317,6 +325,15 @@
     <div class="board-wrap">
       <canvas id="board"></canvas>
       <div id="banner"></div>
+      <div id="side-overlay">
+        <div class="draft-title" data-i18n="side.title">선공/후공 선택</div>
+        <div class="draft-sub" data-i18n="side.sub">흑이 먼저 둡니다</div>
+        <div class="side-options" id="side-options">
+          <button class="side-btn" type="button" data-side="first"><span class="side-stone black"></span><span data-i18n="side.first">선공 (흑)</span></button>
+          <button class="side-btn" type="button" data-side="second"><span class="side-stone white"></span><span data-i18n="side.second">후공 (백)</span></button>
+          <button class="side-btn" type="button" data-side="random"><span class="side-stone rand">🎲</span><span data-i18n="side.random">랜덤</span></button>
+        </div>
+      </div>
       <div id="draft-overlay">
         <div class="draft-title" id="draft-title">카드 획득</div>
         <div class="draft-sub" data-i18n="draft.sub">한 장을 골라 패에 넣으세요</div>
@@ -519,6 +536,8 @@
       'bot.hint.10': '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
       'bot.hint.20': '얼티밋 — 수당 약 2.5초 동안 최대한 깊이 읽고, 상대의 필승 수순까지 끊음',
       'bot.ultimate': '얼티밋', 'bot.thinking': '🤖 봇이 생각 중...',
+      'side.title': '선공/후공 선택', 'side.sub': '흑이 먼저 둡니다', 'side.first': '선공 (흑)', 'side.second': '후공 (백)', 'side.random': '랜덤',
+      'side.prompt': '선공/후공을 고르세요', 'log.sideFirst': '🤖 봇전 — 내가 선공(흑)', 'log.sideSecond': '🤖 봇전 — 내가 후공(백)',
       'tgt.windmill': '풍차로 만들 내 돌을 클릭하세요', 'tgt.selfRemove': '제거할 내 돌을 클릭하세요',
       'tgt.remove': '제거할 상대 돌을 클릭하세요', 'tgt.trade1': '교환할 돌 하나를 클릭하세요 (반대 색 돌과 맞닿은 돌)',
       'tgt.trade2': '맞닿은 반대 색 돌을 클릭하세요', 'tgt.teleport': '이동시킬 내 돌을 클릭하세요', 'tgt.trap': '함정을 설치할 빈 칸을 클릭하세요',
@@ -596,6 +615,8 @@
       'bot.hint.10': 'Master — reads 4 moves ahead and hunts forcing four sequences',
       'bot.hint.20': 'Ultimate — thinks ~2.5s per move as deep as it can and breaks your forced wins',
       'bot.ultimate': 'Ultimate', 'bot.thinking': '🤖 Bot is thinking...',
+      'side.title': 'Choose your side', 'side.sub': 'Black moves first', 'side.first': 'First (Black)', 'side.second': 'Second (White)', 'side.random': 'Random',
+      'side.prompt': 'Choose first or second', 'log.sideFirst': '🤖 vs Bot — you play first (Black)', 'log.sideSecond': '🤖 vs Bot — you play second (White)',
       'tgt.windmill': 'Click one of your stones to make a windmill', 'tgt.selfRemove': 'Click one of your stones to remove',
       'tgt.remove': "Click an opponent's stone to remove", 'tgt.trade1': 'Click a stone to swap (one touching an opposite color)',
       'tgt.trade2': 'Now click the touching opposite stone', 'tgt.teleport': 'Click one of your stones to teleport', 'tgt.trap': 'Click an empty cell to set a trap',
@@ -680,6 +701,8 @@
   const banner = document.getElementById('banner');
   const undoBtn = document.getElementById('undo-btn');
   const resetBtn = document.getElementById('reset-btn');
+  const sideOverlay = document.getElementById('side-overlay');
+  let awaitingSide = false; // 봇전에서 선후공 선택을 기다리는 중
   const rematchBar = document.getElementById('rematch-bar');
   const rematchText = document.getElementById('rematch-text');
   const rematchOptions = document.getElementById('rematch-options');
@@ -838,6 +861,13 @@
     winLenBadge.classList.remove('show');
     updateLog();
     draw();
+    sideOverlay.classList.toggle('show', awaitingSide);
+    if (awaitingSide) {
+      // 봇전: 선후공을 고른 뒤에 카드 드래프트와 게임 시작
+      statusText.textContent = t('side.prompt');
+      updateHandUI();
+      return;
+    }
     startupQueue = mode === 'multiplayer' ? [myColor] : [BLACK, WHITE];
     runStartupDraft();
   }
@@ -863,6 +893,7 @@
     resetBtn.style.display = ((mode === 'multiplayer' && !gameOver) || loserPicksSide()) ? 'none' : 'inline-block';
     renderRematchBar();
     if (gameOver) return;
+    if (awaitingSide) { statusText.textContent = t('side.prompt'); return; }
     if (alk) { updateAlkStatus(); return; }
     if (alkHandoff) {
       const flicker = alkHandoff.turnOrder[alkHandoff.turnIndex];
@@ -1123,7 +1154,7 @@
   }
 
   function handleCanvasClick(evt) {
-    if (alkPhaseActive() || gameOver || draftOpen) return;
+    if (alkPhaseActive() || gameOver || draftOpen || awaitingSide) return;
     if (mode !== 'local' && current !== myColor) return;
     const pos = posFromEvent(evt);
     if (!pos) return;
@@ -2451,7 +2482,7 @@
 
   let botThinkingShown = false;
   function maybeBotTurn() {
-    if (mode !== 'bot' || gameOver || draftOpen || pendingTarget || alk) return;
+    if (mode !== 'bot' || gameOver || draftOpen || pendingTarget || alk || awaitingSide) return;
     const botColor = other(myColor);
     if (current !== botColor) return;
     // 얼티밋은 계산이 길어서, 먼저 '생각 중' 표시를 그린 뒤 계산
@@ -3148,10 +3179,21 @@
     try { localStorage.setItem('omok_lang', lang); } catch (e) {}
     rerenderAll();
   });
-  modeLocalBtn.addEventListener('click', () => { mode = 'local'; myColor = BLACK; init(); showScreen('game'); });
-  modeBotBtn.addEventListener('click', () => {
-    mode = 'bot'; myColor = BLACK; init(); showScreen('game');
+  modeLocalBtn.addEventListener('click', () => { mode = 'local'; myColor = BLACK; awaitingSide = false; init(); showScreen('game'); });
+  function startBotGameWithSidePick() {
+    mode = 'bot'; myColor = BLACK; awaitingSide = true;
+    init(); showScreen('game');
+  }
+  modeBotBtn.addEventListener('click', startBotGameWithSidePick);
+  document.getElementById('side-options').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-side]');
+    if (!b || !awaitingSide) return;
+    const side = b.dataset.side === 'random' ? (Math.random() < 0.5 ? 'first' : 'second') : b.dataset.side;
+    myColor = side === 'first' ? BLACK : WHITE;
+    awaitingSide = false;
+    init();
     addLog(L('bot.log', { n: botLevelName(botLevel) }));
+    addLog(L(myColor === BLACK ? 'log.sideFirst' : 'log.sideSecond'));
   });
 
   const botLevelOptions = document.getElementById('bot-level-options');
@@ -3188,6 +3230,8 @@
     showScreen('menu');
   });
   gameBackBtn.addEventListener('click', () => {
+    awaitingSide = false;
+    sideOverlay.classList.remove('show');
     if (mode === 'multiplayer' && roomCode && dbApi && !gameOver) {
       gameOver = true;
       showBanner(L('banner.left', { color: myColor }));
@@ -3226,6 +3270,8 @@
   resetBtn.addEventListener('click', () => {
     if (mode === 'multiplayer') {
       if (gameOver) startRematch();
+    } else if (mode === 'bot') {
+      startBotGameWithSidePick();
     } else {
       init();
     }
