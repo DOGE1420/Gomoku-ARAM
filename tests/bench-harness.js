@@ -122,6 +122,25 @@ window.__bench = {
     const q = E2_SYM[cv.t](m.r, m.c);
     return { key: cv.key + '>' + pos.bot, move: [q[0] - cv.mr, q[1] - cv.mc], depth: uLastDepth };
   },
+  // 정석 조회 검증: 모든 항목을 8가지 대칭 × 여러 위치에 놓아도 저장된 수로 복원되는지
+  bookCheck() {
+    let ok = 0, bad = 0;
+    for (const [k, mv] of Object.entries(E2_BOOK)) {
+      const [body, bot] = k.split('>');
+      const st = body.split('|').map(s => s.split('.').map(Number));
+      for (let t = 0; t < 8; t++) for (const [or, oc] of [[5, 5], [6, 4], [4, 7]]) {
+        const place = (r, c) => { const q = E2_SYM[t](r, c); return [q[0] + or, q[1] + oc]; };
+        this.reset();
+        st.forEach(([r, c, v]) => { const p = place(r, c); board[p[0]][p[1]] = v; });
+        const m = e2BookMove(+bot, makeBlocked()), exp = place(mv[0], mv[1]);
+        // 대칭인 국면은 대칭 위치의 수(같은 수)가 나와도 정답
+        const withMove = (r, c) => e2Canon(st.map(([a, b, v]) => { const p = place(a, b); return { r: p[0], c: p[1], v }; }).concat([{ r, c, v: +bot }])).key;
+        if (m && (m.r === exp[0] && m.c === exp[1] || withMove(m.r, m.c) === withMove(exp[0], exp[1]))) ok++; else bad++;
+      }
+    }
+    this.reset();
+    return { entries: Object.keys(E2_BOOK).length, ok, bad };
+  },
   // 속도 측정: 한 국면을 생각시키고 깊이·노드 수·시간을 돌려줌
   think(pz, level, ms) {
     this.load(pz); uLastDepth = 0;
