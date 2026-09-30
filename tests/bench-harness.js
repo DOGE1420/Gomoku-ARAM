@@ -66,6 +66,70 @@ window.__bench = {
     const m = (cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(pz.side, makeBlocked(), ms, cfg);
     return !!m && pz.answers.includes(m.r * SIZE + m.c);
   },
+  // VCT 검증: 공격 문제에서 v2가 공격, 수비는 다른 레벨이 더 긴 시간으로 막아 봄 → 공격 쪽이 이겼는지
+  playout(pz, atkMs, defLevel, defMs, maxPlies) {
+    this.load(pz);
+    let col = pz.side;
+    for (let ply = 0; ply < maxPlies; ply++) {
+      const lv = col === pz.side ? 50 : defLevel, t = col === pz.side ? atkMs : defMs;
+      const cfg = Object.assign({}, BOT_LEVELS[lv], { book: false, oppCardReplies: false });
+      const m = (cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(col, makeBlocked(), t, cfg);
+      if (!m) return { winner: 0, plies: ply };
+      board[m.r][m.c] = col;
+      if (checkWin(m.r, m.c, col)) return { winner: col === pz.side ? 1 : -1, plies: ply + 1 };
+      col = other(col);
+    }
+    return { winner: 0, plies: maxPlies };
+  },
+  // 정석 만들 국면 목록: 봇이 실제로 만나는 초반 (기존 정석 수를 따라간 뒤 상대가 근처에 둔 경우들)
+  //  stage 1: 봇 백 4번째 수(돌 3개), 봇 흑 5번째 수(돌 4개) / stage 2: 봇 백 6번째 수(돌 5개, stage 1 결과 필요)
+  bookPositions(stage, radius) {
+    const C = 7, out = [], seen = new Set(), self = this;
+    const put = (stones) => { self.reset(); stones.forEach(s => { board[s.r][s.c] = s.v; }); };
+    const add = (stones, bot) => {
+      const k = e2Canon(stones).key + '>' + bot;
+      if (!seen.has(k) && !E2_BOOK[k]) { seen.add(k); out.push({ stones, bot }); }
+    };
+    const replies = (stones, who) => { put(stones); return collectCandidates(who, radius, makeBlocked(), false).map(p => ({ r: p.r, c: p.c, v: who })); };
+    const bookReply = (stones, bot) => { put(stones); const m = e2BookMove(bot, makeBlocked()) || openingBookMove(bot, makeBlocked()); return m ? { r: m.r, c: m.c, v: bot } : null; };
+    const b1 = { r: C, c: C, v: BLACK };
+    // 봇 백: 흑 중앙 → 백 정석 응수 → 흑 3번째 수(근처 전부)
+    const w2 = bookReply([b1], WHITE);
+    for (const b3 of replies([b1, w2], BLACK)) {
+      const s3 = [b1, w2, b3];
+      if (stage === 1) add(s3, WHITE);
+      else {
+        const w4 = bookReply(s3, WHITE); if (!w4) continue;
+        for (const b5 of replies([...s3, w4], BLACK)) add([...s3, w4, b5], WHITE);
+      }
+    }
+    // 봇 흑: 중앙 → 백 2번째 수(붙인 8곳) → 흑 정석 응수 → 백 4번째 수(근처 전부)
+    if (stage === 1) for (const [dr, dc] of [[0, 1], [1, 1]]) {
+      const w2b = { r: C + dr, c: C + dc, v: WHITE };
+      const b3 = bookReply([b1, w2b], BLACK); if (!b3) continue;
+      for (const w4 of replies([b1, w2b, b3], WHITE)) add([b1, w2b, b3, w4], BLACK);
+    }
+    this.reset();
+    return out;
+  },
+  // 정석 한 국면을 깊게 계산해서 정규화된 키와 수를 돌려줌
+  bookSolve(pos, ms) {
+    this.reset(); pos.stones.forEach(s => { board[s.r][s.c] = s.v; });
+    const cfg = Object.assign({}, BOT_LEVELS[50], { book: false, oppCardReplies: false });
+    const m = e2ChooseMove(pos.bot, makeBlocked(), ms, cfg);
+    const cv = e2Canon(pos.stones);
+    // 정규화 좌표로 변환 (e2FromCanon의 역)
+    const q = E2_SYM[cv.t](m.r, m.c);
+    return { key: cv.key + '>' + pos.bot, move: [q[0] - cv.mr, q[1] - cv.mc], depth: uLastDepth };
+  },
+  // 속도 측정: 한 국면을 생각시키고 깊이·노드 수·시간을 돌려줌
+  think(pz, level, ms) {
+    this.load(pz); uLastDepth = 0;
+    const cfg = Object.assign({}, BOT_LEVELS[level], { book: false, oppCardReplies: false });
+    const t0 = Date.now();
+    const m = (cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(pz.side, makeBlocked(), ms, cfg);
+    return { depth: uLastDepth, nodes: cfg.engine2 ? e2Nodes : uNodes, ms: Date.now() - t0, move: m ? m.r * SIZE + m.c : -1 };
+  },
   // 대국: 흑/백 설정을 따로 주고 끝까지 둠 (첫 3수는 무작위, E2P 덮어쓰기 가능)
   match(seed, black, white, ms) {
     const rnd = this.rng(seed); this.reset();
