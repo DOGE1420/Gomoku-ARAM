@@ -401,6 +401,7 @@
       <div class="rematch-options" id="rematch-options">
         <button class="plain" type="button" data-rematch="first" data-i18n="rematch.first">선공(흑)으로</button>
         <button class="plain" type="button" data-rematch="second" data-i18n="rematch.second">후공(백)으로</button>
+        <button class="plain" type="button" data-rematch="random" data-i18n="rematch.random">🎲 랜덤</button>
       </div>
     </div>
     </div>
@@ -574,6 +575,7 @@
       'rematch.loser': '졌습니다. 재대결에서 선공/후공을 고르세요', 'rematch.winner': '진 쪽이 선공/후공을 고르는 중입니다...',
       'rematch.first': '선공(흑)으로', 'rematch.second': '후공(백)으로',
       'notice.rematchFirst': '🔁 재대결 — 진 쪽이 선공(흑)을 골랐습니다', 'notice.rematchSecond': '🔁 재대결 — 진 쪽이 후공(백)을 골랐습니다',
+      'rematch.random': '🎲 랜덤', 'notice.rematchRandom': '🔁 재대결 — 선후공을 랜덤으로 정했습니다', 'log.youAre': '🎯 이번 판: 나는 {color}',
       'menu.mpFail': '멀티플레이 서버 연결에 실패했습니다. 잠시 후 다시 열어주세요.',
       'lobby.connErr': '연결 오류가 발생했습니다. 새로고침 후 다시 시도해주세요.',
       'lobby.connecting': '서버에 연결하는 중입니다. 잠시 후 다시 눌러주세요.',
@@ -657,6 +659,7 @@
       'rematch.loser': 'You lost. Pick first or second for the rematch', 'rematch.winner': 'The loser is picking first or second...',
       'rematch.first': 'Go first (Black)', 'rematch.second': 'Go second (White)',
       'notice.rematchFirst': '🔁 Rematch — the loser chose to go first (Black)', 'notice.rematchSecond': '🔁 Rematch — the loser chose to go second (White)',
+      'rematch.random': '🎲 Random', 'notice.rematchRandom': '🔁 Rematch — sides were picked at random', 'log.youAre': '🎯 This game: you are {color}',
       'menu.mpFail': "Couldn't reach the multiplayer server. Please reopen the page in a moment.",
       'lobby.connErr': 'Connection error. Please refresh and try again.',
       'lobby.connecting': 'Connecting to the server. Please try again in a moment.',
@@ -2431,13 +2434,14 @@
     lastMovePos = data.lastMovePos || null;
     mpPlayers = data.players || mpPlayers;
 
-    let restarted = false;
+    let restarted = false, restartedColor = null;
     if (typeof data.restartSeq === 'number' && data.restartSeq > lastSeenRestartSeq) {
       lastSeenRestartSeq = data.restartSeq;
       restarted = true;
       // 진 쪽이 선후공을 바꿨을 수 있으므로 players에서 내 색을 다시 확인
       if (mpPlayers[BLACK] === myUserId) myColor = BLACK;
       else if (mpPlayers[WHITE] === myUserId) myColor = WHITE;
+      restartedColor = myColor;
       hand = { [BLACK]: [], [WHITE]: [] };
       trapList = [];
       logLines = []; updateLog();
@@ -2456,6 +2460,7 @@
     }
 
     if (restarted) {
+      addLog(L('log.youAre', { color: restartedColor }));
       startupQueue = [myColor];
       runStartupDraft();
     }
@@ -2609,7 +2614,7 @@
   });
   renderFirstPick();
 
-  function startRematch(newColor) {
+  function startRematch(newColor, viaRandom) {
     // 진 사람이 고른 색으로 자리 바꾸기 (players 매핑을 통째로 교환)
     const swap = newColor && newColor !== myColor;
     if (swap) {
@@ -2642,9 +2647,10 @@
     mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null; lastBannerMsg = null;
     mpShakeSeq = 0; lastSeenShakeSeq = 0;
     if (newColor) {
-      const note = L(newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond');
+      const note = viaRandom ? L('notice.rematchRandom') : L(newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond');
       setNotice(note);
       addLog(note);
+      addLog(L('log.youAre', { color: myColor }));
     }
     mpRestartSeq++; lastSeenRestartSeq = mpRestartSeq; // 내 화면은 스스로 에코 처리하지 않도록
     banner.classList.remove('show'); draftOverlay.classList.remove('show'); updateLog();
@@ -3723,7 +3729,7 @@
   undoBtn.addEventListener('click', () => { if (mode !== 'multiplayer' && !cardAnimBusy) undo(); });
   resetBtn.addEventListener('click', () => {
     if (mode === 'multiplayer') {
-      if (gameOver) startRematch();
+      if (gameOver) startRematch(Math.random() < 0.5 ? BLACK : WHITE, true); // 무승부 등 진 쪽이 없으면 선후공 랜덤
     } else if (mode === 'bot') {
       startBotGameWithSidePick();
     } else {
@@ -3734,14 +3740,16 @@
   rematchOptions.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-rematch]');
     if (!b || !loserPicksSide() || bannerWinner(lastBannerMsg) === myColor) return;
-    const newColor = b.dataset.rematch === 'first' ? BLACK : WHITE;
+    const viaRandom = b.dataset.rematch === 'random';
+    const newColor = viaRandom ? (Math.random() < 0.5 ? BLACK : WHITE) : b.dataset.rematch === 'first' ? BLACK : WHITE;
     if (mode === 'multiplayer') {
-      startRematch(newColor);
+      startRematch(newColor, viaRandom);
     } else if (mode === 'bot') {
       myColor = newColor;
       init();
-      addLog(L(newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond'));
+      addLog(L(viaRandom ? 'notice.rematchRandom' : newColor === BLACK ? 'notice.rematchFirst' : 'notice.rematchSecond'));
       addLog(L('bot.log', { n: botLevelName(botLevel) }));
+      addLog(L(newColor === BLACK ? 'log.sideFirst' : 'log.sideSecond'));
     }
   });
 
