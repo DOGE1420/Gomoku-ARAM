@@ -141,6 +141,38 @@ window.__bench = {
     this.reset();
     return { entries: Object.keys(E2_BOOK).length, ok, bad, badKeys: [...(this.badKeys || [])].slice(0, 10) };
   },
+  // 맞교환 위험 통계: 상대가 맞교환을 쥔 국면에서 봇이 고른 수가 그 한 장에 지는 모양인지
+  tradeRiskOn(pz, ms, on, holds) {
+    this.load(pz);
+    if (holds) hand[other(pz.side)] = [CARD_POOL.find(c => c.id === 'trade')];
+    const cfg = Object.assign({}, BOT_LEVELS[50], { book: false, oppCardReplies: false, tradeRisk: on });
+    const m = e2ChooseMove(pz.side, makeBlocked(), ms, cfg);
+    if (!m) return -1;
+    e2Init(makeBlocked()); const i = m.r * SIZE + m.c;
+    e2Place(i, pz.side); const risk = e2TradeRisk(pz.side); e2Remove(i, pz.side);
+    // 피할 수 있었는지: 바로 지지 않는 후보 중 위험 0인 수가 있었는지 (상대 즉시 5목 자리를 비우는 수 제외)
+    let avoidable = false;
+    if (risk) {
+      const must = e2WinCells(other(pz.side));
+      for (const p of collectCandidates(pz.side, 2, makeBlocked(), false)) {
+        const j = p.r * SIZE + p.c; if (must.length && !must.includes(j)) continue;
+        e2Place(j, pz.side); const r0 = e2TradeRisk(pz.side); e2Remove(j, pz.side);
+        if (!r0) { avoidable = true; break; }
+      }
+    }
+    return risk ? (avoidable ? 2 : 1) : 0;
+  },
+  // 맞교환 위험 감지 확인: 스크린샷 국면(흑 4개를 백이 막았지만 왼쪽 백 아래에 흑이 붙은 모양)
+  tradeTest() {
+    const set = (bs, ws) => { this.reset(); bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
+    // 스크린샷: 흑 4개 양끝을 백이 막았지만 왼쪽 백 아래에 흑이 붙어 있음
+    set([[7, 5], [7, 6], [7, 7], [7, 8], [8, 4], [3, 4], [5, 5]], [[7, 3], [7, 4], [7, 9], [4, 4], [5, 4], [6, 4], [4, 7]]);
+    e2Init(makeBlocked());
+    const riskScreen = e2TradeRisk(WHITE);
+    const res = { riskScreen };
+    this.reset();
+    return res;
+  },
   // 속도 측정: 한 국면을 생각시키고 깊이·노드 수·시간을 돌려줌
   think(pz, level, ms) {
     this.load(pz); uLastDepth = 0;
