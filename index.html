@@ -592,7 +592,7 @@
       'bot.hint.10': '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
       'bot.hint.20': '얼티밋 — 수당 약 2.5초 동안 최대한 깊이 읽고, 상대의 필승 수순까지 끊음',
       'bot.ultimate': '얼티밋', 'bot.thinking': '🤖 봇이 생각 중...',
-      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '슈퍼 울트라 짱짱맨 — 수당 약 5초, 상대의 연속 공격 수순을 미리 끊고 상대 패까지 읽음',
+      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '슈퍼 울트라 짱짱맨 — 수당 최대 8초(화면 안 멈춤), 정석·카드+수 동시 계산·상대 패 읽기, 흑이면 공격형·백이면 수비형',
       'side.title': '선공/후공 선택', 'side.sub': '흑이 먼저 둡니다', 'side.first': '선공 (흑)', 'side.second': '후공 (백)', 'side.random': '랜덤',
       'side.prompt': '선공/후공을 고르세요', 'log.sideFirst': '🤖 봇전 — 내가 선공(흑)', 'log.sideSecond': '🤖 봇전 — 내가 후공(백)',
       'tgt.windmill': '풍차로 만들 내 돌을 클릭하세요', 'tgt.selfRemove': '제거할 내 돌을 클릭하세요',
@@ -676,7 +676,7 @@
       'bot.hint.10': 'Master — reads 4 moves ahead and hunts forcing four sequences',
       'bot.hint.20': 'Ultimate — thinks ~2.5s per move as deep as it can and breaks your forced wins',
       'bot.ultimate': 'Ultimate', 'bot.thinking': '🤖 Bot is thinking...',
-      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': "Super Ultra Awesome — ~5s per move, shuts down your forcing attacks and reads your hand",
+      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': "Super Ultra Awesome — up to 8s per move (no freezing), opening book, plans cards with moves, reads your hand; attacks as Black, defends as White",
       'side.title': 'Choose your side', 'side.sub': 'Black moves first', 'side.first': 'First (Black)', 'side.second': 'Second (White)', 'side.random': 'Random',
       'side.prompt': 'Choose first or second', 'log.sideFirst': '🤖 vs Bot — you play first (Black)', 'log.sideSecond': '🤖 vs Bot — you play second (White)',
       'tgt.windmill': 'Click one of your stones to make a windmill', 'tgt.selfRemove': 'Click one of your stones to remove',
@@ -900,6 +900,7 @@
   function isStone(v) { return v === BLACK || v === WHITE; }
 
   function init() {
+    engineToken++; engineBusy = false;
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
     current = BLACK;
     moveHistory = [];
@@ -1432,6 +1433,9 @@
     if (loserPicksSide()) suffix = bannerWinner(msg) === myColor ? t('banner.suffixWinner') : t('banner.suffixLoser');
     banner.textContent = fmt(msg) + suffix;
     banner.classList.add('show');
+    // 상태 줄에도 결과 표시 (봇의 '생각 중' 등 이전 문구가 남지 않게)
+    statusText.classList.remove('targeting', 'alkkagi');
+    statusText.textContent = fmt(msg);
     resetBtn.style.display = ((mode === 'multiplayer' && !gameOver) || loserPicksSide()) ? 'none' : 'inline-block';
     renderRematchBar();
   }
@@ -2740,8 +2744,11 @@
     20: { radius: 2, depth: 12, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, timeMs: 2500 },
     // 슈퍼 울트라 짱짱맨: 얼티밋 + 수당 약 5초 + 상대의 연속 위협(VCT) 차단 + 상대 패 읽기
     // (VCT 공격은 봇끼리 대국에서 오히려 불리해 꺼 둠: 막는 수를 일부 놓쳐 이기지 못하는 공격을 걸게 됨)
-    50: { radius: 2, depth: 14, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, vct: true, vctAttack: false, timeMs: 5000,
-          readCards: true },
+    50: { radius: 2, depth: 14, width: 14, topN: 1, defense: 1,   missChance: 0,   patterns: true,  smartCards: true,  vcf: true, ultimate: true, vct: true, vctAttack: false,
+          readCards: true,
+          worker: true, timeMs: 8000, chainTimeMs: 3000, planMs: 6000, // A. 백그라운드 계산 + 긴 생각 시간
+          book: true,   // B. 정석
+          style: true },  // D. 흑=공격형, 백=수비형 (C. 카드+착수 계획은 worker 경로에서 사용)
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
@@ -2768,6 +2775,7 @@
       return;
     }
     if (cardAnimBusy) return;
+    if (botCfg().worker) { botTurnWithEngine(botColor); return; }
     const proceed = () => {
       if (!gameOver && current === botColor && !draftOpen && !pendingTarget && !alk) botPlaceStone(botColor);
     };
@@ -2979,6 +2987,12 @@
         if (nMe === 0 && nOpp > 0 && !bOpp) sOpp += windowWeight(nOpp);
       }
     }
+    if (uStyle && uBot) {
+      // 짱짱맨 스타일: 봇 형세·상대 형세 가중치를 따로 (흑=공격형, 백=수비형)
+      const sBot = me === uBot ? sMe : sOpp, sHum = me === uBot ? sOpp : sMe;
+      const v = uStyle.a * sBot - uStyle.b * sHum;
+      return me === uBot ? v : -v;
+    }
     return sMe - sOpp * 1.1;
   }
 
@@ -3071,7 +3085,7 @@
   const U_WIDTHS = [14, 10, 8, 7, 6, 5, 5, 4, 4, 4, 4, 4];
   let uWidths = U_WIDTHS;
   // 상대 패 읽기 (짱짱맨): 탐색에 반영할 보정값
-  let uDefense = 0.95, uBot = null, uFlipRisk = false;
+  let uDefense = 0.95, uBot = null, uFlipRisk = false, uStyle = null;
 
   // 상대가 다음 턴에 쓸 수 있는 카드 (봉쇄에 걸려 있으면 다음 카드는 무효이므로 없는 것으로 봄)
   function readOppCards(botColor) {
@@ -3214,15 +3228,15 @@
 
   function ultimateChooseMove(botColor, blocked, budgetMs, cfg) {
     const opp = other(botColor);
-    uWidths = (cfg && cfg.widths) || U_WIDTHS;
-    const oppCards = cfg && cfg.readCards ? readOppCards(botColor) : {};
-    uBot = botColor;
-    uDefense = oppCards.chain ? 1.35 : 0.95;      // 연속 착수가 있으면 상대 위협을 더 무겁게
-    uFlipRisk = !!oppCards.reversal;              // 전세 역전이 있으면 우세를 과신하지 않음
-    const trustForcing = !oppCards.bomb;          // 폭파가 있으면 연속 4/3 몰아치기는 끊길 수 있음
+    // 연속 착수가 있으면 상대 위협을 더 무겁게, 전세 역전이 있으면 우세를 과신하지 않음, 폭파가 있으면 몰아치기를 믿지 않음
+    const { trustForcing } = uSetupFor(botColor, cfg);
     if (cfg && cfg.readCards) {
       // 상대가 설치한 함정 칸에는 두지 않음
       for (const tr of trapList || []) if (tr.owner === opp && board[tr.r][tr.c] === EMPTY) blocked[botColor][tr.r * SIZE + tr.c] = 1;
+    }
+    if (cfg && cfg.book && turnPlacementsDone === 0) {
+      const bm = openingBookMove(botColor, blocked);
+      if (bm) return bm;
     }
     searchDeadline = Date.now() + budgetMs;
     const root = uOrdered(botColor, blocked, 0, true);
@@ -3290,8 +3304,267 @@
     return bestMove;
   }
 
+
+  // ================= 슈퍼 울트라 짱짱맨 전용 =================
+  // 공통 탐색 설정: 상대 패 읽기·흑백 스타일을 전역 탐색 변수에 반영
+  function uSetupFor(botColor, cfg) {
+    uWidths = (cfg && cfg.widths) || U_WIDTHS;
+    const oppCards = cfg && cfg.readCards ? readOppCards(botColor) : {};
+    uBot = botColor;
+    uDefense = oppCards.chain ? 1.35 : 0.95;
+    uFlipRisk = !!oppCards.reversal;
+    // D. 흑이면 공격적으로(내 형세 가중), 백이면 수비적으로(상대 형세 가중)
+    uStyle = cfg && cfg.style ? (botColor === BLACK ? { a: 1.2, b: 1.0 } : { a: 1.0, b: 1.25 }) : null;
+    return { oppCards, trustForcing: !oppCards.bomb };
+  }
+
+  // B. 정석: 첫 몇 수는 알려진 강한 오프닝으로 (화월/포월 계열)
+  function openingBookMove(bot, blocked) {
+    const stones = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) stones.push({ r, c, v: board[r][c] });
+    const C = (SIZE - 1) / 2;
+    const ok = (p) => p && inBoard(p.r, p.c) && board[p.r][p.c] === EMPTY && !blocked[bot][p.r * SIZE + p.c];
+    if (stones.length === 0) { const p = { r: C, c: C }; return ok(p) ? p : null; }
+    if (stones.length === 1 && bot === WHITE && stones[0].v === BLACK) {
+      // 백 첫 수: 흑 돌에 대각선으로 붙이는 간접 응수 (중앙 쪽 우선)
+      const s = stones[0];
+      const opts = [[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([dr, dc]) => ({ r: s.r + dr, c: s.c + dc }))
+        .filter(ok).sort((a, b) => (Math.abs(a.r - C) + Math.abs(a.c - C)) - (Math.abs(b.r - C) + Math.abs(b.c - C)));
+      return opts[0] || null;
+    }
+    if (stones.length === 2 && bot === BLACK) {
+      const b = stones.find(s => s.v === BLACK), w = stones.find(s => s.v === WHITE);
+      if (!b || !w) return null;
+      const dr = w.r - b.r, dc = w.c - b.c;
+      if (Math.max(Math.abs(dr), Math.abs(dc)) !== 1) return null;
+      let opts;
+      if (dr === 0 || dc === 0) {
+        // 직접 응수 → 화월: 흑의 대각선이면서 백과 붙은 자리
+        opts = dr === 0 ? [{ r: b.r - 1, c: b.c + dc }, { r: b.r + 1, c: b.c + dc }] : [{ r: b.r + dr, c: b.c - 1 }, { r: b.r + dr, c: b.c + 1 }];
+      } else {
+        // 간접 응수 → 포월: 흑과 붙고 백과도 붙은 자리
+        opts = [{ r: b.r + dr, c: b.c }, { r: b.r, c: b.c + dc }];
+      }
+      opts = opts.filter(ok).sort((p, q) => (Math.abs(p.r - C) + Math.abs(p.c - C)) - (Math.abs(q.r - C) + Math.abs(q.c - C)));
+      return opts[0] || null;
+    }
+    return null;
+  }
+
+  function scanFiveWinner() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const v = board[r][c];
+      if (isStone(v) && checkWin(r, c, v)) return v;
+    }
+    return 0;
+  }
+
+  // player 차례인 국면의 가치 (player 관점, 반복 심화)
+  function uBestValue(player, blocked, budgetMs) {
+    searchDeadline = Date.now() + budgetMs;
+    uTT = new Map(); uAborted = false; uNodes = 0;
+    const opp = other(player);
+    const root = uOrdered(player, blocked, 0, false);
+    if (root.win) return WIN_SCORE;
+    if (!root.list.length) return 0;
+    const moves = root.list.slice(0, 12);
+    const h0 = uHashBoard();
+    let best = evalBoard(player, blocked);
+    for (let depth = 2; depth <= 10; depth++) {
+      let iterVal = -Infinity, alpha = -Infinity;
+      for (const m of moves) {
+        board[m.r][m.c] = player;
+        const v = -uSearch(opp, depth - 1, -Infinity, -alpha, blocked, uPlace(h0, m.r, m.c, player), 1);
+        board[m.r][m.c] = EMPTY;
+        if (uAborted) break;
+        if (v > iterVal) iterVal = v;
+        if (v > alpha) alpha = v;
+      }
+      if (uAborted) break;
+      best = iterVal;
+      if (Math.abs(iterVal) >= WIN_SCORE / 2) break;
+      if (Date.now() > searchDeadline - budgetMs * 0.45) break;
+    }
+    return best;
+  }
+
+  // C. 카드 + 착수 동시 계획: "이 카드를 이 대상에 쓰고 두는 것"과 "그냥 두는 것"을 수 읽기로 비교
+  function planCardsSearch(bot, cfg, budgetMs) {
+    const t0 = Date.now();
+    uSetupFor(bot, cfg);
+    const opp = other(bot);
+    const snap = { board: board.map(r => r.slice()), windmillList: windmillList.slice(), craterList: craterList.map(c => Object.assign({}, c)), winLength };
+    const restore = () => {
+      board = snap.board.map(r => r.slice());
+      windmillList = snap.windmillList.slice();
+      craterList = snap.craterList.map(c => Object.assign({}, c));
+      winLength = snap.winLength;
+    };
+    const blocked0 = makeBlocked();
+    const options = [];
+    (hand[bot] || []).forEach((card, idx) => {
+      if (card.type === 'remove_enemy') {
+        const ranked = listStones(opp).map(s => {
+          board[s.r][s.c] = EMPTY; const g = evalBoard(bot, blocked0); board[s.r][s.c] = opp; return { s, g };
+        }).sort((a, b) => b.g - a.g).slice(0, 4);
+        for (const { s } of ranked) options.push({ idx, cardId: card.id, targets: [s], endsTurn: false,
+          apply: () => { board[s.r][s.c] = EMPTY; craterList.push({ r: s.r, c: s.c, turns: 2, fresh: true }); } });
+      } else if (card.type === 'windmill') {
+        const ranked = listStones(bot).filter(s => !windmillList.some(w => w.r === s.r && w.c === s.c)).map(s => {
+          let g = 0;
+          for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            const r = s.r + dr, c = s.c + dc;
+            if ((!dr && !dc) || !inBoard(r, c) || board[r][c] !== EMPTY || blocked0[opp][r * SIZE + c]) continue;
+            g += Math.min(attackValue(r, c, opp, blocked0[opp]).score, P_OPEN4);
+          }
+          return { s, g };
+        }).filter(x => x.g > 0).sort((a, b) => b.g - a.g).slice(0, 3);
+        for (const { s } of ranked) options.push({ idx, cardId: card.id, targets: [s], endsTurn: false, apply: () => { windmillList.push({ r: s.r, c: s.c }); } });
+      } else if (card.type === 'six_sense' && winLength === 5) {
+        options.push({ idx, cardId: card.id, targets: [], endsTurn: false, apply: () => { winLength = 6; } });
+      } else if (card.type === 'trade') {
+        const pairs = [];
+        for (const a of listStones(opp)) for (const b of listStones(bot)) {
+          if (!isOrthoAdjacent(a, b)) continue;
+          board[a.r][a.c] = bot; board[b.r][b.c] = opp;
+          const g = evalBoard(bot, blocked0);
+          board[a.r][a.c] = opp; board[b.r][b.c] = bot;
+          pairs.push({ a, b, g });
+        }
+        pairs.sort((x, y) => y.g - x.g);
+        for (const { a, b } of pairs.slice(0, 4)) options.push({ idx, cardId: card.id, targets: [a, b], endsTurn: true,
+          apply: () => { board[a.r][a.c] = bot; board[b.r][b.c] = opp; } });
+      } else if (card.type === 'reversal') {
+        options.push({ idx, cardId: card.id, targets: [], endsTurn: true, apply: () => {
+          for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+            if (board[r][c] === BLACK) board[r][c] = WHITE; else if (board[r][c] === WHITE) board[r][c] = BLACK;
+          }
+        } });
+      }
+    });
+    if (!options.length) return null;
+    const per = Math.max(350, Math.floor(budgetMs / (options.length + 1)));
+    const baseline = uBestValue(bot, makeBlocked(), per);
+    let best = null;
+    for (const o of options) {
+      if (Date.now() - t0 > budgetMs * 1.3) break;
+      o.apply();
+      const f = scanFiveWinner();
+      let v;
+      if (f === bot) v = WIN_SCORE;
+      else if (f === opp) v = -WIN_SCORE;
+      else { const blk = makeBlocked(); v = o.endsTurn ? -uBestValue(opp, blk, per) : uBestValue(bot, blk, per); }
+      restore();
+      if (!best || v > best.v) best = { v, o };
+    }
+    if (!best) return null;
+    return { idx: best.o.idx, cardId: best.o.cardId, targets: best.o.targets, gain: best.v - baseline, win: best.v >= WIN_SCORE / 2 };
+  }
+
+  // A. 백그라운드 계산(Web Worker): 탐색 함수들을 그대로 옮겨 실행해 화면이 멈추지 않게 함
+  let engineWorker = null, engineWorkerFailed = false, engineReqId = 0, engineToken = 0, engineBusy = false;
+  const engineCallbacks = new Map();
+  function engineWorkerMain(e) {
+    const d = e.data;
+    try {
+      board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; trapList = d.trapList;
+      hand = d.hand; cardLockNextTurn = d.cardLockNextTurn; turnPlacementsDone = d.turnPlacementsDone; turnPlacedPositions = d.turnPlacedPositions;
+      let result = null;
+      if (d.task === 'move') { const m = ultimateChooseMove(d.bot, makeBlocked(), d.budget, d.cfg); result = m ? { r: m.r, c: m.c } : null; }
+      else if (d.task === 'plan') result = planCardsSearch(d.bot, d.cfg, d.budget);
+      postMessage({ id: d.id, result });
+    } catch (err) {
+      postMessage({ id: d.id, error: String((err && err.message) || err) });
+    }
+  }
+  function getEngineWorker() {
+    if (engineWorker || engineWorkerFailed || typeof Worker === 'undefined') return engineWorker;
+    try {
+      const fns = [isStone, other, inBoard, checkWin, isCrater, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
+        lineShape, attackValue, windowWeight, evalBoard, uHashBoard, uKey, uPlace, uOrdered, uSearch, findWinCells, vcf, vct, vctDefend,
+        readOppCards, uSetupFor, openingBookMove, ultimateChooseMove, listStones, isOrthoAdjacent, scanFiveWinner, uBestValue, planCardsSearch, engineWorkerMain];
+      const src = [
+        '"use strict";',
+        `const SIZE = ${SIZE}, EMPTY = ${EMPTY}, BLACK = ${BLACK}, WHITE = ${WHITE};`,
+        `const DIRS = ${JSON.stringify(DIRS)};`,
+        `const P_FIVE = ${P_FIVE}, P_OPEN4 = ${P_OPEN4}, P_FOUR = ${P_FOUR}, P_OPEN3 = ${P_OPEN3}, P_THREE = ${P_THREE}, P_OPEN2 = ${P_OPEN2}, P_TWO = ${P_TWO};`,
+        `const WIN_SCORE = ${WIN_SCORE}, U_WIDTHS = ${JSON.stringify(U_WIDTHS)};`,
+        `const ZOB = ${JSON.stringify(ZOB)};`,
+        'let board, winLength = 5, windmillList = [], craterList = [], trapList = [], hand = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacedPositions = [];',
+        'let searchDeadline = 0, uWidths = U_WIDTHS, uDefense = 0.95, uBot = null, uFlipRisk = false, uStyle = null, uTT = new Map(), uAborted = false, uNodes = 0;',
+        fns.map(f => f.toString()).join('\n'),
+        'onmessage = engineWorkerMain;',
+      ].join('\n');
+      engineWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      engineWorker.onmessage = (e) => {
+        const cb = engineCallbacks.get(e.data.id);
+        engineCallbacks.delete(e.data.id);
+        if (cb) cb(e.data.error ? undefined : e.data.result, e.data.error);
+      };
+      engineWorker.onerror = () => {
+        engineWorkerFailed = true; engineWorker = null;
+        const cbs = Array.from(engineCallbacks.values()); engineCallbacks.clear();
+        cbs.forEach(cb => cb(undefined, 'worker error'));
+      };
+    } catch (e) {
+      engineWorkerFailed = true; engineWorker = null;
+    }
+    return engineWorker;
+  }
+  // task: 'move' | 'plan'. 워커를 못 쓰면 같은 계산을 짧은 시간으로 바로 실행
+  function requestEngine(task, bot, budget, cb) {
+    const cfg = botCfg();
+    const w = getEngineWorker();
+    const fallback = () => {
+      if (task === 'move') { const m = ultimateChooseMove(bot, makeBlocked(), Math.min(budget, 3000), cfg); cb(m ? { r: m.r, c: m.c } : null); }
+      else cb(null);
+    };
+    if (!w) { fallback(); return; }
+    const id = ++engineReqId;
+    engineCallbacks.set(id, (res, err) => { if (err) fallback(); else cb(res); });
+    w.postMessage({
+      id, task, bot, budget, cfg,
+      board: board.map(r => r.slice()), winLength, windmillList, craterList, trapList: trapList || [],
+      hand: { [BLACK]: (hand[BLACK] || []).map(c => ({ id: c.id, type: c.type })), [WHITE]: (hand[WHITE] || []).map(c => ({ id: c.id, type: c.type })) },
+      cardLockNextTurn, turnPlacementsDone, turnPlacedPositions,
+    });
+  }
+
+  const ENGINE_PLANNED_TYPES = ['remove_enemy', 'windmill', 'six_sense', 'trade', 'reversal'];
+  // 짱짱맨의 한 턴: (카드 계획 → 카드 발동) → 착수, 계산은 모두 백그라운드
+  function botTurnWithEngine(botColor) {
+    if (engineBusy) return;
+    const cfg = botCfg();
+    const tok = engineToken;
+    const stillMyTurn = () => tok === engineToken && mode === 'bot' && !gameOver && current === botColor && !draftOpen && !pendingTarget && !alk && !cardAnimBusy;
+    const place = () => {
+      if (!stillMyTurn()) return;
+      engineBusy = true;
+      statusText.textContent = t('bot.thinking');
+      requestEngine('move', botColor, turnPlacementsDone > 0 ? cfg.chainTimeMs : cfg.timeMs, (pick) => {
+        engineBusy = false;
+        if (!stillMyTurn()) return;
+        placeBotPick(botColor, pick);
+      });
+    };
+    statusText.textContent = t('bot.thinking');
+    if (usedCardThisTurn[botColor] || !hand[botColor].length) { place(); return; }
+    engineBusy = true;
+    requestEngine('plan', botColor, cfg.planMs, (plan) => {
+      engineBusy = false;
+      if (!stillMyTurn()) return;
+      const valid = plan && hand[botColor][plan.idx] && hand[botColor][plan.idx].id === plan.cardId;
+      const usePlan = () => activateCard(botColor, plan.idx, () => { applyBotTargets(botColor, plan.targets); place(); });
+      if (valid && plan.win && usePlan()) return;                                   // 카드로 이기는 수가 있으면 바로
+      if (botUseCardSmart(botColor, place, { exclude: ENGINE_PLANNED_TYPES })) return; // 연속 착수·함정·봉쇄 등은 기존 판단
+      if (valid && plan.gain > 300 && usePlan()) return;                             // 수 읽기로 이득이 확인된 카드
+      place();
+    });
+  }
+
   function botChooseMove(botColor) {
     const cfg = botCfg();
+    uStyle = null;
     const blocked = makeBlocked();
     const opp = other(botColor);
 
@@ -3305,7 +3578,7 @@
       return pool[Math.floor(Math.random() * pool.length)];
     }
 
-    if (cfg.ultimate) return ultimateChooseMove(botColor, blocked, turnPlacementsDone > 0 ? 900 : cfg.timeMs, cfg);
+    if (cfg.ultimate) return ultimateChooseMove(botColor, blocked, turnPlacementsDone > 0 ? 900 : (cfg.worker ? Math.min(cfg.timeMs, 5000) : cfg.timeMs), cfg);
 
     searchDeadline = Date.now() + 1500;
     const root = orderedMoves(botColor, blocked, cfg, 0, true);
@@ -3334,7 +3607,9 @@
   }
 
   function botPlaceStone(botColor) {
-    const pick = botChooseMove(botColor);
+    placeBotPick(botColor, botChooseMove(botColor));
+  }
+  function placeBotPick(botColor, pick) {
     if (pick) handlePlace({ r: pick.r, c: pick.c });
     // 규칙상 거부된 경우(연속 착수 거리 제한 등) 둘 수 있는 자리 중 하나로 대신 둔다
     if (pick && board[pick.r][pick.c] === EMPTY && current === botColor && !gameOver) {
@@ -3365,7 +3640,7 @@
     return f && f.player === player ? f : null;
   }
 
-  function botUseCardSmart(botColor, after) {
+  function botUseCardSmart(botColor, after, opts) {
     const opp = other(botColor);
     const blocked = makeBlocked();
     const myWins = findWinCells(botColor, blocked[botColor]);
@@ -3392,7 +3667,9 @@
       if (junk !== -1) return activateCard(botColor, junk, after);
     }
 
+    const exclude = (opts && opts.exclude) || [];
     hand[botColor].forEach((card, idx) => {
+      if (exclude.includes(card.type)) return; // 짱짱맨: 수 읽기로 따로 판단하는 카드
       switch (card.type) {
         case 'chain_move':
           consider(idx, 3000 + (oppWins.length >= 2 ? 50000 : 0));
@@ -3516,20 +3793,24 @@
     if (!best) return false;
     const choice = best;
     return activateCard(botColor, choice.idx, () => {
-      const t = pendingTarget;
-      if (t && t.forPlayer === botColor) {
-        if (choice.targets && choice.targets.length) {
-          for (const pos of choice.targets) {
-            if (!pendingTarget) break;
-            handleTargetClick(pos);
-          }
-          if (pendingTarget) cancelTarget();
-        } else {
-          resolveBotPendingTarget();
-        }
-      }
+      applyBotTargets(botColor, choice.targets);
       if (after) after();
     });
+  }
+
+  // 카드 발동 후 대상 선택이 필요하면 정해 둔 대상(없으면 기본 규칙)으로 처리
+  function applyBotTargets(botColor, targets) {
+    const t = pendingTarget;
+    if (!t || t.forPlayer !== botColor) return;
+    if (targets && targets.length) {
+      for (const pos of targets) {
+        if (!pendingTarget) break;
+        handleTargetClick(pos);
+      }
+      if (pendingTarget) cancelTarget();
+    } else {
+      resolveBotPendingTarget();
+    }
   }
 
   // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
@@ -3690,6 +3971,7 @@
     showScreen('menu');
   });
   gameBackBtn.addEventListener('click', () => {
+    engineToken++; engineBusy = false;
     awaitingSide = false;
     sideOverlay.classList.remove('show');
     if (mode === 'multiplayer' && roomCode && dbApi && !gameOver) {
