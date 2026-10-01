@@ -3453,6 +3453,7 @@
           options.push({ idx, cardId: card.id, targets: [], endsTurn: true, combos });
         }
       } else if (v2 && card.type === 'chain_move') {
+        // 연속 착수는 기존처럼 바로 쓰되(측정 결과 아껴 두면 오히려 약함), 이번 턴에 끝내는 수순이 있으면 계획에 '승리'로 표시
         options.push({ idx, cardId: card.id, targets: [], endsTurn: false, chain: true });
       } else if (card.type === 'reversal') {
         options.push({ idx, cardId: card.id, targets: [], endsTurn: true, apply: () => {
@@ -3603,7 +3604,7 @@
       const valid = plan && hand[botColor][plan.idx] && hand[botColor][plan.idx].id === plan.cardId;
       const usePlan = () => activateCard(botColor, plan.idx, () => { applyBotTargets(botColor, plan.targets); place(); });
       if (valid && plan.win && usePlan()) return;                                   // 카드로 이기는 수가 있으면 바로
-      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(['infection', 'chain_move']) : ENGINE_PLANNED_TYPES;
+      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(['infection']) : ENGINE_PLANNED_TYPES;
       if (botUseCardSmart(botColor, place, { exclude: planned })) return;           // 함정·봉쇄 등은 기존 판단
       const fullHand = cfg.cardPlan2 && hand[botColor].length >= HAND_LIMIT;        // 곧 버려질 상황이면 손해만 아니면 사용
       if (valid && plan.gain > (fullHand ? 0 : 300) && usePlan()) return;          // 수 읽기로 이득이 확인된 카드
@@ -4101,8 +4102,11 @@
     // 이번 턴에 더 둘 수 있으면(연속 착수) 남은 수를 묶어서 계획
     const left = (turnPlacementsNeeded || 1) - turnPlacementsDone;
     if (cfg && cfg.chainPlan && left >= 2) {
-      const plan = e2ChainPlan(botColor, blocked, budgetMs, left);
-      if (plan && legalSet.has(plan.move.r * SIZE + plan.move.c)) return plan.move;
+      // 이번 턴 안에 확실히 끝나는 수순(5목, 또는 막을 수 없는 4 두 개)을 찾았을 때만 따르고, 아니면 한 수씩 안전하게 읽는 기존 방식
+      const plan = e2ChainPlan(botColor, blocked, budgetMs * 0.35, left);
+      if (plan && plan.value >= WIN_SCORE / 2 && legalSet.has(plan.move.r * SIZE + plan.move.c)) return plan.move;
+      e2Init(blocked);
+      searchDeadline = Date.now() + budgetMs * 0.65;
     }
 
     // 연속 4 / 연속 위협으로 이기는 수순 (상대가 판을 흔드는 카드를 쥐고 있으면 확정하지 않고 먼저 검토만)
