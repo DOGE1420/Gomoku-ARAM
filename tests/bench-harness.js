@@ -214,8 +214,39 @@ window.__bench = {
     const saved = botLevel; botLevel = 50;
     out.draft = botPickDraft(['windmill', 'trade', 'earthquake'].map(id => CARD_POOL.find(c => c.id === id)), WHITE).id;
     botLevel = saved;
+    // 함정+4 콤보: 백이 한쪽 막힌 3 → 다음 수로 4를 만들 때 막는 자리에 함정을 먼저 깔면 이김
+    set([[3, 2], [8, 8], [9, 10], [12, 3]], [[3, 3], [3, 4], [3, 5], [10, 10]]);
+    hand[WHITE] = [CARD_POOL.find(c => c.id === 'trap')]; hand[BLACK] = [];
+    const cfg3 = Object.assign({}, cfg);
+    const tp = planCardsSearch(WHITE, cfg3, ms);
+    out.trapCombo = tp && { cardId: tp.cardId, target: tp.targets && tp.targets[0] && [tp.targets[0].r, tp.targets[0].c], win: tp.win };
+    if (tp && tp.cardId === 'trap') {
+      trapList = [{ r: tp.targets[0].r, c: tp.targets[0].c, owner: WHITE }];
+      const mv = e2ChooseMove(WHITE, makeBlocked(), ms, cfg3);
+      out.trapCombo.thenMove = [mv.r, mv.c];
+      trapList = [];
+    }
+    // 폭파로 풍차 제거: 흑 풍차 돌(6,9)이 백 3의 연장 자리를 막고 있음 → 풍차 돌이 폭파 후보에 들고, 계획이 이득을 봄
+    set([[7, 4], [6, 9], [2, 2], [12, 12]], [[7, 5], [7, 6], [7, 7], [11, 11]]);
+    windmillList = [{ r: 6, c: 9 }];
+    hand[WHITE] = [CARD_POOL.find(c => c.id === 'bomb')];
+    const bp = planCardsSearch(WHITE, cfg3, ms);
+    out.bombMill = bp && { cardId: bp.cardId, target: [bp.targets[0].r, bp.targets[0].c], gain: Math.round(bp.gain) };
+    windmillList = [];
     this.reset();
     return out;
+  },
+  // 버그 수정 확인: 실제 게임 흐름으로 풍차 돌을 폭파하면 풍차 기록도 사라지는지
+  bombMillFix() {
+    mode = 'local'; init();
+    draftOpen = false; pendingTarget = null; usedCardThisTurn[BLACK] = false; // 시작 카드 선택 창은 닫고 시험
+    board[7][7] = WHITE; windmillList = [{ r: 7, c: 7 }]; current = BLACK;
+    hand[BLACK] = [CARD_POOL.find(c => c.id === 'bomb')];
+    cardAnimInstant = true;
+    const started = activateCard(BLACK, 0, null);
+    const pend = pendingTarget && pendingTarget.type;
+    if (pendingTarget) handleTargetClick({ r: 7, c: 7 });
+    return { started, pend, stone: board[7][7], windmills: windmillList.length };
   },
   // 카드 포함 실제 대국: 게임 화면 흐름 그대로 양쪽을 봇이 둠 (사람 쪽 차례가 오면 그 색을 봇 색으로 바꿔 넘김)
   //  레벨 51 = 50에서 이번 카드 개선(연속 착수 계획·카드 계획 v2·맞교환 공격·연속 착수 대비·카드 뽑기)을 끈 것

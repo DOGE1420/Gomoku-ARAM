@@ -1839,6 +1839,7 @@
 
     if (t.type === 'remove' && board[r][c] === t.opponent) {
       board[r][c] = EMPTY;
+      windmillList = windmillList.filter(w => !(w.r === r && w.c === c)); // 풍차 돌이면 풍차도 함께 사라짐
       moveHistory = moveHistory.filter(m => !(m.r === r && m.c === c));
       trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
       craterList.push({ r, c, turns: 2, fresh: true });
@@ -2750,7 +2751,7 @@
           book: true,   // B. 정석
           style: true,  // D. 흑=공격형, 백=수비형 (C. 카드+착수 계획은 worker 경로에서 사용)
           engine2: true, vct2: true, oppCardReplies: true, tradeRisk: true,
-          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
+          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
@@ -3396,26 +3397,33 @@
     const t0 = Date.now();
     uSetupFor(bot, cfg);
     const opp = other(bot);
-    const snap = { board: board.map(r => r.slice()), windmillList: windmillList.slice(), craterList: craterList.map(c => Object.assign({}, c)), winLength };
+    const snap = { board: board.map(r => r.slice()), windmillList: windmillList.slice(), craterList: craterList.map(c => Object.assign({}, c)), winLength, trapList: (trapList || []).slice() };
     const restore = () => {
       board = snap.board.map(r => r.slice());
       windmillList = snap.windmillList.slice();
       craterList = snap.craterList.map(c => Object.assign({}, c));
       winLength = snap.winLength;
+      trapList = snap.trapList.slice();
     };
     const blocked0 = makeBlocked();
     const v2 = !!(cfg && cfg.cardPlan2);
     // 판 가치 계산: v2는 짱짱맨 v2 엔진(증분 평가·PVS), 아니면 기존 얼티밋 엔진
     if (v2) { e2Killers = []; e2Hist = { [BLACK]: new Int32Array(SIZE * SIZE), [WHITE]: new Int32Array(SIZE * SIZE) }; }
-    const bestValue = (p, blk, ms) => { if (!v2) return uBestValue(p, blk, ms); e2Init(blk); return e2BestValue(p, ms); };
+    const v3 = !!(cfg && cfg.cardPlan3);
+    // v3: 함정 칸은 함정 주인의 상대가 쓸 수 없는 칸으로 계산 (두면 돌이 사라짐)
+    const withTraps = (blk) => { if (v3) for (const tr of trapList || []) if (board[tr.r][tr.c] === EMPTY) blk[other(tr.owner)][tr.r * SIZE + tr.c] = 1; return blk; };
+    const bestValue = (p, blk, ms) => { if (!v2) return uBestValue(p, blk, ms); e2Init(withTraps(blk)); return e2BestValue(p, ms); };
     const options = [];
     (hand[bot] || []).forEach((card, idx) => {
       if (card.type === 'remove_enemy') {
-        const ranked = listStones(opp).map(s => {
-          board[s.r][s.c] = EMPTY; const g = evalBoard(bot, blocked0); board[s.r][s.c] = opp; return { s, g };
+        // v3: 돌을 없앤 뒤 막힌 칸(풍차 효과)까지 다시 계산해서 순위, 상대 풍차 돌은 항상 후보
+        const isMill = (s) => windmillList.some(w => w.r === s.r && w.c === s.c);
+        let ranked = listStones(opp).map(s => {
+          board[s.r][s.c] = EMPTY; const g = evalBoard(bot, v3 ? makeBlocked() : blocked0); board[s.r][s.c] = opp; return { s, g };
         }).sort((a, b) => b.g - a.g).slice(0, v2 ? 6 : 4);
+        if (v3) for (const s of listStones(opp)) if (isMill(s) && !ranked.some(x => x.s.r === s.r && x.s.c === s.c)) ranked.push({ s });
         for (const { s } of ranked) options.push({ idx, cardId: card.id, targets: [s], endsTurn: false,
-          apply: () => { board[s.r][s.c] = EMPTY; craterList.push({ r: s.r, c: s.c, turns: 2, fresh: true }); } });
+          apply: () => { board[s.r][s.c] = EMPTY; windmillList = windmillList.filter(w => !(w.r === s.r && w.c === s.c)); craterList.push({ r: s.r, c: s.c, turns: 2, fresh: true }); } });
       } else if (card.type === 'windmill') {
         const ranked = listStones(bot).filter(s => !windmillList.some(w => w.r === s.r && w.c === s.c)).map(s => {
           let g = 0;
@@ -3423,9 +3431,11 @@
             const r = s.r + dr, c = s.c + dc;
             if ((!dr && !dc) || !inBoard(r, c) || board[r][c] !== EMPTY || blocked0[opp][r * SIZE + c]) continue;
             g += Math.min(attackValue(r, c, opp, blocked0[opp]).score, P_OPEN4);
+            // v3: 공격용 — 내 공격 자리 둘레에 풍차를 세우면 상대가 그 자리를 막지 못함
+            if (v3) g += Math.min(attackValue(r, c, bot, blocked0[bot]).score, P_OPEN4);
           }
           return { s, g };
-        }).filter(x => x.g > 0).sort((a, b) => b.g - a.g).slice(0, 3);
+        }).filter(x => x.g > 0).sort((a, b) => b.g - a.g).slice(0, v3 ? 6 : 3);
         for (const { s } of ranked) options.push({ idx, cardId: card.id, targets: [s], endsTurn: false, apply: () => { windmillList.push({ r: s.r, c: s.c }); } });
       } else if (card.type === 'six_sense' && winLength === 5) {
         options.push({ idx, cardId: card.id, targets: [], endsTurn: false, apply: () => { winLength = 6; } });
@@ -3451,6 +3461,22 @@
           const step = Math.max(1, all.length / 6), combos = [];
           for (let k = 0; k < all.length && combos.length < 6; k += step) combos.push(all[Math.floor(k)]); // 고르게 표본
           options.push({ idx, cardId: card.id, targets: [], endsTurn: true, combos });
+        }
+      } else if (v3 && card.type === 'trap') {
+        // 함정: 내가 다음 수로 4를 만들 때 상대가 막아야 하는 자리에 미리 깔면 그 4는 막을 수 없음 (+ 상대 급소 몇 곳)
+        e2Init(withTraps(makeBlocked()));
+        const spots = new Set();
+        for (const q of collectCandidates(bot, 2, blocked0, false)) {
+          const i = q.r * SIZE + q.c;
+          if (e2Attack(i, bot).fours < 1) continue;
+          e2Place(i, bot); for (const x of e2WinCells(bot)) spots.add(x); e2Remove(i, bot);
+        }
+        collectCandidates(opp, 2, blocked0, false).map(q => ({ i: q.r * SIZE + q.c, s: e2Attack(q.r * SIZE + q.c, opp).score }))
+          .sort((a, b) => b.s - a.s).slice(0, 3).forEach(x => spots.add(x.i));
+        for (const i of Array.from(spots).slice(0, 8)) {
+          const p = { r: (i / SIZE) | 0, c: i % SIZE };
+          if (board[p.r][p.c] !== EMPTY || (trapList || []).some(t => t.r === p.r && t.c === p.c)) continue;
+          options.push({ idx, cardId: card.id, targets: [p], endsTurn: false, apply: () => { trapList.push({ r: p.r, c: p.c, owner: bot }); } });
         }
       } else if (v2 && card.type === 'chain_move') {
         // 연속 착수는 기존처럼 바로 쓰되(측정 결과 아껴 두면 오히려 약함), 이번 턴에 끝내는 수순이 있으면 계획에 '승리'로 표시
@@ -3604,6 +3630,7 @@
       const valid = plan && hand[botColor][plan.idx] && hand[botColor][plan.idx].id === plan.cardId;
       const usePlan = () => activateCard(botColor, plan.idx, () => { applyBotTargets(botColor, plan.targets); place(); });
       if (valid && plan.win && usePlan()) return;                                   // 카드로 이기는 수가 있으면 바로
+      if (valid && cfg.cardPlan3 && plan.cardId === 'trap' && plan.gain > 300 && usePlan()) return; // 함정 콤보는 기존 함정 규칙보다 먼저
       const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(['infection']) : ENGINE_PLANNED_TYPES;
       if (botUseCardSmart(botColor, place, { exclude: planned })) return;           // 함정·봉쇄 등은 기존 판단
       const fullHand = cfg.cardPlan2 && hand[botColor].length >= HAND_LIMIT;        // 곧 버려질 상황이면 손해만 아니면 사용
@@ -4085,6 +4112,7 @@
     const { oppCards, trustForcing } = uSetupFor(botColor, cfg);
     uStyle = cfg && cfg.style ? (botColor === BLACK ? { a: E2P.bA, b: E2P.bB } : { a: E2P.wA, b: E2P.wB }) : null;
     if (cfg && cfg.readCards) for (const tr of trapList || []) if (tr.owner === opp && board[tr.r][tr.c] === EMPTY) blocked[botColor][tr.r * SIZE + tr.c] = 1;
+    if (cfg && cfg.cardPlan3) for (const tr of trapList || []) if (tr.owner === botColor && board[tr.r][tr.c] === EMPTY) blocked[opp][tr.r * SIZE + tr.c] = 1;
     if (cfg && cfg.book && turnPlacementsDone === 0) {
       const bm = e2BookMove(botColor, blocked) || openingBookMove(botColor, blocked);
       if (bm) return bm;
@@ -4427,7 +4455,7 @@
           // 상대가 가장 두고 싶어하는 자리 (내가 둘 자리와는 겹치지 않게)
           const cands = collectCandidates(opp, 2, blocked, false)
             .filter(p => !trapList.some(t => t.r === p.r && t.c === p.c))
-            .map(p => ({ p, s: attackValue(p.r, p.c, opp, blocked[opp]).score - attackValue(p.r, p.c, botColor, blocked[botColor]).score }))
+            .map(p => ({ p, s: attackValue(p.r, p.c, opp, blocked[opp]).score + (botCfg().cardPlan3 ? 1 : -1) * attackValue(p.r, p.c, botColor, blocked[botColor]).score }))
             .sort((a, b) => b.s - a.s);
           if (cands.length) consider(idx, 1500, [cands[0].p]);
           break;
@@ -4435,7 +4463,8 @@
         case 'blockade':
           // 짱짱맨: 상대가 위험한 카드를 쥐고 있으면 먼저 봉쇄
           if (reads && (oppCards.reversal || oppCards.bomb || oppCards.chain || oppCards.sixsense)) consider(idx, 6000);
-          else if (oppHasCards) consider(idx, 1200);
+          else if (reads && botCfg().cardPlan3 && (oppCards.trade || oppCards.infection || oppCards.windmill)) consider(idx, 2500);
+          else if (oppHasCards && !(reads && botCfg().cardPlan3)) consider(idx, 1200); // 짱짱맨: 순간이동·지진·알까기·함정뿐이면 아껴 둠
           break;
         case 'infection': {
           if (oppWins.length) break; // 턴이 끝나므로 막아야 할 때는 쓰지 않음
