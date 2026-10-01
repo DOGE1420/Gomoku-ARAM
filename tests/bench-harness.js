@@ -173,6 +173,98 @@ window.__bench = {
     this.reset();
     return res;
   },
+  // 카드 관련 시나리오 확인 (연속 착수 계획 / 카드 계획 / 상대 연속 착수 대비 / 카드 뽑기)
+  cardTests(ms) {
+    const set = (bs, ws) => { this.reset(); bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
+    const cfg = Object.assign({}, BOT_LEVELS[50], { book: false });
+    const out = {};
+    // 백: 한쪽이 막힌 3이 두 줄 → 연속 착수로 4를 둘 만들어 이김
+    const twoThrees = () => set([[3, 2], [9, 2], [6, 10], [7, 11], [12, 12]], [[3, 3], [3, 4], [3, 5], [9, 3], [9, 4], [9, 5]]);
+    // 연속 착수 3수를 실제 규칙(같은 턴 2칸 이내 금지)대로 두게 해 봄
+    const playChain = (color) => {
+      turnPlacementsNeeded = 3; turnPlacementsDone = 0; turnPlacedPositions = [];
+      const seq = [];
+      for (let k = 0; k < 3; k++) {
+        const m = e2ChooseMove(color, makeBlocked(), ms, cfg);
+        if (!m) break;
+        if (turnPlacedPositions.some(p => Math.max(Math.abs(p.r - m.r), Math.abs(p.c - m.c)) <= 2)) { seq.push('ILLEGAL'); break; }
+        board[m.r][m.c] = color; seq.push([m.r, m.c]); turnPlacedPositions.push(m); turnPlacementsDone++;
+        if (checkWin(m.r, m.c, color)) { seq.push('FIVE'); break; }
+      }
+      turnPlacementsNeeded = 1; turnPlacementsDone = 0; turnPlacedPositions = [];
+      e2Init(makeBlocked());
+      return { seq, winCells: e2WinCells(color).length };
+    };
+    twoThrees(); out.chainTwoThrees = playChain(WHITE);
+    // 열린 3 하나: 떨어진 양끝 두 칸을 같은 턴에 둬서 5목
+    set([[2, 2], [12, 12], [11, 3]], [[5, 4], [5, 5], [5, 6], [10, 10]]); out.chainOpenThree = playChain(WHITE);
+    // 카드 계획: 연속 착수·감염을 쥔 백이 두 줄 3 국면에서 무엇을 쓰는지
+    twoThrees(); hand[WHITE] = ['chain', 'infection'].map(id => CARD_POOL.find(c => c.id === id));
+    const plan = planCardsSearch(WHITE, cfg, ms);
+    out.plan = plan && { cardId: plan.cardId, win: plan.win, gain: Math.round(plan.gain) };
+    // 상대(흑)가 연속 착수를 쥐고 한쪽 막힌 3이 두 줄: 백은 둘 중 하나를 끊어 한 턴 패배를 막아야 함
+    set([[3, 3], [3, 4], [3, 5], [9, 3], [9, 4], [9, 5]], [[3, 2], [9, 2], [6, 10], [7, 11]]);
+    hand[BLACK] = [CARD_POOL.find(c => c.id === 'chain')];
+    const m = e2ChooseMove(WHITE, makeBlocked(), ms, cfg);
+    board[m.r][m.c] = WHITE; e2Init(makeBlocked());
+    out.defendChain = { move: [m.r, m.c], riskAfter: e2ChainRisk(WHITE) };
+    // 카드 뽑기: 맞교환 한 번으로 이기는 쌍이 있으면 맞교환을 고름
+    set([[7, 6], [2, 2], [12, 12], [11, 3]], [[7, 4], [7, 5], [7, 7], [7, 8], [8, 6]]);
+    hand[WHITE] = []; hand[BLACK] = [];
+    const saved = botLevel; botLevel = 50;
+    out.draft = botPickDraft(['windmill', 'trade', 'earthquake'].map(id => CARD_POOL.find(c => c.id === id)), WHITE).id;
+    botLevel = saved;
+    this.reset();
+    return out;
+  },
+  // 카드 포함 실제 대국: 게임 화면 흐름 그대로 양쪽을 봇이 둠 (사람 쪽 차례가 오면 그 색을 봇 색으로 바꿔 넘김)
+  //  레벨 51 = 50에서 이번 카드 개선(연속 착수 계획·카드 계획 v2·맞교환 공격·연속 착수 대비·카드 뽑기)을 끈 것
+  //  레벨 60/61 = 50에 overrides(A/B)를 덮어쓴 실험용 설정
+  cardGameStart(lvBlack, lvWhite, timing, randomPlies, ovA, ovB) {
+    const OFF = { chainPlan: false, chainRisk: false, tradeAttack: false, cardPlan2: false, draft2: false };
+    BOT_LEVELS[51] = Object.assign({}, BOT_LEVELS[50], OFF);
+    BOT_LEVELS[60] = Object.assign({}, BOT_LEVELS[50], OFF, ovA || {});
+    BOT_LEVELS[61] = Object.assign({}, BOT_LEVELS[50], OFF, ovB || {});
+    for (const lv of [50, 51, 60, 61]) Object.assign(BOT_LEVELS[lv], timing || {});
+    cardAnimInstant = true;
+    const lv = { [BLACK]: lvBlack, [WHITE]: lvWhite };
+    mode = 'bot'; myColor = WHITE; awaitingSide = false; botLevel = lvBlack;
+    init(); showScreen('game');
+    for (let k = 0; k < (randomPlies || 0); k++) {
+      const e = []; for (let r = 5; r <= 9; r++) for (let c = 5; c <= 9; c++) if (board[r][c] === EMPTY) e.push({ r, c });
+      handlePlace(e[Math.floor(Math.random() * e.length)]);
+    }
+    if (this._timer) clearInterval(this._timer);
+    let alkKey = '';
+    this._timer = setInterval(() => {
+      if (mode !== 'bot' || gameOver) return;
+      if (alk) {
+        if (alk.awaitingLaunch && !alk.simulating) {
+          const fl = alk.turnOrder[alk.turnIndex], key = alk.turnIndex + ':' + fl;
+          if (myColor === fl) { myColor = other(fl); botLevel = lv[fl]; }
+          if (key !== alkKey) { alkKey = key; checkBotAlkTurn(); }
+        }
+        return;
+      }
+      alkKey = '';
+      if (draftOpen && lastDraft && lastDraft.player === draftPlayer) {
+        // 사람 쪽 카드 선택 창 → 그 색의 봇 판단으로 고름
+        const keep = botLevel; botLevel = lv[draftPlayer];
+        const pick = botPickDraft(lastDraft.picks, draftPlayer);
+        botLevel = keep; pickCardIntoHand(pick);
+        return;
+      }
+      if (draftOpen || pendingTarget || cardAnimBusy || engineBusy) return;
+      if (myColor === current) { myColor = other(current); botLevel = lv[current]; scheduleMaybeBotTurn(); }
+      else if (botLevel !== lv[current]) botLevel = lv[current];
+    }, 50);
+  },
+  cardGameState() {
+    const f = gameOver ? scanBoardForWin() : null;
+    return { over: gameOver, winner: f ? f.player : 0, moves: moveHistory.length, log: logLines.slice(0, 40).map(fmt),
+      dbg: { current, myColor, botLevel, draftOpen, pend: !!pendingTarget, alk: !!alk, anim: cardAnimBusy, busy: engineBusy, timer: !!botTimer, done: turnPlacementsDone, need: turnPlacementsNeeded } };
+  },
+  cardGameStop() { if (this._timer) clearInterval(this._timer); this._timer = null; },
   // 속도 측정: 한 국면을 생각시키고 깊이·노드 수·시간을 돌려줌
   think(pz, level, ms) {
     this.load(pz); uLastDepth = 0;
