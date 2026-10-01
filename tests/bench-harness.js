@@ -219,9 +219,13 @@ window.__bench = {
   },
   // 카드 포함 실제 대국: 게임 화면 흐름 그대로 양쪽을 봇이 둠 (사람 쪽 차례가 오면 그 색을 봇 색으로 바꿔 넘김)
   //  레벨 51 = 50에서 이번 카드 개선(연속 착수 계획·카드 계획 v2·맞교환 공격·연속 착수 대비·카드 뽑기)을 끈 것
-  cardGameStart(lvBlack, lvWhite, timing, randomPlies) {
-    BOT_LEVELS[51] = Object.assign({}, BOT_LEVELS[50], { chainPlan: false, chainRisk: false, tradeAttack: false, cardPlan2: false, draft2: false });
-    for (const lv of [50, 51]) Object.assign(BOT_LEVELS[lv], timing || {});
+  //  레벨 60/61 = 50에 overrides(A/B)를 덮어쓴 실험용 설정
+  cardGameStart(lvBlack, lvWhite, timing, randomPlies, ovA, ovB) {
+    const OFF = { chainPlan: false, chainRisk: false, tradeAttack: false, cardPlan2: false, draft2: false };
+    BOT_LEVELS[51] = Object.assign({}, BOT_LEVELS[50], OFF);
+    BOT_LEVELS[60] = Object.assign({}, BOT_LEVELS[50], OFF, ovA || {});
+    BOT_LEVELS[61] = Object.assign({}, BOT_LEVELS[50], OFF, ovB || {});
+    for (const lv of [50, 51, 60, 61]) Object.assign(BOT_LEVELS[lv], timing || {});
     cardAnimInstant = true;
     const lv = { [BLACK]: lvBlack, [WHITE]: lvWhite };
     mode = 'bot'; myColor = WHITE; awaitingSide = false; botLevel = lvBlack;
