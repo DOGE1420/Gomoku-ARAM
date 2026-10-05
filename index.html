@@ -64,6 +64,14 @@
   .pip-row { display: flex; gap: 3px; }
   .pip { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.25; }
   .pip.filled { opacity: 0.9; background: var(--gold); }
+  .tut-box {
+    display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+    margin: 6px auto; padding: 8px 14px; max-width: 560px; border-radius: 12px;
+    background: rgba(90, 160, 255, 0.14); border: 1px solid rgba(90, 160, 255, 0.5);
+    font-size: 14.5px; line-height: 1.45; text-align: center;
+  }
+  .tut-box[hidden], .tut-btn[hidden] { display: none; }
+  .tut-btn { padding: 5px 14px; border-radius: 999px; font-weight: 700; }
   .confirm-bar {
     display: none;
     align-items: center; justify-content: center; gap: 10px;
@@ -244,7 +252,8 @@
     .aug-name { font-size: 14.5px; }
     .aug-short { font-size: 11.5px; padding-bottom: 6px; }
     .aug-desc { font-size: 11px; line-height: 1.45; }
-    .code-input { font-size: 17px; letter-spacing: 2px; }
+    .code-input { font-size: 24px; letter-spacing: 6px; }
+    .room-code-value { font-size: 34px; letter-spacing: 8px; }
     .mode-btn { padding: 14px; }
     .bot-level .bot-level-options { gap: 5px; }
     .bot-level .bot-level-options button { min-width: 40px; font-size: 14px; }
@@ -284,10 +293,22 @@
   .first-pick-options button { appearance: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-family: inherit; font-size: 14px; cursor: pointer; }
   .first-pick-options button[aria-checked="true"] { background: var(--line); color: var(--paper); font-weight: 700; }
   .lobby-or { font-family: var(--font-main); font-size: 13.5px; opacity: 0.6; }
+  /* 방 코드: 고정폭 굵은 글꼴로 크게 (헷갈리는 I·O·0·1은 코드에 쓰지 않음) */
   .code-input {
-    width: 100%; text-align: center; letter-spacing: 4px; text-transform: uppercase;
-    padding: 10px; border-radius: 10px; border: 1px solid var(--line); font-size: 19px;
-    font-family: var(--font-main); background: var(--paper); color: var(--ink);
+    width: 100%; text-align: center; letter-spacing: 8px; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 2px solid var(--line); font-size: 28px; font-weight: 800;
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Roboto Mono', monospace; background: var(--paper); color: var(--ink);
+  }
+  .code-input::placeholder { font-size: 16px; font-weight: 500; letter-spacing: 1px; font-family: var(--font-main); opacity: 0.55; }
+  .room-code-box[hidden] { display: none; }
+  .room-code-box {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 22px; border-radius: 14px; border: 2px dashed var(--line); background: var(--paper);
+  }
+  .room-code-label { font-family: var(--font-main); font-size: 13px; opacity: 0.7; }
+  .room-code-value {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Roboto Mono', monospace;
+    font-size: 40px; font-weight: 800; letter-spacing: 10px; padding-left: 10px; color: var(--ink); user-select: all;
   }
   .lobby-status { font-family: var(--font-main); font-size: 14.5px; text-align: center; min-height: 20px; opacity: 0.85; }
   #game-back-btn, #lobby-back-btn { align-self: flex-start; font-size: 13.5px; padding: 5px 12px; }
@@ -307,18 +328,23 @@
     </div>
   </div>
   <h1 data-i18n="title">증강 오목</h1>
-  <p class="sub" id="sub-text" data-i18n="sub">3수마다 패에 카드가 쌓입니다. 내 턴에 패의 카드를 눌러 능력을 발동하세요 — 수를 두는 것과는 별개의 행동이며, 턴당 1회만 사용할 수 있습니다.</p>
+  <p class="sub" id="sub-text" data-i18n="sub">3수마다 카드 1장 · 턴마다 카드 1장 사용</p>
 
   <div id="menu-screen" class="menu-screen">
+    <button class="mode-btn" id="mode-tut-btn">
+      <div class="mode-icon">📖</div>
+      <div class="mode-name" data-i18n="mode.tut">튜토리얼</div>
+      <div class="mode-desc" data-i18n="mode.tut.desc">1분 만에 규칙 익히기</div>
+    </button>
     <button class="mode-btn" id="mode-local-btn">
       <div class="mode-icon">👥</div>
       <div class="mode-name" data-i18n="mode.local">로컬 모드</div>
-      <div class="mode-desc" data-i18n="mode.local.desc">한 기기에서 흑백 번갈아 대전</div>
+      <div class="mode-desc" data-i18n="mode.local.desc">한 기기에서 둘이</div>
     </button>
     <button class="mode-btn" id="mode-bot-btn">
       <div class="mode-icon">🤖</div>
       <div class="mode-name" data-i18n="mode.bot">봇전</div>
-      <div class="mode-desc" id="bot-mode-desc">AI를 상대로 대전 (난이도 5)</div>
+      <div class="mode-desc" id="bot-mode-desc">AI와 대결 (5)</div>
     </button>
     <div class="bot-level" role="radiogroup" aria-label="봇 난이도" data-i18n-aria="bot.level">
       <span class="bot-level-label" data-i18n="bot.level">봇 난이도</span>
@@ -328,7 +354,7 @@
     <button class="mode-btn" id="mode-mp-btn">
       <div class="mode-icon">🌐</div>
       <div class="mode-name" data-i18n="mode.mp">멀티플레이</div>
-      <div class="mode-desc" data-i18n="mode.mp.desc">온라인으로 대전, 서로의 패는 비공개</div>
+      <div class="mode-desc" data-i18n="mode.mp.desc">온라인 대결</div>
     </button>
     <p class="menu-note" id="menu-note"></p>
   </div>
@@ -346,8 +372,12 @@
       </div>
       <button class="plain" id="create-room-btn" data-i18n="room.create">새 방 만들기</button>
       <div class="lobby-or" data-i18n="or">또는</div>
-      <input class="code-input" id="join-code-input" placeholder="방 코드 입력" data-i18n-ph="room.code" maxlength="5">
+      <input class="code-input" id="join-code-input" placeholder="방 코드 입력" data-i18n-ph="room.code" maxlength="5" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false">
       <button class="plain" id="join-room-btn" data-i18n="room.join">코드로 참가하기</button>
+    </div>
+    <div class="room-code-box" id="room-code-box" hidden>
+      <span class="room-code-label" data-i18n="room.codeLabel">방 코드</span>
+      <span class="room-code-value" id="room-code-value"></span>
     </div>
     <div class="lobby-status" id="lobby-status"></div>
   </div>
@@ -361,6 +391,10 @@
       <span id="status-text">흑 차례</span>
       <span id="win-length-badge">6목 규칙</span>
       <button class="cancel-btn" id="cancel-btn" data-i18n="cancel">취소</button>
+    </div>
+    <div class="tut-box" id="tut-box" hidden>
+      <span id="tut-text"></span>
+      <button class="plain tut-btn" id="tut-btn" hidden></button>
     </div>
     <div class="progress-wrap">
       <span data-i18n="next.card">다음 카드까지</span>
@@ -494,13 +528,14 @@
   const INTERVAL = 3;   // 자신의 돌을 N개 놓을 때마다 카드 1장 획득
   const HAND_LIMIT = 4;
   const EMPTY = 0, BLACK = 1, WHITE = 2;
+  const WALL = 3; // 장벽: 누구의 돌도 아닌 칸 (둘 수 없고 줄도 끊음)
   const R = CELL * 0.42; // 돌 반지름
 
   const CARD_POOL = [
     { id: 'chain', name: '연속 착수', icon: '⚡', desc: '이번 턴에 총 3번까지 착수할 수 있습니다 (단, 이번 턴에 이미 둔 자리 포함 2칸 이내에는 놓을 수 없음).', type: 'chain_move', weight: 10 },
     { id: 'windmill', name: '풍차', icon: '🎡', desc: '내 돌 1개를 풍차로 만듭니다. 주변 8칸은 상대가 둘 수 없습니다.', type: 'windmill', weight: 10 },
     { id: 'sixsense', name: '식스센스', icon: '👁️', desc: '승리 조건이 5목에서 6목으로 영구히 바뀝니다.', type: 'six_sense', weight: 8 },
-    { id: 'trade', name: '맞교환', icon: '🔄', desc: '상하좌우로 맞닿은 흑돌과 백돌 한 쌍을 골라 서로 색을 바꿉니다. 사용 즉시 내 턴이 종료됩니다.', type: 'trade', weight: 10 },
+    { id: 'trade', name: '맞교환', icon: '🔄', desc: '상하좌우로 맞닿은 흑돌과 백돌 한 쌍을 골라 서로 색을 바꿉니다. 오목/육목이 완성되는 교환은 할 수 없으며, 사용 즉시 내 턴이 종료됩니다.', type: 'trade', weight: 10 },
     { id: 'bomb', name: '폭파', icon: '💥', desc: '상대 돌 1개를 제거합니다. 터진 자리는 폭파 구멍이 되어 2턴 동안 아무도 둘 수 없습니다.', type: 'remove_enemy', weight: 5 },
     { id: 'reversal', name: '전세 역전', icon: '☯️', desc: '보드의 모든 흑돌과 백돌을 통째로 뒤바꿉니다. 사용 즉시 내 턴이 종료됩니다. (가장 희귀)', type: 'reversal', weight: 2 },
     { id: 'alkkagi', name: '알까기 모드', icon: '🪀', desc: '흑, 백 순서로 한 번씩 알까기로 새 돌을 발사합니다. 흩어진 돌은 가장 가까운 자리로 고정됩니다.', type: 'alkkagi', weight: 8 },
@@ -508,6 +543,13 @@
     { id: 'earthquake', name: '지진', icon: '🫨', desc: '보드의 모든 돌이 각자 주변의 무작위 빈 칸으로 흔들려 이동합니다.', type: 'earthquake', weight: 8 },
     { id: 'blockade', name: '봉쇄', icon: '🚫', desc: '상대가 다음에 사용하는 카드 1장을 무효화합니다 (카드는 소모됨). (희귀 카드)', type: 'blockade', weight: 3 },
     { id: 'trap', name: '함정', icon: '🪤', desc: '빈 칸에 함정을 설치합니다. 상대가 그 칸에 두면 돌이 사라지고 나는 카드를 얻습니다. 설치했다는 사실만 상대에게 알려지고, 위치는 나에게만 보입니다.', type: 'trap', weight: 10 },
+    { id: 'shield', name: '보호막', icon: '🛡️', desc: '내 돌 하나를 고르면 그 돌 주변 3×3 안의 내 돌이 상대의 다음 2턴 동안 폭파·맞교환·감염·되감기·자석에서 보호됩니다.', type: 'shield', weight: 7 },
+    { id: 'steal', name: '강탈', icon: '🃏', desc: '상대 패에서 무작위 카드 1장을 빼앗아 내 패에 넣습니다.', type: 'steal', weight: 6 },
+    { id: 'timestop', name: '시간 정지', icon: '⏸️', desc: '상대의 다음 턴을 건너뜁니다. (가장 희귀)', type: 'skip_turn', weight: 2 },
+    { id: 'wall', name: '장벽', icon: '🧱', desc: '빈 칸 하나에 누구의 돌도 아닌 장벽을 세웁니다. 아무도 둘 수 없고 줄도 끊깁니다 (영구).', type: 'wall', weight: 7 },
+    { id: 'rewind', name: '되감기', icon: '⏪', desc: '상대가 직전에 둔 돌 1개를 판에서 되돌립니다.', type: 'rewind', weight: 5 },
+    { id: 'reroll', name: '리롤', icon: '🎲', desc: '이 카드를 뺀 내 패를 모두 버리고 같은 장수만큼 새로 뽑습니다 (패가 비면 1장).', type: 'reroll', weight: 5 },
+    { id: 'magnet', name: '자석', icon: '🧲', desc: '빈 칸 하나를 고르면 그 칸에서 2칸 안의 돌들이 한 칸씩 끌려옵니다.', type: 'magnet', weight: 5 },
     { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다. 오목/육목이 완성되는 돌은 제외되며, 사용 즉시 내 턴이 종료됩니다.', type: 'infection', weight: 8 },
   ];
 
@@ -525,6 +567,13 @@
     blockade: '상대 다음 카드 무효화',
     trap: '빈 칸에 함정 설치',
     infection: '맞닿은 상대 돌 2개 전향 (턴 종료)',
+    shield: '내 돌 주변 3×3 보호 (상대 2턴)',
+    steal: '상대 카드 1장 빼앗기',
+    timestop: '상대 다음 턴 건너뛰기',
+    wall: '빈 칸에 영구 장벽',
+    rewind: '상대 직전 돌 되돌리기',
+    reroll: '내 패 전부 새로 뽑기',
+    magnet: '2칸 안의 돌을 한 칸씩 끌어오기',
   };
 
   // ================= 다국어 (한국어 기본 / English) =================
@@ -532,7 +581,7 @@
     chain: { name: 'Chain Move', desc: 'Place up to 3 stones this turn (not within 2 cells of any stone you already placed this turn).', short: '3 stones this turn' },
     windmill: { name: 'Windmill', desc: 'Turn one of your stones into a windmill. Your opponent cannot play on the 8 cells around it.', short: 'Block 8 cells around a stone' },
     sixsense: { name: 'Sixth Sense', desc: 'The win condition permanently changes from 5 to 6 in a row.', short: '6 in a row to win' },
-    trade: { name: 'Swap', desc: 'Pick a black and a white stone touching up/down/left/right and swap their colors. Your turn ends immediately.', short: 'Swap touching B/W stones (turn ends)' },
+    trade: { name: 'Swap', desc: "Pick a black and a white stone touching up/down/left/right and swap their colors. A swap can't complete a winning line. Your turn ends immediately.", short: 'Swap touching B/W stones (turn ends)' },
     bomb: { name: 'Bomb', desc: "Remove one of your opponent's stones. The blast leaves a crater that nobody can play on for 2 turns.", short: 'Remove 1 enemy stone (crater for 2 turns)' },
     reversal: { name: 'Reversal', desc: 'Swap the colors of every black and white stone on the board. Your turn ends immediately.', short: 'Flip every stone (turn ends)' },
     alkkagi: { name: 'Flick Mode', desc: 'Black, then White, each flick a new stone onto the board. Scattered stones snap to the nearest point.', short: 'Flick a new stone in' },
@@ -540,22 +589,35 @@
     earthquake: { name: 'Earthquake', desc: 'Every stone on the board shakes into a random nearby empty cell.', short: 'Shake every stone' },
     blockade: { name: 'Blockade', desc: 'Nullify the next card your opponent uses (the card is still spent).', short: "Nullify opponent's next card" },
     trap: { name: 'Trap', desc: 'Set a trap on an empty cell. If your opponent plays there, their stone vanishes and you get a card. Your opponent is told a trap was set, but only you can see where.', short: 'Set a trap on an empty cell' },
+    shield: { name: 'Shield', desc: "Pick one of your stones: your stones in the 3×3 around it are protected from Bomb, Swap, Infection, Rewind and Magnet for your opponent's next 2 turns.", short: 'Protect a 3×3 area (2 enemy turns)' },
+    steal: { name: 'Steal', desc: "Take a random card from your opponent's hand into yours.", short: 'Steal 1 enemy card' },
+    timestop: { name: 'Time Stop', desc: "Your opponent's next turn is skipped. (Rarest)", short: "Skip opponent's next turn" },
+    wall: { name: 'Wall', desc: 'Build a neutral wall on an empty cell. Nobody can play there and it breaks lines (permanent).', short: 'Permanent wall on an empty cell' },
+    rewind: { name: 'Rewind', desc: 'Take back the stone your opponent placed last.', short: "Undo opponent's last stone" },
+    reroll: { name: 'Reroll', desc: 'Discard the rest of your hand and draw the same number of new cards (1 if empty).', short: 'Redraw your whole hand' },
+    magnet: { name: 'Magnet', desc: 'Pick an empty cell: stones within 2 cells are pulled one step toward it.', short: 'Pull nearby stones 1 step' },
     infection: { name: 'Infection', desc: 'Convert 2 random enemy stones touching yours (up/down/left/right) to your color. Stones that would complete a winning line are skipped. Your turn ends immediately.', short: 'Convert 2 touching enemies (turn ends)' },
   };
 
   const I18N = {
     ko: {
       'title': '증강 오목',
-      'sub': '3수마다 패에 카드가 쌓입니다. 내 턴에 패의 카드를 눌러 능력을 발동하세요 — 수를 두는 것과는 별개의 행동이며, 턴당 1회만 사용할 수 있습니다.',
+      'sub': '3수마다 카드 1장 · 턴마다 카드 1장 사용',
       'lang.toggle': 'English', 'lang.aria': '언어 바꾸기',
       'settings': '설정', 'settings.reduceMotion': '움직임 줄이기',
       'settings.reduceMotion.desc': '카드 발동 연출을 움직임 없는 페이드로 바꾸고, 파티클과 판 흔들림을 끕니다.',
       'fx.who': '{color} — 카드 발동', 'log.oppCard': '{color}: {icon} {card} 발동',
-      'mode.local': '로컬 모드', 'mode.local.desc': '한 기기에서 흑백 번갈아 대전',
-      'mode.bot': '봇전', 'mode.bot.desc': 'AI를 상대로 대전 (난이도 {n})', 'bot.level': '봇 난이도',
-      'mode.mp': '멀티플레이', 'mode.mp.desc': '온라인으로 대전, 서로의 패는 비공개',
+      'mode.local': '로컬 모드', 'mode.local.desc': '한 기기에서 둘이',
+      'mode.bot': '봇전', 'mode.bot.desc': 'AI와 대결 ({n})', 'bot.level': '봇 난이도',
+      'mode.mp': '멀티플레이', 'mode.mp.desc': '온라인 대결',
+      'mode.tut': '튜토리얼', 'mode.tut.desc': '1분 만에 규칙 익히기',
+      'tut.1': '① 같은 색 5개를 한 줄로 놓으면 승리! 빈 칸을 눌러 흑 5개를 완성하세요.',
+      'tut.2': '② 백이 양쪽이 열린 4! 돌 하나로는 못 막아요. 아래 패의 🧱 장벽 카드로 한쪽을 막고, 돌로 다른 쪽을 막으세요.',
+      'tut.2.retry': '아직 백이 이길 수 있어요. 다시 해 봐요!',
+      'tut.3': '③ 끝! 3수마다 카드 1장을 고르고, 턴마다 1장 쓸 수 있어요. 카드는 패에서 눌러 쓰면 됩니다.',
+      'tut.play': '봇전 시작',
       'back': '← 메뉴로', 'first': '선공', 'first.random': '🎲 랜덤', 'first.me': '내가 먼저', 'first.opp': '상대 먼저',
-      'room.create': '새 방 만들기', 'or': '또는', 'room.code': '방 코드 입력', 'room.join': '코드로 참가하기',
+      'room.create': '새 방 만들기', 'or': '또는', 'room.code': '방 코드 입력', 'room.join': '코드로 참가하기', 'room.codeLabel': '방 코드 (상대에게 알려 주세요)',
       'cancel': '취소', 'ok': '확인', 'next.card': '다음 카드까지',
       'draft.title': '{color} — 카드 획득', 'draft.sub': '한 장을 골라 패에 넣으세요', 'rare': '희귀',
       'undo': '한 수 무르기', 'reset': '새 게임', 'hand.black': '흑 패', 'hand.white': '백 패',
@@ -580,19 +642,19 @@
       'lobby.connErr': '연결 오류가 발생했습니다. 새로고침 후 다시 시도해주세요.',
       'lobby.connecting': '서버에 연결하는 중입니다. 잠시 후 다시 눌러주세요.',
       'lobby.creating': '방을 만드는 중...',
-      'lobby.waitingFirst': '방 코드: {code} — 상대를 기다리는 중... (나: 흑, 선공)',
-      'lobby.waitingSecond': '방 코드: {code} — 상대를 기다리는 중... (나: 백, 후공)',
+      'lobby.waitingFirst': '상대를 기다리는 중... (나: 흑, 선공)',
+      'lobby.waitingSecond': '상대를 기다리는 중... (나: 백, 후공)',
       'lobby.enterCode': '코드를 입력하세요', 'lobby.joining': '입장하는 중...', 'lobby.notFound': '방을 찾을 수 없습니다',
       'lobby.full': '이미 인원이 찼습니다', 'lobby.reconnected': '다시 접속했습니다.', 'lobby.joinFail': '참가에 실패했습니다. 코드를 확인해주세요.',
       'bot.log': '🤖 봇 난이도 {n}',
-      'bot.hint.1': '입문 — 바로 옆만 보고, 위협을 자주 놓침',
-      'bot.hint.3': '초급 — 붙은 돌만 세고 가끔 실수함',
-      'bot.hint.5': '중급 — 띈 3·4, 쌍삼을 알아보고 카드를 상황에 맞게 씀',
-      'bot.hint.7': '고급 — 2수 앞까지 읽음',
-      'bot.hint.10': '최상급 — 4수 앞 + 연속 4로 끝내는 수순까지 탐색',
-      'bot.hint.20': '얼티밋 — 수당 약 2.5초 동안 최대한 깊이 읽고, 상대의 필승 수순까지 끊음',
+      'bot.hint.1': '입문 · 실수 많음',
+      'bot.hint.3': '초급',
+      'bot.hint.5': '중급 · 카드 활용',
+      'bot.hint.7': '고급 · 2수 앞',
+      'bot.hint.10': '최상급 · 4수 앞',
+      'bot.hint.20': '얼티밋 · 깊이 읽음',
       'bot.ultimate': '얼티밋', 'bot.thinking': '🤖 봇이 생각 중...',
-      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '슈퍼 울트라 짱짱맨 — 수당 최대 8초(화면 안 멈춤), 정석·카드+수 동시 계산·상대 패 읽기, 흑이면 공격형·백이면 수비형',
+      'bot.super': '슈퍼 울트라 짱짱맨', 'bot.hint.50': '최강 · 카드까지 계산',
       'side.title': '선공/후공 선택', 'side.sub': '흑이 먼저 둡니다', 'side.first': '선공 (흑)', 'side.second': '후공 (백)', 'side.random': '랜덤',
       'side.prompt': '선공/후공을 고르세요', 'log.sideFirst': '🤖 봇전 — 내가 선공(흑)', 'log.sideSecond': '🤖 봇전 — 내가 후공(백)',
       'tgt.windmill': '풍차로 만들 내 돌을 클릭하세요', 'tgt.selfRemove': '제거할 내 돌을 클릭하세요',
@@ -601,7 +663,7 @@
       'log.windmillBlocked': '🎡 풍차 주변이라 둘 수 없는 칸입니다',
       'log.chainTooClose': '⚡ 연속 착수 — 이번 턴에 이미 둔 자리(포함) 2칸 이내에는 놓을 수 없습니다',
       'log.trapHit': '🪤 함정 발동! {color}의 돌이 사라졌습니다',
-      'log.skipTurn': '{color}: ⏭️ 직전에 사용한 카드의 대가로 이번 턴을 건너뜁니다',
+      'log.skipTurn': '{color}: ⏸️ 시간 정지 — 이번 턴을 건너뜁니다',
       'log.handOverflow': '{color}: 패 한도 초과로 {card} 소멸',
       'log.cardGained': '{color}: {icon} {card} 획득', 'log.cardGainedHand': '{color}: {icon} {card} 획득 (패에 저장)',
       'log.blockadeHit': '{color}: 🚫 봉쇄 — {icon} {card} 카드가 무효화되었습니다',
@@ -623,23 +685,40 @@
       'log.trapExists': '이미 함정이 있는 칸입니다. 다른 칸을 클릭하세요',
       'log.trapSet': '⚠️ {color}이(가) 함정을 설치했습니다! 상대는 조심하세요', 'notice.trapSet': '⚠️ 상대가 함정을 설치했습니다! 조심하세요',
       'log.windmillExists': '이미 풍차인 돌입니다. 다른 돌을 클릭하세요', 'log.windmillSet': '{color}: 🎡 풍차 설치',
+      'log.tradeNoLine': '🔄 오목/육목이 완성되는 맞교환은 할 수 없습니다. 다른 쌍을 고르세요',
       'log.tradeNoNeighbor': '맞닿은 반대 색 돌이 없는 돌입니다. 다른 돌을 고르세요', 'log.tradeDone': '{color}: 🔄 맞교환 발동 (턴 종료)',
       'log.alkEnd': '🪀 알까기 종료 — 오목판으로 복귀', 'log.alkTurn': '{color}: 알까기 차례',
       'log.trapHitOpp': '🪤 함정 발동! 상대 돌이 사라졌습니다', 'log.trapStopWin': '🪤 함정이 승리를 막았습니다 — 게임을 계속합니다',
       'notice.trapFired': '🪤 함정이 발동되어 상대 돌이 제거됐습니다',
+      'tgt.shield': '보호막을 칠 내 돌을 클릭하세요 (주변 3×3)', 'tgt.wall': '장벽을 세울 빈 칸을 클릭하세요', 'tgt.magnet': '돌을 끌어올 빈 칸을 클릭하세요',
+      'log.shieldUsed': '{color}: 🛡️ 보호막 발동 — 주변 3×3의 돌이 상대 2턴 동안 보호됨', 'log.shielded': '🛡️ 보호막으로 보호된 돌입니다. 다른 대상을 고르세요',
+      'log.noShieldTarget': '{color}: 보호할 내 돌 없음',
+      'log.stealUsed': '{color}: 🃏 강탈 발동', 'log.stealGot': '{color}: 🃏 상대에게서 {card} 카드를 빼앗음', 'log.stealEmpty': '{color}: 🃏 강탈 — 상대 패가 비어 있음',
+      'log.stealLost': '🃏 상대가 내 {card} 카드를 빼앗아 갔습니다',
+      'log.timestopUsed': '{color}: ⏸️ 시간 정지 발동 — 상대의 다음 턴을 건너뜀',
+      'log.wallUsed': '{color}: 🧱 장벽 설치', 'log.wallNeedEmpty': '빈 칸에만 장벽을 세울 수 있습니다',
+      'log.rewindUsed': '{color}: ⏪ 되감기 발동 — 상대 직전 돌을 되돌림', 'log.rewindNone': '{color}: 되돌릴 상대 돌이 없음',
+      'log.rerollUsed': '{color}: 🎲 리롤 발동 — 패 {n}장을 새로 뽑음',
+      'log.magnetUsed': '{color}: 🧲 자석 발동 — 돌 {n}개가 끌려옴', 'log.magnetNeedEmpty': '빈 칸을 골라야 합니다',
     },
     en: {
       'title': 'Gomoku-ARAM',
-      'sub': 'Every 3 stones you place earns a card for your hand. On your turn, tap a card in your hand to use its power — it is separate from placing a stone, and you can use one card per turn.',
+      'sub': 'A card every 3 stones · one card per turn',
       'lang.toggle': '한국어', 'lang.aria': 'Change language',
       'settings': 'Settings', 'settings.reduceMotion': 'Reduce motion',
       'settings.reduceMotion.desc': 'Card effects become a still fade, with no particles or board shake.',
       'fx.who': '{color} — Card activated', 'log.oppCard': '{color}: {icon} {card} activated',
-      'mode.local': 'Local', 'mode.local.desc': 'Take turns as Black and White on one device',
-      'mode.bot': 'vs Bot', 'mode.bot.desc': 'Play against the AI (level {n})', 'bot.level': 'Bot level',
-      'mode.mp': 'Multiplayer', 'mode.mp.desc': 'Play online; hands stay hidden from each other',
+      'mode.local': 'Local', 'mode.local.desc': 'Two players, one device',
+      'mode.bot': 'vs Bot', 'mode.bot.desc': 'Play the AI ({n})', 'bot.level': 'Bot level',
+      'mode.mp': 'Multiplayer', 'mode.mp.desc': 'Play online',
+      'mode.tut': 'Tutorial', 'mode.tut.desc': 'Learn the rules in a minute',
+      'tut.1': '① Five of your color in a row wins! Tap an empty cell to make five black.',
+      'tut.2': "② White has an open four! One stone can't stop it. Use the 🧱 Wall card in your hand on one end, then place a stone on the other.",
+      'tut.2.retry': 'White can still win. Try again!',
+      'tut.3': "③ Done! You pick a card every 3 stones and can use one per turn — tap it in your hand.",
+      'tut.play': 'Play the bot',
       'back': '← Menu', 'first': 'First move', 'first.random': '🎲 Random', 'first.me': 'Me first', 'first.opp': 'Opponent first',
-      'room.create': 'Create room', 'or': 'or', 'room.code': 'Room code', 'room.join': 'Join with code',
+      'room.create': 'Create room', 'or': 'or', 'room.code': 'Room code', 'room.join': 'Join with code', 'room.codeLabel': 'Room code (share it with your opponent)',
       'cancel': 'Cancel', 'ok': 'OK', 'next.card': 'Next card',
       'draft.title': '{color} — Pick a card', 'draft.sub': 'Choose one to add to your hand', 'rare': 'Rare',
       'undo': 'Undo', 'reset': 'New game', 'hand.black': "Black's hand", 'hand.white': "White's hand",
@@ -664,19 +743,19 @@
       'lobby.connErr': 'Connection error. Please refresh and try again.',
       'lobby.connecting': 'Connecting to the server. Please try again in a moment.',
       'lobby.creating': 'Creating room...',
-      'lobby.waitingFirst': 'Room code: {code} — waiting for an opponent... (you: Black, first)',
-      'lobby.waitingSecond': 'Room code: {code} — waiting for an opponent... (you: White, second)',
+      'lobby.waitingFirst': 'Waiting for an opponent... (you: Black, first)',
+      'lobby.waitingSecond': 'Waiting for an opponent... (you: White, second)',
       'lobby.enterCode': 'Enter a room code', 'lobby.joining': 'Joining...', 'lobby.notFound': 'Room not found',
       'lobby.full': 'This room is full', 'lobby.reconnected': 'Reconnected.', 'lobby.joinFail': 'Could not join. Please check the code.',
       'bot.log': '🤖 Bot level {n}',
-      'bot.hint.1': 'Beginner — only looks next door and often misses threats',
-      'bot.hint.3': 'Novice — counts only connected stones, slips now and then',
-      'bot.hint.5': 'Intermediate — spots split threes/fours and double threats, plays cards wisely',
-      'bot.hint.7': 'Advanced — reads 2 moves ahead',
-      'bot.hint.10': 'Master — reads 4 moves ahead and hunts forcing four sequences',
-      'bot.hint.20': 'Ultimate — thinks ~2.5s per move as deep as it can and breaks your forced wins',
+      'bot.hint.1': 'Beginner · makes mistakes',
+      'bot.hint.3': 'Novice',
+      'bot.hint.5': 'Intermediate · uses cards',
+      'bot.hint.7': 'Advanced · 2 moves ahead',
+      'bot.hint.10': 'Master · 4 moves ahead',
+      'bot.hint.20': 'Ultimate · deep reading',
       'bot.ultimate': 'Ultimate', 'bot.thinking': '🤖 Bot is thinking...',
-      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': "Super Ultra Awesome — up to 8s per move (no freezing), opening book, plans cards with moves, reads your hand; attacks as Black, defends as White",
+      'bot.super': 'Super Ultra Awesome', 'bot.hint.50': 'Strongest · plans cards too',
       'side.title': 'Choose your side', 'side.sub': 'Black moves first', 'side.first': 'First (Black)', 'side.second': 'Second (White)', 'side.random': 'Random',
       'side.prompt': 'Choose first or second', 'log.sideFirst': '🤖 vs Bot — you play first (Black)', 'log.sideSecond': '🤖 vs Bot — you play second (White)',
       'tgt.windmill': 'Click one of your stones to make a windmill', 'tgt.selfRemove': 'Click one of your stones to remove',
@@ -685,7 +764,7 @@
       'log.windmillBlocked': "🎡 You can't play next to an enemy windmill",
       'log.chainTooClose': "⚡ Chain Move — can't place within 2 cells of stones placed this turn",
       'log.trapHit': "🪤 Trap sprung! {color}'s stone vanished",
-      'log.skipTurn': '{color}: ⏭️ skips this turn (cost of the last card)',
+      'log.skipTurn': '{color}: ⏸️ Time Stop — this turn is skipped',
       'log.handOverflow': '{color}: hand full — {card} discarded',
       'log.cardGained': '{color}: {icon} got {card}', 'log.cardGainedHand': '{color}: {icon} {card} added to hand',
       'log.blockadeHit': '{color}: 🚫 Blockade — {icon} {card} was nullified',
@@ -707,10 +786,21 @@
       'log.trapExists': 'There is already a trap here. Pick another cell',
       'log.trapSet': '⚠️ {color} set a trap! Watch your step', 'notice.trapSet': '⚠️ Your opponent set a trap! Be careful',
       'log.windmillExists': 'That stone is already a windmill. Pick another', 'log.windmillSet': '{color}: 🎡 windmill built',
+      'log.tradeNoLine': "🔄 A swap can't complete a winning line. Pick another pair",
       'log.tradeNoNeighbor': "That stone isn't touching an opposite color. Pick another", 'log.tradeDone': '{color}: 🔄 Swap! (turn ends)',
       'log.alkEnd': '🪀 Flick Mode over — back to the board', 'log.alkTurn': "{color}: flick turn",
       'log.trapHitOpp': "🪤 Trap sprung! The opponent's stone vanished", 'log.trapStopWin': '🪤 A trap stopped the win — the game goes on',
       'notice.trapFired': "🪤 A trap fired and removed the opponent's stone",
+      'tgt.shield': 'Click one of your stones to shield (3×3 around it)', 'tgt.wall': 'Click an empty cell to build a wall', 'tgt.magnet': 'Click an empty cell to pull stones toward',
+      'log.shieldUsed': "{color}: 🛡️ Shield — stones in the 3×3 are protected for 2 enemy turns", 'log.shielded': '🛡️ That stone is shielded. Pick another target',
+      'log.noShieldTarget': '{color}: no stone of yours to shield',
+      'log.stealUsed': '{color}: 🃏 Steal!', 'log.stealGot': '{color}: 🃏 stole {card} from the opponent', 'log.stealEmpty': "{color}: 🃏 Steal — the opponent's hand is empty",
+      'log.stealLost': '🃏 Your opponent stole your {card}',
+      'log.timestopUsed': "{color}: ⏸️ Time Stop — the opponent's next turn is skipped",
+      'log.wallUsed': '{color}: 🧱 wall built', 'log.wallNeedEmpty': 'A wall can only go on an empty cell',
+      'log.rewindUsed': "{color}: ⏪ Rewind — took back the opponent's last stone", 'log.rewindNone': '{color}: no enemy stone to take back',
+      'log.rerollUsed': '{color}: 🎲 Reroll — drew {n} new card(s)',
+      'log.magnetUsed': '{color}: 🧲 Magnet — {n} stone(s) pulled in', 'log.magnetNeedEmpty': 'Pick an empty cell',
     },
   };
 
@@ -815,12 +905,18 @@
   let trapList; // { r, c, owner }[]
   // 폭파 구멍: 터진 자리 { r, c, turns, fresh } — 폭파한 턴 + 이후 2턴 동안 누구도 착수 불가
   let craterList = [];
+  // 보호막: { r, c, owner, turns, fresh } — 중심 주변 3×3 안의 owner 돌을 보호 (폭파 구멍과 같은 방식으로 턴마다 줄어듦)
+  let shieldList = [];
+  // 각 색이 마지막으로 둔 자리 (되감기 대상, 멀티플레이에서도 공유)
+  let lastPlaced = { [BLACK]: null, [WHITE]: null };
+  // 강탈 (멀티플레이: 상대 패는 상대 화면에만 있으므로 요청 → 상대 화면이 1장 내줌 → 응답)
+  let mpStealReq = null, mpStealRes = null, lastSeenStealReqId = null, lastSeenStealResId = null;
   // 멀티플레이 알까기 관전: 내가 보낸 발사 정보 / 상대 알까기를 내 화면에 재현하는 상태
   let mpAlkLaunch = null;
   let alkView = null, lastSeenLaunchId = null, lastPublicData = null;
   // 카드 발동 연출
   let cardAnimBusy = false, cardAnimRemote = false, deferredSnapshot = null;
-  let mpCardFx = null, lastSeenCardFxId = null;
+  let mpCardFx = null, lastSeenCardFxId = null, seenCardFxIds = new Set();
   let cardAnimInstant = false; // 테스트용: 연출 없이 바로 진행
   let reduceMotion = false;
   try {
@@ -828,6 +924,20 @@
     reduceMotion = saved === null ? !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) : saved === '1';
   } catch (e) {}
   function isCrater(r, c) { return craterList.some(cr => cr.r === r && cr.c === c); }
+  // (r,c)의 돌이 그 돌 주인의 보호막 안에 있는지
+  function isProtected(r, c) {
+    const v = board[r][c];
+    if (v !== BLACK && v !== WHITE) return false;
+    for (const s of shieldList || []) if (s.owner === v && Math.abs(s.r - r) <= 1 && Math.abs(s.c - c) <= 1) return true;
+    return false;
+  }
+  function tickShields() {
+    shieldList = (shieldList || []).filter(s => {
+      if (s.fresh) { s.fresh = false; return true; }
+      s.turns--;
+      return s.turns > 0;
+    });
+  }
   // 턴이 넘어갈 때 호출: 폭파한 턴이 끝나면(fresh) 그대로 두고, 이후 턴마다 1씩 줄여 0이 되면 제거
   function tickCraters() {
     craterList = craterList.filter(cr => {
@@ -841,6 +951,7 @@
   let cardLockNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 다음 턴 카드 사용 봉쇄
   let skipNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 폭파/전세역전 대가로 다음 내 턴을 건너뜀
   let startupQueue; // 게임 시작 시 초기 카드 뽑기 순서 (흑→백)
+  let tut = null;   // 튜토리얼 진행 { step } (로컬 모드 위에서 정해진 국면만 보여줌)
 
   // ---- 모드 / 멀티플레이 상태 ----
   let mode = 'local'; // 'local' | 'bot' | 'multiplayer'
@@ -926,6 +1037,7 @@
     pendingTargetCell = null;
     trapList = [];
     craterList = [];
+    shieldList = []; mpStealReq = null; mpStealRes = null; lastPlaced = { [BLACK]: null, [WHITE]: null };
     alkView = null; mpAlkLaunch = null;
     cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
     skipNextTurn = { [BLACK]: false, [WHITE]: false };
@@ -944,8 +1056,55 @@
       updateHandUI();
       return;
     }
+    if (tut) { startupQueue = null; updateStatus(); updatePips(); updateHandUI(); draw(); return; } // 튜토리얼은 시작 카드 없음
     startupQueue = mode === 'multiplayer' ? [myColor] : [BLACK, WHITE];
     runStartupDraft();
+  }
+
+  // ================= 튜토리얼 =================
+  const tutBox = document.getElementById('tut-box'), tutText = document.getElementById('tut-text'), tutBtn = document.getElementById('tut-btn');
+  function tutShow(key, btnKey) {
+    if (tut) { tut.k = key; tut.b = btnKey; } // 언어를 바꾸면 다시 그리기 위해 기억
+    tutBox.hidden = false; tutText.textContent = t(key);
+    tutBtn.hidden = !btnKey; if (btnKey) tutBtn.textContent = t(btnKey);
+  }
+  function tutStage(step) {
+    tut = { step };
+    init();
+    const put = (list, v) => list.forEach(([r, c]) => { board[r][c] = v; });
+    current = BLACK; placedCount = { [BLACK]: 0, [WHITE]: 0 };
+    if (step === 1) {
+      put([[7, 5], [7, 6], [7, 7], [7, 8]], BLACK);
+      put([[6, 6], [8, 7], [6, 8], [8, 5]], WHITE);
+      tutShow('tut.1');
+    } else if (step === 2) {
+      put([[6, 5], [6, 6], [6, 7], [6, 8]], WHITE);
+      put([[7, 6], [7, 7], [5, 7], [8, 9]], BLACK);
+      hand[BLACK] = [CARD_POOL.find(c => c.id === 'wall')];
+      tutShow('tut.2');
+    } else {
+      tutShow('tut.3', 'tut.play');
+    }
+    updateStatus(); updatePips(); updateHandUI(); draw();
+  }
+  function startTutorial() {
+    mode = 'local'; myColor = BLACK; awaitingSide = false;
+    showScreen('game');
+    tutStage(1);
+  }
+  function endTutorial() { tut = null; tutBox.hidden = true; }
+  // 착수 직후 호출: 단계 목표를 이뤘는지 확인 (true면 일반 진행을 멈춤)
+  function tutAfterPlace(won) {
+    if (!tut) return false;
+    if (tut.step === 1 && won) { draw(); setTimeout(() => tutStage(2), 700); return true; }
+    if (tut.step === 2) {
+      const ok = findWinCells(WHITE, makeBlocked()[WHITE]).length === 0;
+      draw();
+      if (ok) setTimeout(() => tutStage(3), 700);
+      else { tutShow('tut.2.retry'); setTimeout(() => tutStage(2), 1400); }
+      return true;
+    }
+    return false;
   }
 
   function renderRematchBar() {
@@ -1106,8 +1265,20 @@
     if (player === WHITE) { ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke(); }
   }
 
+  function drawWalls() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== WALL) continue;
+      const p = cellCenter(r, c), h = CELL * 0.44;
+      ctx.fillStyle = '#6b5a4a'; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.rect(p.x - h, p.y - h, h * 2, h * 2); ctx.fill(); ctx.stroke();
+      ctx.font = Math.round(CELL * 0.5) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🧱', p.x, p.y + 1);
+    }
+  }
+
   function draw() {
     drawBoardBase();
+    drawWalls();
 
     if (alk) {
       alk.physStones.forEach(s => drawStoneAt(s.x, s.y, s.color));
@@ -1152,6 +1323,15 @@
       ctx.font = 'bold ' + Math.round(CELL * 0.36) + 'px sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(cr.turns), p.x, p.y + 1);
+    });
+
+    (shieldList || []).forEach(sh => {
+      const p = cellCenter(sh.r, sh.c);
+      ctx.save();
+      ctx.fillStyle = 'rgba(90, 160, 255, 0.13)'; ctx.strokeStyle = 'rgba(90, 160, 255, 0.8)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
+      ctx.fillRect(p.x - CELL * 1.5, p.y - CELL * 1.5, CELL * 3, CELL * 3);
+      ctx.strokeRect(p.x - CELL * 1.5, p.y - CELL * 1.5, CELL * 3, CELL * 3);
+      ctx.restore();
     });
 
     windmillList.forEach(w => {
@@ -1320,6 +1500,7 @@
     playPlaceSound();
     moveHistory.push({ r, c, player: current, counted: countsForDraft });
     lastMovePos = { r, c };
+    lastPlaced[current] = { r, c };
     turnPlacedPositions.push({ r, c });
 
     const trapHit = trapList.find(tr => tr.r === r && tr.c === c && tr.owner !== current);
@@ -1342,12 +1523,13 @@
     trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
 
     const win = checkWin(r, c, current);
+    if (tut && tutAfterPlace(!!win)) return;
     if (win) {
       gameOver = true; winLine = [win.start, win.end];
       draw(); showBanner(L('banner.win', { color: current }), true);
       return;
     }
-    if (moveHistory.length === SIZE * SIZE) {
+    if (!hasEmptyCell()) {
       gameOver = true; draw(); showBanner(L('banner.draw'), true); return;
     }
 
@@ -1368,6 +1550,7 @@
 
   function passTurn() {
     tickCraters();
+    tickShields();
     current = other(current);
     turnPlacementsDone = 0;
     turnPlacementsNeeded = 1;
@@ -1585,12 +1768,49 @@
       for (const [dr, dc] of dirs) {
         const nr = r + dr, nc = c + dc;
         if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
-        if (board[nr][nc] !== opp) continue;
+        if (board[nr][nc] !== opp || isProtected(nr, nc)) continue;
         const key = nr + ',' + nc;
         if (!seen.has(key)) { seen.add(key); result.push({ r: nr, c: nc }); }
       }
     }
     return result;
+  }
+
+  // 되감기 대상: 상대가 마지막으로 둔 돌 (아직 판에 있는 것)
+  function lastOppStone(player) {
+    const opp = other(player), lp = lastPlaced && lastPlaced[opp];
+    return lp && board[lp.r][lp.c] === opp ? { r: lp.r, c: lp.c } : null;
+  }
+  // 자석: (r,c)에서 2칸 안의 돌을 가까운 것부터 한 칸씩 끌어옴 (빈 칸으로만, 상대 보호막 안의 상대 돌은 그대로) → 옮긴 돌 수
+  function applyMagnet(r0, c0, player) {
+    const stones = [];
+    for (let r = r0 - 2; r <= r0 + 2; r++) for (let c = c0 - 2; c <= c0 + 2; c++) {
+      if (!inBoard(r, c) || (r === r0 && c === c0) || !isStone(board[r][c])) continue;
+      if (board[r][c] !== player && isProtected(r, c)) continue;
+      stones.push({ r, c, d: Math.max(Math.abs(r - r0), Math.abs(c - c0)) });
+    }
+    stones.sort((a, b) => a.d - b.d);
+    let moved = 0;
+    for (const s of stones) {
+      const nr = s.r + Math.sign(r0 - s.r), nc = s.c + Math.sign(c0 - s.c);
+      if (board[nr][nc] !== EMPTY || isCrater(nr, nc)) continue;
+      board[nr][nc] = board[s.r][s.c]; board[s.r][s.c] = EMPTY;
+      for (const w of windmillList) if (w.r === s.r && w.c === s.c) { w.r = nr; w.c = nc; }
+      for (const m of moveHistory) if (m.r === s.r && m.c === s.c) { m.r = nr; m.c = nc; }
+      moved++;
+    }
+    pruneInvalidTraps();
+    return moved;
+  }
+  // 강탈 (로컬·봇): 상대 패에서 무작위 1장을 내 패로
+  function stealCard(player) {
+    const opp = other(player);
+    if (!hand[opp].length) { addLog(L('log.stealEmpty', { color: player })); return null; }
+    const card = hand[opp].splice(Math.floor(Math.random() * hand[opp].length), 1)[0];
+    hand[player].push(card);
+    if (hand[player].length > HAND_LIMIT) { const dropped = hand[player].shift(); addLog(L('log.handOverflow', { color: player, card: dropped.id })); }
+    addLog(L('log.stealGot', { color: player, card: card.id }));
+    return card;
   }
 
   // 지진: 모든 돌을 각자 주변 무작위 빈 칸(원래 보드 기준)으로 흔들되, 겹치지 않도록 처리
@@ -1600,6 +1820,8 @@
       if (isStone(board[r][c])) stones.push({ r, c, color: board[r][c], isWindmill: windmillList.some(w => w.r === r && w.c === c) });
     }
     const occSet = new Set(stones.map(s => s.r + ',' + s.c));
+    const walls = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === WALL) { walls.push({ r, c }); occSet.add(r + ',' + c); }
     const claimed = new Set();
     const order = shuffle(stones.map((_, i) => i));
     const newPos = new Array(stones.length);
@@ -1627,6 +1849,7 @@
     }
 
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    walls.forEach(w => { board[w.r][w.c] = WALL; });
     windmillList = [];
     moveHistory = [];
     stones.forEach((s, i) => {
@@ -1653,6 +1876,14 @@
   function hasTradablePair() {
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (hasOppositeNeighbor(r, c)) return true;
     return false;
+  }
+  // 두 돌의 색을 바꿨을 때 어느 쪽이든 오목/육목이 완성되는지 (그런 맞교환은 할 수 없음)
+  function swapMakesLine(r1, c1, r2, c2) {
+    const v1 = board[r1][c1], v2 = board[r2][c2];
+    board[r1][c1] = v2; board[r2][c2] = v1;
+    const made = !!(checkWin(r1, c1, v2) || checkWin(r2, c2, v1));
+    board[r1][c1] = v1; board[r2][c2] = v2;
+    return made;
   }
   function isValidTradeSecond(first, r, c) {
     return isStone(board[r][c]) && board[r][c] !== first.color && isOrthoAdjacent(first, { r, c });
@@ -1754,7 +1985,7 @@
         lastSeenShakeSeq = mpShakeSeq;
         triggerBoardShake();
         updateHandUI(); draw();
-        if (moveHistory.length === SIZE * SIZE) { gameOver = true; showBanner(L('banner.draw'), true); return; }
+        if (!hasEmptyCell()) { gameOver = true; showBanner(L('banner.draw'), true); return; }
         endIfBoardWin(true);
         return;
 
@@ -1772,6 +2003,73 @@
         pendingTarget = { type: 'trap', forPlayer: player, handIndex: idx };
         enterTargetMode(L('tgt.trap'));
         return;
+
+      case 'shield':
+        if (!hasStoneOf(player)) { addLog(L('log.noShieldTarget', C)); return; }
+        pendingTarget = { type: 'shield', forPlayer: player, handIndex: idx };
+        enterTargetMode(L('tgt.shield'));
+        return;
+
+      case 'wall':
+        if (!hasEmptyCell()) { addLog(L('log.noEmptyTrap', C)); return; }
+        pendingTarget = { type: 'wall', forPlayer: player, handIndex: idx };
+        enterTargetMode(L('tgt.wall'));
+        return;
+
+      case 'magnet':
+        if (!hasEmptyCell()) { addLog(L('log.noEmptyTrap', C)); return; }
+        pendingTarget = { type: 'magnet', forPlayer: player, handIndex: idx };
+        enterTargetMode(L('tgt.magnet'));
+        return;
+
+      case 'skip_turn':
+        skipNextTurn[opp] = true;
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(L('log.timestopUsed', { color: player }));
+        updateStatus(); updateHandUI(); draw();
+        return;
+
+      case 'rewind': {
+        const lm = lastOppStone(player);
+        if (!lm) { addLog(L('log.rewindNone', C)); return; }
+        if (isProtected(lm.r, lm.c)) { addLog(L('log.shielded')); return; }
+        board[lm.r][lm.c] = EMPTY;
+        windmillList = windmillList.filter(w => !(w.r === lm.r && w.c === lm.c));
+        moveHistory = moveHistory.filter(m => !(m.r === lm.r && m.c === lm.c));
+        lastMovePos = null; lastPlaced[opp] = null;
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(L('log.rewindUsed', C));
+        updateStatus(); updateHandUI(); draw();
+        return;
+      }
+
+      case 'reroll': {
+        removeFromHand(player, idx);
+        markUsed(player);
+        const n = Math.max(1, hand[player].length);
+        hand[player] = weightedSample(getCardPool(), n);
+        addLog(L('log.rerollUsed', { color: player, n }));
+        if (mode === 'multiplayer') savePrivateState();
+        updateStatus(); updateHandUI(); draw();
+        return;
+      }
+
+      case 'steal': {
+        removeFromHand(player, idx);
+        markUsed(player);
+        addLog(L('log.stealUsed', C));
+        if (mode === 'multiplayer') {
+          // 상대 패는 상대 화면에만 있으므로 요청을 보내고 응답을 기다림
+          mpStealReq = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), by: player };
+          savePrivateState();
+        } else {
+          stealCard(player);
+        }
+        updateStatus(); updateHandUI(); draw();
+        return;
+      }
 
       case 'infection': {
         const targets = getOrthogonalEnemyNeighbors(player);
@@ -1837,6 +2135,10 @@
     const C = { color: t.forPlayer };
     let resolved = false;
 
+    if ((t.type === 'remove' || t.type === 'trade') && isStone(board[r][c]) && board[r][c] !== t.forPlayer && isProtected(r, c)) {
+      addLog(L('log.shielded'));
+      return;
+    }
     if (t.type === 'remove' && board[r][c] === t.opponent) {
       board[r][c] = EMPTY;
       windmillList = windmillList.filter(w => !(w.r === r && w.c === c)); // 풍차 돌이면 풍차도 함께 사라짐
@@ -1864,6 +2166,25 @@
       lastMovePos = dest;
       pruneInvalidTraps();
       addLog(L('log.teleportDone', C));
+      resolved = true;
+
+    } else if (t.type === 'shield' && board[r][c] === t.forPlayer) {
+      shieldList.push({ r, c, owner: t.forPlayer, turns: 3, fresh: true });
+      addLog(L('log.shieldUsed', C));
+      resolved = true;
+
+    } else if (t.type === 'wall') {
+      if (board[r][c] !== EMPTY) { addLog(L('log.wallNeedEmpty')); return; }
+      board[r][c] = WALL;
+      trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
+      craterList = craterList.filter(cr => !(cr.r === r && cr.c === c));
+      addLog(L('log.wallUsed', C));
+      resolved = true;
+
+    } else if (t.type === 'magnet') {
+      if (board[r][c] !== EMPTY) { addLog(L('log.magnetNeedEmpty')); return; }
+      const n = applyMagnet(r, c, t.forPlayer);
+      addLog(L('log.magnetUsed', { color: t.forPlayer, n }));
       resolved = true;
 
     } else if (t.type === 'trap' && board[r][c] === EMPTY) {
@@ -1903,6 +2224,7 @@
           return;
         }
         const a = t.firstPos, bColor = board[r][c];
+        if (swapMakesLine(a.r, a.c, r, c)) { addLog(L('log.tradeNoLine')); return; } // 오목/육목이 되는 교환은 불가
         board[a.r][a.c] = bColor;
         board[r][c] = a.color;
         addLog(L('log.tradeDone', C));
@@ -1917,7 +2239,7 @@
       resetStatusAfterTarget();
       updateHandUI();
       draw();
-      if (t.type === 'trade' || t.type === 'teleport') endIfBoardWin(true);
+      if (t.type === 'trade' || t.type === 'teleport' || t.type === 'magnet') endIfBoardWin(true);
       if (t.type === 'trade' && !gameOver) passTurn();
     }
   }
@@ -2152,6 +2474,8 @@
 
   function snapPhysStonesToGrid(physStones) {
     const candidates = [];
+    const wallCells = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === WALL) wallCells.push(r + ',' + c);
     for (let si = 0; si < physStones.length; si++) {
       for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
         const p = cellCenter(r, c);
@@ -2161,7 +2485,7 @@
     }
     candidates.sort((a, b) => a.dist - b.dist);
     const assignedStone = new Array(physStones.length).fill(false);
-    const takenCell = new Set();
+    const takenCell = new Set(wallCells);
     const result = new Array(physStones.length);
     let remaining = physStones.length;
     for (const cand of candidates) {
@@ -2179,7 +2503,10 @@
 
   function finishAlkFlick() {
     const assign = snapPhysStonesToGrid(alk.physStones);
+    const wallsKeep = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === WALL) wallsKeep.push({ r, c });
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    wallsKeep.forEach(w => { board[w.r][w.c] = WALL; });
     windmillList = [];
     moveHistory = [];
     let newStonePos = null;
@@ -2212,7 +2539,7 @@
       syncPublicState();
       savePrivateState();
       if (phaseDone) {
-        if (moveHistory.length === SIZE * SIZE) { gameOver = true; showBanner(L('banner.draw')); draw(); return; }
+        if (!hasEmptyCell()) { gameOver = true; showBanner(L('banner.draw')); draw(); return; }
         if (endIfBoardWin()) return;
       }
       updateStatus(); updatePips(); updateHandUI(); draw();
@@ -2231,7 +2558,7 @@
     } else {
       alk = null;
       addLog(L('log.alkEnd'));
-      if (moveHistory.length === SIZE * SIZE) {
+      if (!hasEmptyCell()) {
         gameOver = true; showBanner(L('banner.draw')); draw(); return;
       }
       if (endIfBoardWin()) return;
@@ -2247,7 +2574,8 @@
     const alkOrderNow = alk ? alk.turnOrder : (alkHandoff ? alkHandoff.turnOrder : null);
     const alkIndexNow = alk ? alk.turnIndex : (alkHandoff ? alkHandoff.turnIndex : null);
     return {
-      board: flattenBoard(), current, winLength, windmillList, craterList,
+      board: flattenBoard(), current, winLength, windmillList, craterList, shieldList,
+      stealReq: mpStealReq, stealRes: mpStealRes, lastPlaced,
       turnPlacementsDone, turnPlacementsNeeded,
       usedCardThisTurn, cardLockNextTurn, skipNextTurn, placedCount,
       gameOver, winLine, lastMovePos,
@@ -2304,6 +2632,8 @@
     trade: ['#7fc8ff', '#ffffff', '#3f8cff'], bomb: ['#ff5a36', '#ffae42', '#ffd166'], reversal: ['#ffffff', '#222222', '#bbbbbb'],
     alkkagi: ['#ff6b6b', '#ffd166', '#4ecdc4'], teleport: ['#fff7a8', '#c9a7ff', '#ffffff'], earthquake: ['#c0894f', '#8a5a2b', '#e8c39e'],
     blockade: ['#ff4d6d', '#ffffff', '#c9184a'], trap: ['#c8a165', '#7f5539', '#ffd6a5'], infection: ['#7cfc00', '#2ecc71', '#b5ff6b'],
+    shield: ['#5aa0ff', '#cfe3ff', '#ffffff'], steal: ['#ffd166', '#9b5de5', '#ffffff'], timestop: ['#a0e9ff', '#ffffff', '#5aa0ff'],
+    wall: ['#8d7b68', '#c4b29c', '#5c4b3a'], rewind: ['#c77dff', '#ffffff', '#7b2cbf'], reroll: ['#ff9f1c', '#ffffff', '#2ec4b6'], magnet: ['#ef233c', '#8d99ae', '#edf2f4'],
   };
   const FX_DEFAULT = ['#7cfc00', '#ffd700', '#adff2f']; // 토템 기본색 (초록·노랑)
 
@@ -2351,6 +2681,7 @@
     if (!card || cardAnimBusy) return false;
     if (mode === 'multiplayer') {
       mpCardFx = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), card: card.id, color: player };
+      seenCardFxIds.add(mpCardFx.id);
       syncPublicState(); // 효과 적용 전 상태로 먼저 알려 상대도 연출부터 보게 함
     }
     playCardAnim(card.id, player, () => {
@@ -2399,12 +2730,43 @@
     }
   }
 
+  // 강탈 동기화: 내가 빼앗길 쪽이면 패에서 1장을 내주고 응답, 빼앗는 쪽이면 응답으로 온 카드를 받음
+  function handleStealSync(data) {
+    mpStealReq = data.stealReq || null;
+    mpStealRes = data.stealRes || null;
+    const rq = data.stealReq;
+    if (rq && rq.id !== lastSeenStealReqId) {
+      lastSeenStealReqId = rq.id;
+      if (rq.by !== myColor && !(data.stealRes && data.stealRes.id === rq.id)) {
+        const mine = hand[myColor] || [];
+        const card = mine.length ? mine.splice(Math.floor(Math.random() * mine.length), 1)[0] : null;
+        if (card) addLog(L('log.stealLost', { card: card.id }));
+        mpStealRes = { id: rq.id, to: rq.by, card: card ? card.id : null };
+        savePrivateState();
+        dbApi.updatePath('games/' + roomCode, { stealRes: mpStealRes }).catch(() => {});
+      }
+    }
+    const rs = data.stealRes;
+    if (rs && rs.id !== lastSeenStealResId && rs.to === myColor) {
+      lastSeenStealResId = rs.id;
+      const card = rs.card && CARD_POOL.find(c => c.id === rs.card);
+      if (card) {
+        hand[myColor].push(card);
+        if (hand[myColor].length > HAND_LIMIT) { const dropped = hand[myColor].shift(); addLog(L('log.handOverflow', { color: myColor, card: dropped.id })); }
+        addLog(L('log.stealGot', { color: myColor, card: card.id }));
+      } else addLog(L('log.stealEmpty', { color: myColor }));
+      savePrivateState();
+    }
+  }
+
   function applyPublicSnapshot(data) {
     if (!data) return;
     // 상대 카드 발동: 연출을 먼저 보여주고, 연출 중 들어온 변화(효과)는 끝난 뒤 적용
     const fx = data.cardFx;
-    if (fx && fx.id !== lastSeenCardFxId) {
-      lastSeenCardFxId = fx.id;
+    // 공유 상태의 '마지막 카드 발동'을 내 쪽에도 맞춰 둠 — 예전 내 발동을 다시 써 보내면 상대 화면에서 같은 연출·기록이 반복됨
+    if (fx) mpCardFx = fx;
+    if (fx && fx.id !== lastSeenCardFxId && !seenCardFxIds.has(fx.id)) {
+      lastSeenCardFxId = fx.id; seenCardFxIds.add(fx.id);
       if (fx.color !== myColor) {
         // 상대가 쓴 카드도 내 기록창에 남김
         const fc = CARD_POOL.find(c => c.id === fx.card);
@@ -2426,6 +2788,8 @@
     if (data.winLength) winLength = data.winLength;
     windmillList = data.windmillList || [];
     craterList = data.craterList || [];
+    shieldList = data.shieldList || [];
+    lastPlaced = data.lastPlaced || { [BLACK]: null, [WHITE]: null };
     turnPlacementsDone = data.turnPlacementsDone || 0;
     turnPlacementsNeeded = data.turnPlacementsNeeded || 1;
     usedCardThisTurn = data.usedCardThisTurn || { [BLACK]: false, [WHITE]: false };
@@ -2470,6 +2834,7 @@
       runStartupDraft();
     }
 
+    handleStealSync(data);
     lastPublicData = data;
     updateAlkSpectate(data); // 상대 발사가 새로 왔으면 먼저 재생을 시작
     syncAlkFromPublic(data);
@@ -2601,6 +2966,7 @@
     init();
     subscribePublic();
     await syncPublicState();
+    showRoomCode(roomCode);
     setLobbyStatus(L(myColor === BLACK ? 'lobby.waitingFirst' : 'lobby.waitingSecond', { code: roomCode }));
   }
 
@@ -2646,6 +3012,7 @@
     alk = null; alkHandoff = null;
     trapList = [];
     craterList = [];
+    shieldList = []; mpStealReq = null; mpStealRes = null; lastPlaced = { [BLACK]: null, [WHITE]: null };
     alkView = null; mpAlkLaunch = null;
     hand = { [BLACK]: [], [WHITE]: [] }; // 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
     logLines = [];
@@ -2799,6 +3166,9 @@
       if (c.type === 'trade') return hasTradablePair();
       if (c.type === 'trap') return hasEmptyCell();
       if (c.type === 'six_sense') return winLength !== 6;
+      if (c.type === 'shield') return hasStoneOf(botColor);
+      if (c.type === 'wall' || c.type === 'magnet') return hasEmptyCell();
+      if (c.type === 'rewind') return !!lastOppStone(botColor);
       return true;
     });
     if (usable.length === 0) return false;
@@ -2814,16 +3184,16 @@
     if (!t) return;
     let candidates = [];
     if (t.type === 'remove') {
-      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.opponent) candidates.push({ r, c });
-    } else if (t.type === 'self_remove' || t.type === 'windmill' || t.type === 'teleport') {
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.opponent && !isProtected(r, c)) candidates.push({ r, c });
+    } else if (t.type === 'self_remove' || t.type === 'windmill' || t.type === 'teleport' || t.type === 'shield') {
       for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.forPlayer) candidates.push({ r, c });
-    } else if (t.type === 'trap') {
+    } else if (t.type === 'trap' || t.type === 'wall' || t.type === 'magnet') {
       for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === EMPTY) candidates.push({ r, c });
     } else if (t.type === 'trade') {
       if (t.stage === 'first') {
-        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (hasOppositeNeighbor(r, c)) candidates.push({ r, c });
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (hasOppositeNeighbor(r, c) && !(board[r][c] !== t.forPlayer && isProtected(r, c))) candidates.push({ r, c });
       } else {
-        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isValidTradeSecond(t.firstPos, r, c)) candidates.push({ r, c });
+        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isValidTradeSecond(t.firstPos, r, c) && !(board[r][c] !== t.forPlayer && isProtected(r, c)) && !swapMakesLine(t.firstPos.r, t.firstPos.c, r, c)) candidates.push({ r, c });
       }
     }
     if (candidates.length === 0) { cancelTarget(); return; }
@@ -2842,6 +3212,7 @@
   function buildBlockedGrid(player) {
     const g = new Uint8Array(SIZE * SIZE);
     for (const cr of craterList) g[cr.r * SIZE + cr.c] = 1;
+    for (let i = 0; i < SIZE * SIZE; i++) if (board[(i / SIZE) | 0][i % SIZE] === WALL) g[i] = 1; // 장벽은 아무도 못 씀
     for (const w of windmillList) {
       if (!isStone(board[w.r][w.c]) || board[w.r][w.c] === player) continue;
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
@@ -3429,10 +3800,10 @@
       if (card.type === 'remove_enemy') {
         // v3: 돌을 없앤 뒤 막힌 칸(풍차 효과)까지 다시 계산해서 순위, 상대 풍차 돌은 항상 후보
         const isMill = (s) => windmillList.some(w => w.r === s.r && w.c === s.c);
-        let ranked = listStones(opp).map(s => {
+        let ranked = listStones(opp).filter(s => !isProtected(s.r, s.c)).map(s => {
           board[s.r][s.c] = EMPTY; const g = evalBoard(bot, v3 ? makeBlocked() : blocked0); board[s.r][s.c] = opp; return { s, g };
         }).sort((a, b) => b.g - a.g).slice(0, v2 ? 6 : 4);
-        if (v3) for (const s of listStones(opp)) if (isMill(s) && !ranked.some(x => x.s.r === s.r && x.s.c === s.c)) ranked.push({ s });
+        if (v3) for (const s of listStones(opp)) if (isMill(s) && !isProtected(s.r, s.c) && !ranked.some(x => x.s.r === s.r && x.s.c === s.c)) ranked.push({ s });
         for (const { s } of ranked) options.push({ idx, cardId: card.id, targets: [s], endsTurn: false,
           apply: () => { board[s.r][s.c] = EMPTY; windmillList = windmillList.filter(w => !(w.r === s.r && w.c === s.c)); craterList.push({ r: s.r, c: s.c, turns: 2, fresh: true }); } });
       } else if (card.type === 'windmill') {
@@ -3453,7 +3824,7 @@
       } else if (card.type === 'trade') {
         const pairs = [];
         for (const a of listStones(opp)) for (const b of listStones(bot)) {
-          if (!isOrthoAdjacent(a, b)) continue;
+          if (!isOrthoAdjacent(a, b) || isProtected(a.r, a.c) || swapMakesLine(a.r, a.c, b.r, b.c)) continue;
           board[a.r][a.c] = bot; board[b.r][b.c] = opp;
           const g = evalBoard(bot, blocked0);
           board[a.r][a.c] = opp; board[b.r][b.c] = bot;
@@ -3582,6 +3953,8 @@
     const stones = [];
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) stones.push({ r, c, color: board[r][c], mill: windmillList.some(w => w.r === r && w.c === c) });
     const occ = new Set(stones.map(s => s.r * SIZE + s.c)), claimed = new Set();
+    const walls = [];
+    for (let i = 0; i < SIZE * SIZE; i++) if (board[(i / SIZE) | 0][i % SIZE] === WALL) { walls.push(i); occ.add(i); }
     const order = stones.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
     const pos = new Array(stones.length);
@@ -3597,6 +3970,7 @@
       claimed.add(k); pos[i] = k;
     }
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    walls.forEach(i => { board[(i / SIZE) | 0][i % SIZE] = WALL; });
     windmillList = [];
     stones.forEach((s, i) => { const r = (pos[i] / SIZE) | 0, c = pos[i] % SIZE; board[r][c] = s.color; if (s.mill) windmillList.push({ r, c }); });
   }
@@ -3607,7 +3981,7 @@
   function engineWorkerMain(e) {
     const d = e.data;
     try {
-      board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; trapList = d.trapList;
+      board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; shieldList = d.shieldList || []; trapList = d.trapList;
       hand = d.hand; cardLockNextTurn = d.cardLockNextTurn; turnPlacementsDone = d.turnPlacementsDone; turnPlacementsNeeded = d.turnPlacementsNeeded || 1; turnPlacedPositions = d.turnPlacedPositions;
       let result = null;
       if (d.task === 'move') { const m = (d.cfg && d.cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(d.bot, makeBlocked(), d.budget, d.cfg); result = m ? { r: m.r, c: m.c } : null; }
@@ -3620,19 +3994,19 @@
   function getEngineWorker() {
     if (engineWorker || engineWorkerFailed || typeof Worker === 'undefined') return engineWorker;
     try {
-      const fns = [isStone, other, inBoard, checkWin, isCrater, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
+      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, swapMakesLine, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
         lineShape, attackValue, windowWeight, evalBoard, uHashBoard, uKey, uPlace, uOrdered, uSearch, findWinCells, vcf, vct, vctDefend,
         readOppCards, uSetupFor, openingBookMove, ultimateChooseMove, listStones, isOrthoAdjacent, scanFiveWinner, uBestValue, planCardsSearch, engineWorkerMain,
         e2BuildTables, e2Contrib, e2At, e2Init, e2NbAdd, e2Update, e2Place, e2Remove, e2Eval, e2Attack, e2Ordered, e2Search,
         e2WinCells, e2HasDoubleMove, e2HasFourMove, e2Vct, e2VctDefend, e2BestValue, e2TradeRisk, e2ChainRisk, e2ChainPlan, getOrthogonalEnemyNeighbors, simQuake, e2Canon, e2FromCanon, e2BookMove, e2ChooseMove];
       const src = [
         '"use strict";',
-        `const SIZE = ${SIZE}, EMPTY = ${EMPTY}, BLACK = ${BLACK}, WHITE = ${WHITE};`,
+        `const SIZE = ${SIZE}, EMPTY = ${EMPTY}, BLACK = ${BLACK}, WHITE = ${WHITE}, WALL = ${WALL};`,
         `const DIRS = ${JSON.stringify(DIRS)};`,
         `const P_FIVE = ${P_FIVE}, P_OPEN4 = ${P_OPEN4}, P_FOUR = ${P_FOUR}, P_OPEN3 = ${P_OPEN3}, P_THREE = ${P_THREE}, P_OPEN2 = ${P_OPEN2}, P_TWO = ${P_TWO};`,
         `const WIN_SCORE = ${WIN_SCORE}, U_WIDTHS = ${JSON.stringify(U_WIDTHS)};`,
         `const ZOB = ${JSON.stringify(ZOB)};`,
-        'let board, winLength = 5, windmillList = [], craterList = [], trapList = [], hand = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
+        'let board, winLength = 5, windmillList = [], craterList = [], shieldList = [], trapList = [], hand = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
         'let searchDeadline = 0, uWidths = U_WIDTHS, uDefense = 0.95, uBot = null, uFlipRisk = false, uStyle = null, uLastDepth = 0, uTT = new Map(), uAborted = false, uNodes = 0;',
         `const E2P = ${JSON.stringify(E2P)}, E2_BOOK = ${JSON.stringify(E2_BOOK)};`,
         `const E2_SYM = [${E2_SYM.map(f => f.toString()).join(', ')}];`,
@@ -3669,7 +4043,7 @@
     engineCallbacks.set(id, (res, err) => { if (err) fallback(); else cb(res); });
     w.postMessage({
       id, task, bot, budget, cfg,
-      board: board.map(r => r.slice()), winLength, windmillList, craterList, trapList: trapList || [],
+      board: board.map(r => r.slice()), winLength, windmillList, craterList, shieldList: shieldList || [], trapList: trapList || [],
       hand: { [BLACK]: (hand[BLACK] || []).map(c => ({ id: c.id, type: c.type })), [WHITE]: (hand[WHITE] || []).map(c => ({ id: c.id, type: c.type })) },
       cardLockNextTurn, turnPlacementsDone, turnPlacementsNeeded, turnPlacedPositions,
     });
@@ -4047,14 +4421,15 @@
     let n = 0;
     for (let i = 0; i < SIZE * SIZE; i++) {
       const r = (i / SIZE) | 0, c = i % SIZE;
-      if (board[r][c] !== me) continue;
+      if (board[r][c] !== me || isProtected(r, c)) continue; // 보호막 안의 돌은 상대가 바꿀 수 없음
       for (const [dr, dc] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
         const r2 = r + dr, c2 = c + dc;
         if (!inBoard(r2, c2) || board[r2][c2] !== opp) continue;
         const j = r2 * SIZE + c2;
         e2Remove(i, me); e2Place(i, opp); e2Remove(j, opp); e2Place(j, me);
-        let lost = checkWin(r, c, opp);
-        if (!lost && !checkWin(r2, c2, me) && !e2WinCells(me).length) lost = e2WinCells(opp).length >= 2;
+        // 오목/육목이 완성되는 교환은 규칙상 불가 → 막을 수 없는 4가 생기는 경우만 위험
+        const illegal = checkWin(r, c, opp) || checkWin(r2, c2, me);
+        const lost = !illegal && !e2WinCells(me).length && e2WinCells(opp).length >= 2;
         e2Remove(j, me); e2Place(j, opp); e2Remove(i, opp); e2Place(i, me);
         if (lost) n++;
       }
@@ -4460,6 +4835,7 @@
           // 대가가 없으므로 상대 공격의 핵심 돌을 끊는 데 사용 (터진 자리는 2턴간 막힘)
           let bestT = null, bestGain = -Infinity;
           for (const s of listStones(opp)) {
+            if (isProtected(s.r, s.c)) continue;
             board[s.r][s.c] = EMPTY;
             blocked[opp][s.r * SIZE + s.c] = 1; blocked[botColor][s.r * SIZE + s.c] = 1;
             const remain = findWinCells(opp, blocked[opp]).length;
@@ -4494,12 +4870,9 @@
           let bestPair = null, bestGain = 0;
           const mine = listStones(botColor), theirs = listStones(opp);
           for (const a of theirs) for (const b of mine) {
-            if (!isOrthoAdjacent(a, b)) continue;
+            if (!isOrthoAdjacent(a, b) || isProtected(a.r, a.c) || swapMakesLine(a.r, a.c, b.r, b.c)) continue; // 오목/육목이 되는 교환은 불가
             board[a.r][a.c] = botColor; board[b.r][b.c] = opp;
-            const oppFive = checkWin(b.r, b.c, opp) || !!scanBoardForWinOf(opp);
-            const myFive = checkWin(a.r, a.c, botColor);
-            // 교환으로 내 5목이 완성되면 즉시 승리, 상대 5목이 생기면 절대 금지
-            const gain = oppFive ? -Infinity : myFive ? 1e6 : evalBoard(botColor, blocked) - base;
+            const gain = evalBoard(botColor, blocked) - base;
             board[a.r][a.c] = opp; board[b.r][b.c] = botColor;
             if (gain > bestGain) { bestGain = gain; bestPair = [a, b]; }
           }
@@ -4551,6 +4924,81 @@
           if (expected > 450 * scale) consider(idx, expected);
           break;
         }
+        case 'skip_turn': {
+          // 시간 정지 = 두 번 연달아 두기: 내 3이 있으면 4→5로 끝냄, 상대 위협이 둘 이상이면 둘 다 막음
+          const L = winLength;
+          let my3 = false;
+          for (const p of collectCandidates(botColor, 2, blocked, false)) { if (attackValue(p.r, p.c, botColor, blocked[botColor]).fours >= 1) { my3 = true; break; } }
+          if (my3) consider(idx, 50000);
+          else if (oppWins.length >= 2 || hasOpenFourThreat(opp, blocked)) consider(idx, 45000);
+          else if (overflowSoon && idx === 0) consider(idx, 500);
+          break;
+        }
+        case 'wall': {
+          // 장벽: 상대가 바로 이기는 자리를 내 돌 없이 막음 (둘이면 장벽 하나 + 착수 하나로 둘 다 막음), 아니면 상대 급소를 영구 봉쇄
+          const cands = collectCandidates(opp, 2, blocked, false)
+            .filter(p => !trapList.some(t => t.r === p.r && t.c === p.c))
+            .map(p => ({ p, s: attackValue(p.r, p.c, opp, blocked[opp]).score }))
+            .sort((a, b) => b.s - a.s);
+          if (oppWins.length >= 2) consider(idx, 46000, [oppWins[0]]);
+          else if (cands.length && cands[0].s >= P_OPEN3) consider(idx, 2500 + Math.min(cands[0].s, P_OPEN4) / 100, [cands[0].p]);
+          else if (overflowSoon && idx === 0 && cands.length) consider(idx, 300, [cands[0].p]);
+          break;
+        }
+        case 'rewind': {
+          // 되감기: 상대 직전 돌이 위협의 핵심이면 되돌림
+          const lm = lastOppStone(botColor);
+          if (!lm || isProtected(lm.r, lm.c)) break;
+          board[lm.r][lm.c] = EMPTY;
+          const remain = findWinCells(opp, blocked[opp]).length, gain = evalBoard(botColor, blocked) - base;
+          board[lm.r][lm.c] = opp;
+          if (oppWins.length && remain < oppWins.length) consider(idx, 44000 + gain);
+          else if (gain > 600 * scale) consider(idx, 1500 + gain);
+          break;
+        }
+        case 'shield': {
+          // 보호막: 상대가 쥔 맞교환·폭파·감염으로 무너질 돌을 지킴
+          if (!reads || !(oppCards.trade || oppCards.bomb || oppCards.infection || oppCards.rewind || oppCards.magnet)) {
+            if (overflowSoon && idx === 0 && hasStoneOf(botColor)) consider(idx, 200);
+            break;
+          }
+          let bestT = null, bestV = 0;
+          for (const s2 of listStones(botColor)) {
+            // 주변 3×3에서 내 돌이 맞닿은 상대 돌 수 + 줄 가치로 대략 평가
+            let v = 0;
+            for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+              const r = s2.r + dr, c = s2.c + dc;
+              if (!inBoard(r, c) || board[r][c] !== botColor) continue;
+              board[r][c] = EMPTY; v += Math.max(0, base - evalBoard(botColor, blocked)); board[r][c] = botColor;
+            }
+            if (v > bestV) { bestV = v; bestT = s2; }
+          }
+          if (bestT && bestV > 300) consider(idx, 3000 + Math.min(bestV, 30000), [bestT]);
+          break;
+        }
+        case 'steal':
+          // 강탈: 상대 패가 있으면 사용 (위험한 카드를 쥐고 있으면 더 급함)
+          if (hand[opp].length) consider(idx, reads && (oppCards.chain || oppCards.trade || oppCards.reversal || oppCards.timestop || oppCards.bomb) ? 5000 : 1300);
+          break;
+        case 'reroll':
+          // 리롤: 남은 패가 약한 카드뿐이면 새로 뽑음
+          if (hand[botColor].length >= 2 && hand[botColor].every((c, i) => i === idx || ['teleport', 'earthquake', 'alkkagi', 'reroll'].includes(c.id))) consider(idx, 900);
+          else if (overflowSoon && idx === 0) consider(idx, 150);
+          break;
+        case 'magnet': {
+          // 자석: 내 돌을 끌어와 줄을 만드는 칸을 찾음 (돌 모양을 실제로 바꿔 보고 평가)
+          let bestT = null, bestGain = 0;
+          const snapB = board.map(row => row.slice()), snapW = windmillList.map(w => Object.assign({}, w)), snapH = moveHistory.map(m => Object.assign({}, m)), snapT = trapList.slice();
+          for (const p of collectCandidates(botColor, 2, blocked, false)) {
+            applyMagnet(p.r, p.c, botColor);
+            const f = scanFiveWinner();
+            const g = f === botColor ? 1e6 : f === opp ? -1e6 : evalBoard(botColor, makeBlocked()) - base;
+            board = snapB.map(row => row.slice()); windmillList = snapW.map(w => Object.assign({}, w)); moveHistory = snapH.map(m => Object.assign({}, m)); trapList = snapT.slice();
+            if (g > bestGain) { bestGain = g; bestT = p; }
+          }
+          if (bestT && bestGain > 800 * scale) consider(idx, 1000 + Math.min(bestGain, 1e6), [bestT]);
+          break;
+        }
         case 'earthquake':
         case 'alkkagi':
           // 무작위성이 큰 카드는 불리할 때 판을 흔드는 용도, 곧 버려질 카드면 크게 이기고 있지 않을 때 사용
@@ -4597,7 +5045,7 @@
   }
 
   // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
-  const BOT_CARD_PRIORITY = ['chain', 'windmill', 'bomb', 'trap', 'sixsense', 'trade', 'blockade', 'infection', 'reversal', 'teleport', 'earthquake', 'alkkagi'];
+  const BOT_CARD_PRIORITY = ['timestop', 'chain', 'windmill', 'wall', 'bomb', 'shield', 'trap', 'sixsense', 'trade', 'steal', 'rewind', 'blockade', 'infection', 'reversal', 'magnet', 'teleport', 'reroll', 'earthquake', 'alkkagi'];
   function botPickDraft(picks, player) {
     if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
     const me = player || other(myColor), opp = other(me);
@@ -4693,7 +5141,7 @@
         stones[idx].vx = Math.cos(ang) * CELL * sp; stones[idx].vy = Math.sin(ang) * CELL * sp;
         for (let f = 0; f <= ALK_MAX_FRAMES; f++) { alkPhysStep(stones); if (alkMaxSpeed(stones) < ALK_MIN_SPEED) break; }
         const assign = snapPhysStonesToGrid(stones);
-        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY)); windmillList = [];
+        board = saved.board.map(row => row.map(v => v === WALL ? WALL : EMPTY)); windmillList = [];
         stones.forEach((s, i) => { const p = assign[i]; if (!p) return; board[p.r][p.c] = s.color; if (s.isWindmill) windmillList.push({ r: p.r, c: p.c }); });
         const f = scanFiveWinner();
         const v = f === botColor ? WIN_SCORE : f === opp ? -WIN_SCORE : evalBoard(botColor, makeBlocked());
@@ -4708,6 +5156,13 @@
   let menuNoteMsg = null, lobbyMsg = null;
   function setMenuNote(msg) { menuNoteMsg = msg; menuNote.textContent = msg ? fmt(msg) : ''; }
   function setLobbyStatus(msg) { lobbyMsg = msg; lobbyStatus.textContent = msg ? fmt(msg) : ''; }
+  const roomCodeBox = document.getElementById('room-code-box'), roomCodeValue = document.getElementById('room-code-value');
+  function showRoomCode(code) { roomCodeValue.textContent = code || ''; roomCodeBox.hidden = !code; }
+  // 방 코드 입력: 무조건 대문자, 영문·숫자만
+  joinCodeInput.addEventListener('input', () => {
+    const v = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+    if (v !== joinCodeInput.value) joinCodeInput.value = v;
+  });
 
   // ---- 언어 전환 ----
   function applyStaticI18n() {
@@ -4718,6 +5173,7 @@
     document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
   }
   function rerenderAll() {
+    if (tut && tut.k && !tutBox.hidden) tutShow(tut.k, tut.b);
     applyStaticI18n();
     renderBotLevel();
     if (menuNoteMsg) setMenuNote(menuNoteMsg);
@@ -4754,7 +5210,9 @@
     try { localStorage.setItem('omok_lang', lang); } catch (e) {}
     rerenderAll();
   });
-  modeLocalBtn.addEventListener('click', () => { mode = 'local'; myColor = BLACK; awaitingSide = false; init(); showScreen('game'); });
+  modeLocalBtn.addEventListener('click', () => { endTutorial(); mode = 'local'; myColor = BLACK; awaitingSide = false; init(); showScreen('game'); });
+  tutBtn.addEventListener('click', () => { endTutorial(); startBotGameWithSidePick(); });
+  document.getElementById('mode-tut-btn').addEventListener('click', startTutorial);
   function startBotGameWithSidePick() {
     mode = 'bot'; myColor = BLACK; awaitingSide = true;
     init(); showScreen('game');
@@ -4797,15 +5255,18 @@
   renderBotLevel();
   modeMpBtn.addEventListener('click', () => {
     setLobbyStatus(null);
+    showRoomCode(null);
     joinCodeInput.value = '';
     showScreen('lobby');
   });
   lobbyBackBtn.addEventListener('click', () => {
+    showRoomCode(null);
     if (unsubPublic) { unsubPublic(); unsubPublic = null; }
     unsubscribeChat();
     showScreen('menu');
   });
   gameBackBtn.addEventListener('click', () => {
+    endTutorial();
     engineToken++; engineBusy = false;
     awaitingSide = false;
     sideOverlay.classList.remove('show');
