@@ -332,9 +332,6 @@ window.__bench = {
     out.chainDraft = { afterFirst, afterSecond, afterThird };
     if (draftOpen) { pickCardIntoHand(CARD_POOL[0]); }
     out.chainDraftThenTurn = current === WHITE ? 'white' : 'black';
-    // 강탈: 백의 카드 1장을 가져옴
-    fresh(BLACK); give(BLACK, 'steal'); hand[WHITE] = [CARD_POOL.find(c => c.id === 'chain')]; use(BLACK);
-    out.steal = { black: hand[BLACK].map(c => c.id), white: hand[WHITE].length };
     // 맞교환 제한: 교환하면 흑 5목이 되는 쌍은 거부
     fresh(BLACK); [[7, 3], [7, 4], [7, 6], [7, 7]].forEach(([r, c]) => { board[r][c] = BLACK; }); board[7][5] = WHITE; board[8][5] = BLACK;
     give(BLACK, 'trade'); activateCard(BLACK, 0, null); handleTargetClick({ r: 8, c: 5 }); handleTargetClick({ r: 7, c: 5 });
