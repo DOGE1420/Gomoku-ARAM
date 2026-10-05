@@ -3080,7 +3080,7 @@
           book: true,   // B. 정석
           style: true,  // D. 흑=공격형, 백=수비형 (C. 카드+착수 계획은 worker 경로에서 사용)
           engine2: true, vct2: true, oppCardReplies: true, tradeRisk: true,
-          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true, cardPlan4: true, cardPlan5: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
+          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true, cardPlan4: true, cardPlan5: false }, // cardPlan5(새 카드 수 읽기)는 측정에서 효과가 없어 꺼 둠 (23:25)  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
