@@ -372,7 +372,7 @@
       </div>
       <button class="plain" id="create-room-btn" data-i18n="room.create">새 방 만들기</button>
       <div class="lobby-or" data-i18n="or">또는</div>
-      <input class="code-input" id="join-code-input" placeholder="방 코드 입력" data-i18n-ph="room.code" maxlength="5" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input class="code-input" id="join-code-input" placeholder="방 코드 입력" data-i18n-ph="room.code" lang="en" inputmode="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false">
       <button class="plain" id="join-room-btn" data-i18n="room.join">코드로 참가하기</button>
     </div>
     <div class="room-code-box" id="room-code-box" hidden>
@@ -5179,9 +5179,63 @@
   const roomCodeBox = document.getElementById('room-code-box'), roomCodeValue = document.getElementById('room-code-value');
   function showRoomCode(code) { roomCodeValue.textContent = code || ''; roomCodeBox.hidden = !code; }
   // 방 코드 입력: 무조건 대문자, 영문·숫자만
-  joinCodeInput.addEventListener('input', () => {
-    const v = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  // 다른 언어 자판으로 쳐도 같은 자리의 영문 자판으로 바꿈 (한글 두벌식·러시아어·일본어 로마자 입력)
+  const KO_KEY = { 'ㅂ': 'Q', 'ㅈ': 'W', 'ㄷ': 'E', 'ㄱ': 'R', 'ㅅ': 'T', 'ㅛ': 'Y', 'ㅕ': 'U', 'ㅑ': 'I', 'ㅐ': 'O', 'ㅔ': 'P',
+    'ㅁ': 'A', 'ㄴ': 'S', 'ㅇ': 'D', 'ㄹ': 'F', 'ㅎ': 'G', 'ㅗ': 'H', 'ㅓ': 'J', 'ㅏ': 'K', 'ㅣ': 'L',
+    'ㅋ': 'Z', 'ㅌ': 'X', 'ㅊ': 'C', 'ㅍ': 'V', 'ㅠ': 'B', 'ㅜ': 'N', 'ㅡ': 'M',
+    'ㅃ': 'Q', 'ㅉ': 'W', 'ㄸ': 'E', 'ㄲ': 'R', 'ㅆ': 'T', 'ㅒ': 'O', 'ㅖ': 'P',
+    'ㅘ': 'HK', 'ㅙ': 'HO', 'ㅚ': 'HL', 'ㅝ': 'NJ', 'ㅞ': 'NP', 'ㅟ': 'NL', 'ㅢ': 'ML',
+    'ㄳ': 'RT', 'ㄵ': 'SW', 'ㄶ': 'SG', 'ㄺ': 'FR', 'ㄻ': 'FA', 'ㄼ': 'FQ', 'ㄽ': 'FT', 'ㄾ': 'FX', 'ㄿ': 'FV', 'ㅀ': 'FG', 'ㅄ': 'QT' };
+  const KO_CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', KO_JUNG = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
+  const KO_JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+  const RU_KEY = { 'Й': 'Q', 'Ц': 'W', 'У': 'E', 'К': 'R', 'Е': 'T', 'Н': 'Y', 'Г': 'U', 'Ш': 'I', 'Щ': 'O', 'З': 'P',
+    'Ф': 'A', 'Ы': 'S', 'В': 'D', 'А': 'F', 'П': 'G', 'Р': 'H', 'О': 'J', 'Л': 'K', 'Д': 'L',
+    'Я': 'Z', 'Ч': 'X', 'С': 'C', 'М': 'V', 'И': 'B', 'Т': 'N', 'Ь': 'M' };
+  const KANA = { 'あ': 'A', 'い': 'I', 'う': 'U', 'え': 'E', 'お': 'O', 'か': 'KA', 'き': 'KI', 'く': 'KU', 'け': 'KE', 'こ': 'KO',
+    'さ': 'SA', 'し': 'SI', 'す': 'SU', 'せ': 'SE', 'そ': 'SO', 'た': 'TA', 'ち': 'TI', 'つ': 'TU', 'て': 'TE', 'と': 'TO',
+    'な': 'NA', 'に': 'NI', 'ぬ': 'NU', 'ね': 'NE', 'の': 'NO', 'は': 'HA', 'ひ': 'HI', 'ふ': 'HU', 'へ': 'HE', 'ほ': 'HO',
+    'ま': 'MA', 'み': 'MI', 'む': 'MU', 'め': 'ME', 'も': 'MO', 'や': 'YA', 'ゆ': 'YU', 'よ': 'YO',
+    'ら': 'RA', 'り': 'RI', 'る': 'RU', 'れ': 'RE', 'ろ': 'RO', 'わ': 'WA', 'を': 'WO', 'ん': 'N',
+    'が': 'GA', 'ぎ': 'GI', 'ぐ': 'GU', 'げ': 'GE', 'ご': 'GO', 'ざ': 'ZA', 'じ': 'ZI', 'ず': 'ZU', 'ぜ': 'ZE', 'ぞ': 'ZO',
+    'だ': 'DA', 'ぢ': 'DI', 'づ': 'DU', 'で': 'DE', 'ど': 'DO', 'ば': 'BA', 'び': 'BI', 'ぶ': 'BU', 'べ': 'BE', 'ぼ': 'BO',
+    'ぱ': 'PA', 'ぴ': 'PI', 'ぷ': 'PU', 'ぺ': 'PE', 'ぽ': 'PO' };
+  function codeToLatin(str) {
+    let out = '';
+    for (const ch0 of String(str || '').normalize('NFC')) {
+      let ch = ch0.toUpperCase();
+      const k = ch0.charCodeAt(0);
+      if (k >= 0xAC00 && k <= 0xD7A3) { // 완성형 한글 → 자모 → 두벌식 자판
+        const x = k - 0xAC00, jong = x % 28, jung = ((x - jong) / 28) % 21, cho = Math.floor(x / 588);
+        out += KO_KEY[KO_CHO[cho]] + KO_KEY[KO_JUNG[jung]] + (jong ? KO_KEY[KO_JONG[jong]] : '');
+        continue;
+      }
+      if (KO_KEY[ch0]) { out += KO_KEY[ch0]; continue; }
+      if (RU_KEY[ch]) { out += RU_KEY[ch]; continue; }
+      const kana = k >= 0x30A1 && k <= 0x30F6 ? String.fromCharCode(k - 0x60) : ch0; // 가타카나 → 히라가나
+      if (KANA[kana]) { out += KANA[kana]; continue; }
+      if (/[A-Z0-9]/.test(ch)) out += ch;
+      else if (/[０-９Ａ-Ｚａ-ｚ]/.test(ch0)) out += String.fromCharCode(k - 0xFEE0).toUpperCase(); // 전각 영숫자
+    }
+    return out.slice(0, 5);
+  }
+  let codeComposing = false;
+  const fixCodeInput = () => {
+    const v = codeToLatin(joinCodeInput.value);
     if (v !== joinCodeInput.value) joinCodeInput.value = v;
+  };
+  // 조합형 입력기(한글·일본어)는 조합이 끝날 때 바꾸고, 그 밖의 자판은 누른 자리(e.code)로 바로 영문 입력
+  joinCodeInput.addEventListener('compositionstart', () => { codeComposing = true; });
+  joinCodeInput.addEventListener('compositionend', () => { codeComposing = false; setTimeout(fixCodeInput, 0); });
+  joinCodeInput.addEventListener('input', (e) => { if (!codeComposing && !e.isComposing) fixCodeInput(); });
+  joinCodeInput.addEventListener('blur', fixCodeInput);
+  joinCodeInput.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1 || /[A-Za-z0-9]/.test(e.key)) return;
+    const m = /^(?:Key([A-Z])|Digit([0-9]))$/.exec(e.code || '');
+    if (!m || codeToLatin(e.key)) return; // 한글·러시아 등 표로 바꿀 수 있는 글자는 input 단계에서 처리
+    e.preventDefault();
+    const el = joinCodeInput, a = el.selectionStart, b = el.selectionEnd;
+    el.value = codeToLatin(el.value.slice(0, a) + (m[1] || m[2]) + el.value.slice(b));
+    el.setSelectionRange(Math.min(a + 1, el.value.length), Math.min(a + 1, el.value.length));
   });
 
   // ---- 언어 전환 ----
@@ -5300,7 +5354,7 @@
     showScreen('menu');
   });
   createRoomBtn.addEventListener('click', createRoom);
-  joinRoomBtn.addEventListener('click', () => joinRoom(joinCodeInput.value));
+  joinRoomBtn.addEventListener('click', () => { fixCodeInput(); joinRoom(joinCodeInput.value); });
 
   canvas.addEventListener('click', function (e) {
     if (!alk) handleCanvasClick(e);
