@@ -301,6 +301,14 @@ window.__bench = {
     const m = e2ChooseMove(WHITE, makeBlocked(), ms, cfg);
     board[m.r][m.c] = WHITE; e2Init(makeBlocked());
     out.oppTimestop = { move: [m.r, m.c], riskAfter: e2DoubleRisk(WHITE) };
+    // 시간 정지를 쓴 뒤: 흑에게 바로 이기는 자리가 있어도(흑 턴은 건너뜀) 백은 4를 만들어 다음 차례에 이김
+    set([[3, 3], [3, 4], [3, 5], [3, 6], [12, 12], [5, 4]], [[3, 2], [5, 5], [5, 6], [5, 7], [11, 3]]);
+    give(BLACK, []); give(WHITE, []);
+    const keepSkip = skipNextTurn; skipNextTurn = { [BLACK]: true, [WHITE]: false };
+    const m2 = e2ChooseMove(WHITE, makeBlocked(), ms, Object.assign({}, cfg, { timestopPlay: true }));
+    const m3 = e2ChooseMove(WHITE, makeBlocked(), ms, Object.assign({}, cfg, { timestopPlay: false }));
+    skipNextTurn = keepSkip;
+    out.timestopFollowUp = { withFix: [m2.r, m2.c], withoutFix: [m3.r, m3.c] };
     hand = { [BLACK]: [], [WHITE]: [] };
     this.reset();
     return out;

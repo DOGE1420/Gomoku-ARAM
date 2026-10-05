@@ -3080,7 +3080,8 @@
           book: true,   // B. 정석
           style: true,  // D. 흑=공격형, 백=수비형 (C. 카드+착수 계획은 worker 경로에서 사용)
           engine2: true, vct2: true, oppCardReplies: true, tradeRisk: true,
-          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true, cardPlan4: true, cardPlan5: false }, // cardPlan5(새 카드 수 읽기)는 측정에서 효과가 없어 꺼 둠 (23:25)  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
+          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true, cardPlan4: true, cardPlan5: false, // cardPlan5(새 카드 수 읽기)는 측정에서 효과가 없어 꺼 둠 (23:25)
+          timestopPlay: true, timestopDef: true, shieldSmart: true, wallSmart: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
@@ -3982,7 +3983,7 @@
     const d = e.data;
     try {
       board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; shieldList = d.shieldList || []; lastPlaced = d.lastPlaced || {}; trapList = d.trapList;
-      hand = d.hand; cardLockNextTurn = d.cardLockNextTurn; turnPlacementsDone = d.turnPlacementsDone; turnPlacementsNeeded = d.turnPlacementsNeeded || 1; turnPlacedPositions = d.turnPlacedPositions;
+      hand = d.hand; cardLockNextTurn = d.cardLockNextTurn; skipNextTurn = d.skipNextTurn || {}; turnPlacementsDone = d.turnPlacementsDone; turnPlacementsNeeded = d.turnPlacementsNeeded || 1; turnPlacedPositions = d.turnPlacedPositions;
       let result = null;
       if (d.task === 'move') { const m = (d.cfg && d.cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(d.bot, makeBlocked(), d.budget, d.cfg); result = m ? { r: m.r, c: m.c } : null; }
       else if (d.task === 'plan') result = planCardsSearch(d.bot, d.cfg, d.budget);
@@ -4006,7 +4007,7 @@
         `const P_FIVE = ${P_FIVE}, P_OPEN4 = ${P_OPEN4}, P_FOUR = ${P_FOUR}, P_OPEN3 = ${P_OPEN3}, P_THREE = ${P_THREE}, P_OPEN2 = ${P_OPEN2}, P_TWO = ${P_TWO};`,
         `const WIN_SCORE = ${WIN_SCORE}, U_WIDTHS = ${JSON.stringify(U_WIDTHS)};`,
         `const ZOB = ${JSON.stringify(ZOB)};`,
-        'let board, winLength = 5, windmillList = [], craterList = [], shieldList = [], lastPlaced = {}, moveHistory = [], trapList = [], hand = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
+        'let board, winLength = 5, windmillList = [], craterList = [], shieldList = [], lastPlaced = {}, moveHistory = [], trapList = [], hand = {}, skipNextTurn = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
         'let searchDeadline = 0, uWidths = U_WIDTHS, uDefense = 0.95, uBot = null, uFlipRisk = false, uStyle = null, uLastDepth = 0, uTT = new Map(), uAborted = false, uNodes = 0;',
         `const E2P = ${JSON.stringify(E2P)}, E2_BOOK = ${JSON.stringify(E2_BOOK)};`,
         `const E2_SYM = [${E2_SYM.map(f => f.toString()).join(', ')}];`,
@@ -4045,7 +4046,7 @@
       id, task, bot, budget, cfg,
       board: board.map(r => r.slice()), winLength, windmillList, craterList, shieldList: shieldList || [], lastPlaced, trapList: trapList || [],
       hand: { [BLACK]: (hand[BLACK] || []).map(c => ({ id: c.id, type: c.type })), [WHITE]: (hand[WHITE] || []).map(c => ({ id: c.id, type: c.type })) },
-      cardLockNextTurn, turnPlacementsDone, turnPlacementsNeeded, turnPlacedPositions,
+      cardLockNextTurn, skipNextTurn, turnPlacementsDone, turnPlacementsNeeded, turnPlacedPositions,
     });
   }
 
@@ -4579,6 +4580,22 @@
     const root = e2Ordered(botColor, 0, legal);
     if (root.win) return root.win;
     if (!root.list.length) return null;
+    if (cfg && cfg.timestopPlay && skipNextTurn && skipNextTurn[opp] && turnPlacementsDone === 0) {
+      // 시간 정지 중: 상대 차례가 건너뛰어지므로 상대의 '바로 이기는 자리'도 지금은 급하지 않음
+      //  → 4를 만들면 다음 내 차례에 5목, 아니면 두 수 연달아 둔 가치가 가장 큰 수
+      const cand = legal.map(p => { const i = p.r * SIZE + p.c; return { i, r: p.r, c: p.c, s: e2Attack(i, botColor).score + e2Attack(i, opp).score }; })
+        .sort((a, b) => b.s - a.s).slice(0, 10);
+      for (const m of cand) { e2Place(m.i, botColor); const w = e2WinCells(botColor).length; e2Remove(m.i, botColor); if (w) return m; }
+      let best = cand[0], bestV = -Infinity;
+      const each = Math.max(150, Math.floor(budgetMs * 0.8 / Math.max(1, cand.length)));
+      for (const m of cand) {
+        e2Place(m.i, botColor);
+        const v = e2BestValue(botColor, each);
+        e2Remove(m.i, botColor);
+        if (v > bestV) { bestV = v; best = m; }
+      }
+      return best;
+    }
     if (root.forced && root.list.length === 1) return root.list[0];
     // 이번 턴에 더 둘 수 있으면(연속 착수) 남은 수를 묶어서 계획
     const left = (turnPlacementsNeeded || 1) - turnPlacementsDone;
@@ -4615,7 +4632,7 @@
         if (safe.length) moves = safe;
       }
     }
-    if (cfg && cfg.cardPlan5 && oppCards.timestop && moves.length > 1) {
+    if (cfg && (cfg.cardPlan5 || cfg.timestopDef) && oppCards.timestop && moves.length > 1) {
       // 상대가 시간 정지를 쥐고 있으면 연달아 두 수로 끝나는 모양을 남기지 않는 수만
       const safe = moves.filter(m => { e2Place(m.i, botColor); const risk = e2DoubleRisk(botColor); e2Remove(m.i, botColor); return !risk; });
       if (safe.length) moves = safe;
@@ -4709,7 +4726,7 @@
     const penT = cfg && cfg.tradeRisk ? (oppCards.trade ? WIN_SCORE / 2 : E2P.tr) : 0;
     const penC = cfg && cfg.chainRisk ? (oppCards.chain ? WIN_SCORE / 2 : E2P.cr) : 0;
     const bonT = myTrade ? E2P.ta : 0;
-    const penD = cfg && cfg.cardPlan5 && oppCards.timestop ? WIN_SCORE / 2 : 0;
+    const penD = cfg && (cfg.cardPlan5 || cfg.timestopDef) && oppCards.timestop ? WIN_SCORE / 2 : 0;
     if ((penT || penC || bonT || penD) && lastVals && lastVals.size > 1) {
       const bestV = lastVals.get(bestMove);
       const span = Math.max(penT, penC, bonT, penD);
@@ -4950,9 +4967,10 @@
         }
         case 'wall': {
           // 장벽: 상대가 바로 이기는 자리를 내 돌 없이 막음 (둘이면 장벽 하나 + 착수 하나로 둘 다 막음), 아니면 상대 급소를 영구 봉쇄
+          const wallSmart = botCfg().wallSmart;
           const cands = collectCandidates(opp, 2, blocked, false)
             .filter(p => !trapList.some(t => t.r === p.r && t.c === p.c))
-            .map(p => ({ p, s: attackValue(p.r, p.c, opp, blocked[opp]).score }))
+            .map(p => ({ p, s: attackValue(p.r, p.c, opp, blocked[opp]).score - (wallSmart ? attackValue(p.r, p.c, botColor, blocked[botColor]).score : 0) }))
             .sort((a, b) => b.s - a.s);
           if (oppWins.length >= 2) consider(idx, 46000, [oppWins[0]]);
           else if (cands.length && cands[0].s >= P_OPEN3) consider(idx, 2500 + Math.min(cands[0].s, P_OPEN4) / 100, [cands[0].p]);
@@ -4972,7 +4990,7 @@
         }
         case 'shield': {
           // 짱짱맨: 상대가 쥔 맞교환에 지는 쌍, 되감기로 풀리는 내 막는 돌을 실제로 계산해 지킴
-          if (reads && botCfg().cardPlan5 && (oppCards.trade || oppCards.rewind)) {
+          if (reads && (botCfg().cardPlan5 || botCfg().shieldSmart) && (oppCards.trade || oppCards.rewind)) {
             e2Init(makeBlocked());
             const r0 = oppCards.trade ? e2TradeRisk(botColor) : 0;
             const lp = lastPlaced[botColor];
