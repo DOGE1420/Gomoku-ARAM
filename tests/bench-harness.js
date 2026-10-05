@@ -343,6 +343,7 @@ window.__bench = {
     fresh(BLACK); handlePlace({ r: 7, c: 7 }); handlePlace({ r: 8, c: 8 });
     give(BLACK, 'rewind'); use(BLACK);
     out.rewind = board[8][8] === EMPTY && board[7][7] === BLACK;
+    out.rewindEndsTurn = current === WHITE;
     // 리롤: 장수 유지
     fresh(BLACK); hand[BLACK] = ['reroll', 'teleport', 'earthquake'].map(id => CARD_POOL.find(c => c.id === id)); activateCard(BLACK, 0, null);
     out.rerollCount = hand[BLACK].length;

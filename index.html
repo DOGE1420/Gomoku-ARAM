@@ -547,7 +547,7 @@
     { id: 'steal', name: '강탈', icon: '🃏', desc: '상대 패에서 무작위 카드 1장을 빼앗아 내 패에 넣습니다.', type: 'steal', weight: 6 },
     { id: 'timestop', name: '시간 정지', icon: '⏸️', desc: '상대의 다음 턴을 건너뜁니다. (가장 희귀)', type: 'skip_turn', weight: 2 },
     { id: 'wall', name: '장벽', icon: '🧱', desc: '빈 칸 하나에 누구의 돌도 아닌 장벽을 세웁니다. 아무도 둘 수 없고 줄도 끊깁니다 (영구).', type: 'wall', weight: 7 },
-    { id: 'rewind', name: '되감기', icon: '⏪', desc: '상대가 직전에 둔 돌 1개를 판에서 되돌립니다.', type: 'rewind', weight: 5 },
+    { id: 'rewind', name: '되감기', icon: '⏪', desc: '상대가 직전에 둔 돌 1개를 판에서 되돌립니다. 사용 즉시 내 턴이 종료됩니다.', type: 'rewind', weight: 5 },
     { id: 'reroll', name: '리롤', icon: '🎲', desc: '이 카드를 뺀 내 패를 모두 버리고 같은 장수만큼 새로 뽑습니다 (패가 비면 1장).', type: 'reroll', weight: 5 },
     { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다. 오목/육목이 완성되는 돌은 제외되며, 사용 즉시 내 턴이 종료됩니다.', type: 'infection', weight: 8 },
   ];
@@ -570,7 +570,7 @@
     steal: '상대 카드 1장 빼앗기',
     timestop: '상대 다음 턴 건너뛰기',
     wall: '빈 칸에 영구 장벽',
-    rewind: '상대 직전 돌 되돌리기',
+    rewind: '상대 직전 돌 되돌리기 (턴 종료)',
     reroll: '내 패 전부 새로 뽑기',
   };
 
@@ -591,7 +591,7 @@
     steal: { name: 'Steal', desc: "Take a random card from your opponent's hand into yours.", short: 'Steal 1 enemy card' },
     timestop: { name: 'Time Stop', desc: "Your opponent's next turn is skipped. (Rarest)", short: "Skip opponent's next turn" },
     wall: { name: 'Wall', desc: 'Build a neutral wall on an empty cell. Nobody can play there and it breaks lines (permanent).', short: 'Permanent wall on an empty cell' },
-    rewind: { name: 'Rewind', desc: 'Take back the stone your opponent placed last.', short: "Undo opponent's last stone" },
+    rewind: { name: 'Rewind', desc: 'Take back the stone your opponent placed last. Your turn ends immediately.', short: "Undo opponent's last stone (turn ends)" },
     reroll: { name: 'Reroll', desc: 'Discard the rest of your hand and draw the same number of new cards (1 if empty).', short: 'Redraw your whole hand' },
     infection: { name: 'Infection', desc: 'Convert 2 random enemy stones touching yours (up/down/left/right) to your color. Stones that would complete a winning line are skipped. Your turn ends immediately.', short: 'Convert 2 touching enemies (turn ends)' },
   };
@@ -694,7 +694,7 @@
       'log.stealLost': '🃏 상대가 내 {card} 카드를 빼앗아 갔습니다',
       'log.timestopUsed': '{color}: ⏸️ 시간 정지 발동 — 상대의 다음 턴을 건너뜀',
       'log.wallUsed': '{color}: 🧱 장벽 설치', 'log.wallNeedEmpty': '빈 칸에만 장벽을 세울 수 있습니다',
-      'log.rewindUsed': '{color}: ⏪ 되감기 발동 — 상대 직전 돌을 되돌림', 'log.rewindNone': '{color}: 되돌릴 상대 돌이 없음',
+      'log.rewindUsed': '{color}: ⏪ 되감기 발동 — 상대 직전 돌을 되돌림 (턴 종료)', 'log.rewindNone': '{color}: 되돌릴 상대 돌이 없음',
       'log.rerollUsed': '{color}: 🎲 리롤 발동 — 패 {n}장을 새로 뽑음',
     },
     en: {
@@ -794,7 +794,7 @@
       'log.stealLost': '🃏 Your opponent stole your {card}',
       'log.timestopUsed': "{color}: ⏸️ Time Stop — the opponent's next turn is skipped",
       'log.wallUsed': '{color}: 🧱 wall built', 'log.wallNeedEmpty': 'A wall can only go on an empty cell',
-      'log.rewindUsed': "{color}: ⏪ Rewind — took back the opponent's last stone", 'log.rewindNone': '{color}: no enemy stone to take back',
+      'log.rewindUsed': "{color}: ⏪ Rewind — took back the opponent's last stone (turn ends)", 'log.rewindNone': '{color}: no enemy stone to take back',
       'log.rerollUsed': '{color}: 🎲 Reroll — drew {n} new card(s)',
     },
   };
@@ -2009,7 +2009,8 @@
         removeFromHand(player, idx);
         markUsed(player);
         addLog(L('log.rewindUsed', C));
-        updateStatus(); updateHandUI(); draw();
+        updateHandUI(); draw();
+        passTurn(); // 되감기는 사용 즉시 턴 종료
         return;
       }
 
@@ -3850,7 +3851,7 @@
         }
       } else if (v5 && card.type === 'rewind') {
         const lm = lastOppStone(bot);
-        if (lm && !isProtected(lm.r, lm.c)) options.push({ idx, cardId: card.id, targets: [], endsTurn: false,
+        if (lm && !isProtected(lm.r, lm.c)) options.push({ idx, cardId: card.id, targets: [], endsTurn: true,
           apply: () => { board[lm.r][lm.c] = EMPTY; windmillList = windmillList.filter(w => !(w.r === lm.r && w.c === lm.c)); } });
       } else if (v5 && card.type === 'skip_turn') {
         options.push({ idx, cardId: card.id, targets: [], endsTurn: false, double: true });
@@ -4984,8 +4985,8 @@
           board[lm.r][lm.c] = EMPTY;
           const remain = findWinCells(opp, blocked[opp]).length, gain = evalBoard(botColor, blocked) - base;
           board[lm.r][lm.c] = opp;
-          if (oppWins.length && remain < oppWins.length) consider(idx, 44000 + gain);
-          else if (gain > 600 * scale) consider(idx, 1500 + gain);
+          // 턴이 끝나므로, 돌 하나로는 못 막는 위협(이기는 자리 2개 이상)을 만든 돌을 되돌릴 때만 사용
+          if (oppWins.length >= 2 && remain < 2) consider(idx, 44000 + gain);
           break;
         }
         case 'shield': {
