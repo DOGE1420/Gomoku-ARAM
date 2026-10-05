@@ -943,6 +943,7 @@
   let cardLockNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 다음 턴 카드 사용 봉쇄
   let skipNextTurn; // { [BLACK]: bool, [WHITE]: bool } — 폭파/전세역전 대가로 다음 내 턴을 건너뜀
   let startupQueue; // 게임 시작 시 초기 카드 뽑기 순서 (흑→백)
+  let draftAfterTurn = null; // 연속 착수 중에 카드 받을 차례가 되면, 이번 턴의 수를 다 둔 뒤 카드 선택 (그 색)
   let tut = null;   // 튜토리얼 진행 { step } (로컬 모드 위에서 정해진 국면만 보여줌)
 
   // ---- 모드 / 멀티플레이 상태 ----
@@ -1503,7 +1504,10 @@
       grantRandomCard(trapHit.owner);
       turnPlacementsDone++;
       draw();
-      if (turnPlacementsDone >= turnPlacementsNeeded) {
+      if (turnPlacementsDone >= turnPlacementsNeeded && draftAfterTurn === current) {
+        draftAfterTurn = null;
+        openDraft(current);
+      } else if (turnPlacementsDone >= turnPlacementsNeeded) {
         passTurn();
       } else {
         updateStatus(); updatePips(); updateHandUI(); draw();
@@ -1530,7 +1534,10 @@
     const milestone = countsForDraft && placedCount[current] % INTERVAL === 0;
     draw();
 
-    if (milestone) {
+    // 연속 착수로 아직 더 둘 수 있으면 카드 선택은 이번 턴의 마지막 수 뒤로 미룸
+    if (milestone && turnPlacementsDone < turnPlacementsNeeded) draftAfterTurn = current;
+    if (turnPlacementsDone >= turnPlacementsNeeded && (milestone || draftAfterTurn === current)) {
+      draftAfterTurn = null;
       openDraft(current);
     } else if (turnPlacementsDone >= turnPlacementsNeeded) {
       passTurn();
@@ -1540,6 +1547,7 @@
   }
 
   function passTurn() {
+    draftAfterTurn = null;
     tickCraters();
     tickShields();
     current = other(current);
@@ -2759,7 +2767,16 @@
       lastSeenNoticeSeq = 0; lastSeenShakeSeq = 0; lastBannerMsg = null;
       pendingTarget = null; draftOpen = false; draftPlayer = null;
       pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
+      // 지난 판에서 남은 진행 상태도 비움 (알까기 관전, 연속 착수 위치, 알림 번호)
+      alk = null; alkHandoff = null; alkView = null; mpAlkLaunch = null; turnPlacedPositions = [];
+      mpNoticeSeq = 0; mpShakeSeq = 0;
+      draftOverlay.classList.remove('show');
     }
+    // 번호는 양쪽 화면이 같은 값을 이어 써야 함 — 상대가 올린 번호를 내 쪽에도 맞춰 둠
+    // (안 그러면 다음에 내가 보낸 재대국·알림 번호가 상대에게 '이미 본 번호'로 무시됨)
+    if (typeof data.restartSeq === 'number') mpRestartSeq = Math.max(mpRestartSeq, data.restartSeq);
+    if (typeof data.noticeSeq === 'number') mpNoticeSeq = Math.max(mpNoticeSeq, data.noticeSeq);
+    if (typeof data.shakeSeq === 'number') mpShakeSeq = Math.max(mpShakeSeq, data.shakeSeq);
 
     if (data.noticeSeq && data.noticeSeq > lastSeenNoticeSeq) {
       lastSeenNoticeSeq = data.noticeSeq;
@@ -2966,7 +2983,7 @@
       addLog(note);
       addLog(L('log.youAre', { color: myColor }));
     }
-    mpRestartSeq++; lastSeenRestartSeq = mpRestartSeq; // 내 화면은 스스로 에코 처리하지 않도록
+    mpRestartSeq = Math.max(mpRestartSeq, lastSeenRestartSeq) + 1; lastSeenRestartSeq = mpRestartSeq; // 내 화면은 스스로 에코 처리하지 않도록
     banner.classList.remove('show'); draftOverlay.classList.remove('show'); updateLog();
     syncPublicState();
     startupQueue = [myColor];

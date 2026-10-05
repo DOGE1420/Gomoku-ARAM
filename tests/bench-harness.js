@@ -293,7 +293,7 @@ window.__bench = {
   newCardTests() {
     const out = {};
     const fresh = (cur) => {
-      mode = 'local'; init(); draftOpen = false; pendingTarget = null; cardAnimInstant = true;
+      mode = 'local'; init(); draftOpen = false; startupQueue = null; pendingTarget = null; cardAnimInstant = true;
       current = cur; usedCardThisTurn = { [BLACK]: false, [WHITE]: false };
     };
     const give = (p, id) => { hand[p] = [CARD_POOL.find(c => c.id === id)]; };
@@ -323,6 +323,15 @@ window.__bench = {
     shieldList = [{ r: 3, c: 3, owner: WHITE, turns: 3, fresh: true }];
     give(BLACK, 'reversal'); use(BLACK);
     out.reversalShield = { shielded: [board[3][3], board[3][4]], unshieldedWhiteBecame: board[10][10], blackBecame: board[7][7] };
+    // 카드 받는 턴에 연속 착수: 3수를 다 둔 뒤에야 카드 선택
+    fresh(BLACK); placedCount = { [BLACK]: 2, [WHITE]: 2 };
+    give(BLACK, 'chain'); use(BLACK);
+    handlePlace({ r: 7, c: 7 }); const afterFirst = { draft: draftOpen, cur: current };
+    handlePlace({ r: 7, c: 11 }); const afterSecond = { draft: draftOpen };
+    handlePlace({ r: 11, c: 7 }); const afterThird = { draft: draftOpen, draftFor: draftPlayer };
+    out.chainDraft = { afterFirst, afterSecond, afterThird };
+    if (draftOpen) { pickCardIntoHand(CARD_POOL[0]); }
+    out.chainDraftThenTurn = current === WHITE ? 'white' : 'black';
     // 강탈: 백의 카드 1장을 가져옴
     fresh(BLACK); give(BLACK, 'steal'); hand[WHITE] = [CARD_POOL.find(c => c.id === 'chain')]; use(BLACK);
     out.steal = { black: hand[BLACK].map(c => c.id), white: hand[WHITE].length };
