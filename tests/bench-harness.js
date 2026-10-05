@@ -383,6 +383,9 @@ window.__bench = {
     BOT_LEVELS[61] = Object.assign({}, BOT_LEVELS[50], OFF, ovB || {});
     for (const lv of [50, 51, 60, 61]) Object.assign(BOT_LEVELS[lv], timing || {});
     cardAnimInstant = true;
+    // 카드 통계용: 기록창(최근 100줄)과 별개로 이번 판의 모든 기록을 모음
+    if (!this._origAddLog) { const self = this, orig = addLog; this._origAddLog = orig; addLog = function (text) { if (self._events) self._events.push(text); orig(text); }; }
+    this._events = [];
     const lv = { [BLACK]: lvBlack, [WHITE]: lvWhite };
     mode = 'bot'; myColor = WHITE; awaitingSide = false; botLevel = lvBlack;
     init(); showScreen('game');
@@ -419,6 +422,22 @@ window.__bench = {
     const f = gameOver ? scanBoardForWin() : null;
     return { over: gameOver, winner: f ? f.player : 0, moves: moveHistory.length, log: logLines.slice(0, 40).map(fmt),
       dbg: { current, myColor, botLevel, draftOpen, pend: !!pendingTarget, alk: !!alk, anim: cardAnimBusy, busy: engineBusy, timer: !!botTimer, done: turnPlacementsDone, need: turnPlacementsNeeded } };
+  },
+  // 이번 판에서 각 색이 뽑은 카드 / 쓴 카드 (기록의 종류로 판단)
+  cardGameCards() {
+    const USED = { 'log.chainUsed': 'chain', 'log.sixUsed': 'sixsense', 'log.reversalUsed': 'reversal', 'log.windmillSet': 'windmill',
+      'log.bombDone': 'bomb', 'log.tradeDone': 'trade', 'log.alkUsed': 'alkkagi', 'log.teleportDone': 'teleport', 'log.quakeUsed': 'earthquake',
+      'log.blockadeUsed': 'blockade', 'log.trapSet': 'trap', 'log.infectUsed': 'infection', 'log.shieldUsed': 'shield', 'log.stealUsed': 'steal',
+      'log.timestopUsed': 'timestop', 'log.wallUsed': 'wall', 'log.meteorUsed': 'meteor', 'log.rerollUsed': 'reroll' };
+    const out = { [BLACK]: { got: {}, used: {} }, [WHITE]: { got: {}, used: {} } };
+    for (const e of this._events || []) {
+      if (!e || !e.k || !e.p) continue;
+      const col = e.p.color;
+      if (col !== BLACK && col !== WHITE) continue;
+      if (e.k === 'log.cardGainedHand' || e.k === 'log.cardGained') out[col].got[e.p.card] = 1;
+      else if (USED[e.k]) out[col].used[USED[e.k]] = 1;
+    }
+    return out;
   },
   cardGameStop() { if (this._timer) clearInterval(this._timer); this._timer = null; },
   // 속도 측정: 한 국면을 생각시키고 깊이·노드 수·시간을 돌려줌
