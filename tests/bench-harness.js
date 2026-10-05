@@ -364,6 +364,14 @@ window.__bench = {
     // 카드 통계용: 기록창(최근 100줄)과 별개로 이번 판의 모든 기록을 모음
     if (!this._origAddLog) { const self = this, orig = addLog; this._origAddLog = orig; addLog = function (text) { if (self._events) self._events.push(text); orig(text); }; }
     this._events = [];
+    // 픽률용: 카드 선택 때 제시된 3장과 고른 카드를 기록
+    if (!this._origWS) {
+      const self = this, ws = weightedSample, pick = pickCardIntoHand;
+      this._origWS = ws;
+      weightedSample = function (pool, k) { const r = ws(pool, k); if (k === 3) self._lastOffer = r.map(c => c.id); return r; };
+      pickCardIntoHand = function (card) { if (self._lastOffer && self._drafts) self._drafts.push({ offer: self._lastOffer, pick: card.id }); self._lastOffer = null; return pick(card); };
+    }
+    this._drafts = []; this._lastOffer = null;
     const lv = { [BLACK]: lvBlack, [WHITE]: lvWhite };
     mode = 'bot'; myColor = WHITE; awaitingSide = false; botLevel = lvBlack;
     init(); showScreen('game');
@@ -415,6 +423,7 @@ window.__bench = {
       if (e.k === 'log.cardGainedHand' || e.k === 'log.cardGained') out[col].got[e.p.card] = 1;
       else if (USED[e.k]) out[col].used[USED[e.k]] = 1;
     }
+    out.drafts = this._drafts || [];
     return out;
   },
   cardGameStop() { if (this._timer) clearInterval(this._timer); this._timer = null; },
