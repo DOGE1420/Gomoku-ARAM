@@ -293,7 +293,7 @@ window.__bench = {
   newCardTests() {
     const out = {};
     const fresh = (cur) => {
-      mode = 'local'; init(); draftOpen = false; pendingTarget = null; cardAnimInstant = true;
+      mode = 'local'; init(); draftOpen = false; startupQueue = null; pendingTarget = null; cardAnimInstant = true;
       current = cur; usedCardThisTurn = { [BLACK]: false, [WHITE]: false };
     };
     const give = (p, id) => { hand[p] = [CARD_POOL.find(c => c.id === id)]; };
@@ -323,6 +323,15 @@ window.__bench = {
     shieldList = [{ r: 3, c: 3, owner: WHITE, turns: 3, fresh: true }];
     give(BLACK, 'reversal'); use(BLACK);
     out.reversalShield = { shielded: [board[3][3], board[3][4]], unshieldedWhiteBecame: board[10][10], blackBecame: board[7][7] };
+    // 카드 받는 턴에 연속 착수: 3수를 다 둔 뒤에야 카드 선택
+    fresh(BLACK); placedCount = { [BLACK]: 2, [WHITE]: 2 };
+    give(BLACK, 'chain'); use(BLACK);
+    handlePlace({ r: 7, c: 7 }); const afterFirst = { draft: draftOpen, cur: current };
+    handlePlace({ r: 7, c: 11 }); const afterSecond = { draft: draftOpen };
+    handlePlace({ r: 11, c: 7 }); const afterThird = { draft: draftOpen, draftFor: draftPlayer };
+    out.chainDraft = { afterFirst, afterSecond, afterThird };
+    if (draftOpen) { pickCardIntoHand(CARD_POOL[0]); }
+    out.chainDraftThenTurn = current === WHITE ? 'white' : 'black';
     // 강탈: 백의 카드 1장을 가져옴
     fresh(BLACK); give(BLACK, 'steal'); hand[WHITE] = [CARD_POOL.find(c => c.id === 'chain')]; use(BLACK);
     out.steal = { black: hand[BLACK].map(c => c.id), white: hand[WHITE].length };
@@ -364,6 +373,14 @@ window.__bench = {
     // 카드 통계용: 기록창(최근 100줄)과 별개로 이번 판의 모든 기록을 모음
     if (!this._origAddLog) { const self = this, orig = addLog; this._origAddLog = orig; addLog = function (text) { if (self._events) self._events.push(text); orig(text); }; }
     this._events = [];
+    // 픽률용: 카드 선택 때 제시된 3장과 고른 카드를 기록
+    if (!this._origWS) {
+      const self = this, ws = weightedSample, pick = pickCardIntoHand;
+      this._origWS = ws;
+      weightedSample = function (pool, k) { const r = ws(pool, k); if (k === 3) self._lastOffer = r.map(c => c.id); return r; };
+      pickCardIntoHand = function (card) { if (self._lastOffer && self._drafts) self._drafts.push({ offer: self._lastOffer, pick: card.id }); self._lastOffer = null; return pick(card); };
+    }
+    this._drafts = []; this._lastOffer = null;
     const lv = { [BLACK]: lvBlack, [WHITE]: lvWhite };
     mode = 'bot'; myColor = WHITE; awaitingSide = false; botLevel = lvBlack;
     init(); showScreen('game');
@@ -415,6 +432,7 @@ window.__bench = {
       if (e.k === 'log.cardGainedHand' || e.k === 'log.cardGained') out[col].got[e.p.card] = 1;
       else if (USED[e.k]) out[col].used[USED[e.k]] = 1;
     }
+    out.drafts = this._drafts || [];
     return out;
   },
   cardGameStop() { if (this._timer) clearInterval(this._timer); this._timer = null; },
