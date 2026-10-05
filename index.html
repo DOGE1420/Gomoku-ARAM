@@ -2751,7 +2751,7 @@
           book: true,   // B. 정석
           style: true,  // D. 흑=공격형, 백=수비형 (C. 카드+착수 계획은 worker 경로에서 사용)
           engine2: true, vct2: true, oppCardReplies: true, tradeRisk: true,
-          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
+          chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true, cardPlan4: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
@@ -3413,6 +3413,17 @@
     // v3: 함정 칸은 함정 주인의 상대가 쓸 수 없는 칸으로 계산 (두면 돌이 사라짐)
     const withTraps = (blk) => { if (v3) for (const tr of trapList || []) if (board[tr.r][tr.c] === EMPTY) blk[other(tr.owner)][tr.r * SIZE + tr.c] = 1; return blk; };
     const bestValue = (p, blk, ms) => { if (!v2) return uBestValue(p, blk, ms); e2Init(withTraps(blk)); return e2BestValue(p, ms); };
+    // v4: 상대가 쥔 맞교환·연속 착수 한 장에 바로 지는 모양이면 그 결과는 사실상 패
+    const v4 = !!(cfg && cfg.cardPlan4);
+    const oc4 = v4 ? readOppCards(bot) : {};
+    const riskNow = () => {
+      if (!v4 || !(oc4.trade || oc4.chain)) return 0;
+      e2Init(withTraps(makeBlocked()));
+      return ((oc4.trade && e2TradeRisk(bot)) || (oc4.chain && e2ChainRisk(bot))) ? WIN_SCORE / 2 : 0;
+    };
+    // v4: 필승 수순(VCT) 유무 — 식스센스가 상대 수순을 끊는지/내 수순을 끊는지
+    const vctNow = (p) => { e2Init(withTraps(makeBlocked())); return !!e2Vct(p, 6, Date.now() + 120, null); };
+    const six5 = v4 && winLength === 5 && (hand[bot] || []).some(c => c.type === 'six_sense') ? { opp: vctNow(opp), me: vctNow(bot) } : null;
     const options = [];
     (hand[bot] || []).forEach((card, idx) => {
       if (card.type === 'remove_enemy') {
@@ -3478,6 +3489,20 @@
           if (board[p.r][p.c] !== EMPTY || (trapList || []).some(t => t.r === p.r && t.c === p.c)) continue;
           options.push({ idx, cardId: card.id, targets: [p], endsTurn: false, apply: () => { trapList.push({ r: p.r, c: p.c, owner: bot }); } });
         }
+      } else if (v4 && card.type === 'teleport') {
+        // 순간이동: 상대 카드 한 장에 지는 쌍에 걸린 내 돌을 빼냄 (도착 칸은 무작위라 무시) + 가장 쓸모없는 돌
+        e2Init(withTraps(makeBlocked()));
+        const r0 = e2TradeRisk(bot) + e2ChainRisk(bot);
+        const scored = listStones(bot).filter(st => !windmillList.some(w => w.r === st.r && w.c === st.c)).map(st => {
+          const i = st.r * SIZE + st.c; e2Remove(i, bot);
+          const risk = e2TradeRisk(bot) + e2ChainRisk(bot), val = e2Eval(bot);
+          e2Place(i, bot);
+          return { st, fix: r0 - risk, val };
+        });
+        const picks = scored.filter(x => x.fix > 0).slice(0, 4).concat(scored.sort((a, b) => b.val - a.val).slice(0, 1));
+        for (const { st } of picks) options.push({ idx, cardId: card.id, targets: [st], endsTurn: false, apply: () => { board[st.r][st.c] = EMPTY; } });
+      } else if (v4 && card.type === 'earthquake') {
+        options.push({ idx, cardId: card.id, targets: [], endsTurn: false, quake: 4 });
       } else if (v2 && card.type === 'chain_move') {
         // 연속 착수는 기존처럼 바로 쓰되(측정 결과 아껴 두면 오히려 약함), 이번 턴에 끝내는 수순이 있으면 계획에 '승리'로 표시
         options.push({ idx, cardId: card.id, targets: [], endsTurn: false, chain: true });
@@ -3491,21 +3516,36 @@
     });
     if (!options.length) return null;
     const per = Math.max(350, Math.floor(budgetMs / (options.length + 1)));
-    const baseline = bestValue(bot, makeBlocked(), per);
+    const baseline = bestValue(bot, makeBlocked(), per) - riskNow();
     let best = null;
     for (const o of options) {
       if (Date.now() - t0 > budgetMs * 1.3) break;
       let v;
       if (o.combos) {
         // 무작위 카드: 가능한 결과들의 평균
-        let sum = 0;
+        let sum = 0, allWin = true;
         const each = Math.max(150, Math.floor(per / o.combos.length));
         for (const cb of o.combos) {
           cb.forEach(t => { board[t.r][t.c] = bot; });
-          sum += -bestValue(opp, makeBlocked(), each);
+          const x = -bestValue(opp, makeBlocked(), each) - riskNow();
+          sum += x; if (x < WIN_SCORE / 2) allWin = false;
           restore();
         }
         v = sum / o.combos.length;
+        if (!allWin) v = Math.min(v, WIN_SCORE / 2 - 1); // 무작위 결과가 전부 이길 때만 '확실한 승리'
+      } else if (o.quake) {
+        // 지진: 무작위 결과 몇 가지의 평균 (턴은 이어짐)
+        let sum = 0, allWin = true;
+        const each = Math.max(150, Math.floor(per / o.quake));
+        for (let k = 0; k < o.quake; k++) {
+          simQuake();
+          const f = scanFiveWinner();
+          const x = f === bot ? WIN_SCORE : f === opp ? -WIN_SCORE : bestValue(bot, makeBlocked(), each) - riskNow();
+          sum += x; if (x < WIN_SCORE / 2) allWin = false;
+          restore();
+        }
+        v = sum / o.quake;
+        if (!allWin) v = Math.min(v, WIN_SCORE / 2 - 1);
       } else if (o.chain) {
         // 연속 착수: 이번 턴 3수를 묶어서 둔 결과의 가치
         const blk = makeBlocked(); e2Init(blk);
@@ -3521,13 +3561,44 @@
         const f = scanFiveWinner();
         if (f === bot) v = WIN_SCORE;
         else if (f === opp) v = -WIN_SCORE;
-        else { const blk = makeBlocked(); v = o.endsTurn ? -bestValue(opp, blk, per) : bestValue(bot, blk, per); }
+        else {
+          const blk = makeBlocked(); v = o.endsTurn ? -bestValue(opp, blk, per) : bestValue(bot, blk, per);
+          if (v4 && Math.abs(v) < WIN_SCORE / 2) {
+            v -= riskNow();
+            // 식스센스: 상대 필승 수순이 6목에서 사라지면 가점, 내 수순이 사라지면 감점
+            if (six5 && o.cardId === 'sixsense') { const o6 = vctNow(opp), m6 = vctNow(bot); v += (six5.opp && !o6 ? 3000 : 0) - (six5.me && !m6 ? 3000 : 0); }
+          }
+        }
         restore();
       }
       if (!best || v > best.v) best = { v, o };
     }
     if (!best) return null;
     return { idx: best.o.idx, cardId: best.o.cardId, targets: best.o.targets, gain: best.v - baseline, win: best.v >= WIN_SCORE / 2 };
+  }
+
+  // 지진 결과 한 가지를 판에 그대로 적용 (runEarthquake와 같은 규칙, 기록·연출 없음) — 카드 계획의 표본용
+  function simQuake() {
+    const stones = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c])) stones.push({ r, c, color: board[r][c], mill: windmillList.some(w => w.r === r && w.c === c) });
+    const occ = new Set(stones.map(s => s.r * SIZE + s.c)), claimed = new Set();
+    const order = stones.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
+    const pos = new Array(stones.length);
+    for (const i of order) {
+      const s = stones[i], nb = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const r = s.r + dr, c = s.c + dc, k = r * SIZE + c;
+        if (!inBoard(r, c) || occ.has(k) || claimed.has(k) || isCrater(r, c)) continue;
+        nb.push(k);
+      }
+      const k = nb.length ? nb[Math.floor(Math.random() * nb.length)] : s.r * SIZE + s.c;
+      claimed.add(k); pos[i] = k;
+    }
+    board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    windmillList = [];
+    stones.forEach((s, i) => { const r = (pos[i] / SIZE) | 0, c = pos[i] % SIZE; board[r][c] = s.color; if (s.mill) windmillList.push({ r, c }); });
   }
 
   // A. 백그라운드 계산(Web Worker): 탐색 함수들을 그대로 옮겨 실행해 화면이 멈추지 않게 함
@@ -3553,7 +3624,7 @@
         lineShape, attackValue, windowWeight, evalBoard, uHashBoard, uKey, uPlace, uOrdered, uSearch, findWinCells, vcf, vct, vctDefend,
         readOppCards, uSetupFor, openingBookMove, ultimateChooseMove, listStones, isOrthoAdjacent, scanFiveWinner, uBestValue, planCardsSearch, engineWorkerMain,
         e2BuildTables, e2Contrib, e2At, e2Init, e2NbAdd, e2Update, e2Place, e2Remove, e2Eval, e2Attack, e2Ordered, e2Search,
-        e2WinCells, e2HasDoubleMove, e2HasFourMove, e2Vct, e2VctDefend, e2BestValue, e2TradeRisk, e2ChainRisk, e2ChainPlan, getOrthogonalEnemyNeighbors, e2Canon, e2FromCanon, e2BookMove, e2ChooseMove];
+        e2WinCells, e2HasDoubleMove, e2HasFourMove, e2Vct, e2VctDefend, e2BestValue, e2TradeRisk, e2ChainRisk, e2ChainPlan, getOrthogonalEnemyNeighbors, simQuake, e2Canon, e2FromCanon, e2BookMove, e2ChooseMove];
       const src = [
         '"use strict";',
         `const SIZE = ${SIZE}, EMPTY = ${EMPTY}, BLACK = ${BLACK}, WHITE = ${WHITE};`,
@@ -3631,7 +3702,7 @@
       const usePlan = () => activateCard(botColor, plan.idx, () => { applyBotTargets(botColor, plan.targets); place(); });
       if (valid && plan.win && usePlan()) return;                                   // 카드로 이기는 수가 있으면 바로
       if (valid && cfg.cardPlan3 && plan.cardId === 'trap' && plan.gain > 300 && usePlan()) return; // 함정 콤보는 기존 함정 규칙보다 먼저
-      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(['infection']) : ENGINE_PLANNED_TYPES;
+      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(cfg.cardPlan4 ? ['infection', 'teleport', 'earthquake'] : ['infection']) : ENGINE_PLANNED_TYPES;
       if (botUseCardSmart(botColor, place, { exclude: planned })) return;           // 함정·봉쇄 등은 기존 판단
       const fullHand = cfg.cardPlan2 && hand[botColor].length >= HAND_LIMIT;        // 곧 버려질 상황이면 손해만 아니면 사용
       if (valid && plan.gain > (fullHand ? 0 : 300) && usePlan()) return;          // 수 읽기로 이득이 확인된 카드
@@ -4575,6 +4646,17 @@
     const ns = alk.physStones[alk.newIndex];
     const oppColor = other(botColor);
 
+    if (botCfg().cardPlan4) {
+      // 짱짱맨: 방향·세기 후보를 같은 물리 계산으로 끝까지 굴려 보고, 칸에 고정된 결과 판을 평가해서 가장 좋은 발사
+      const best = botBestAlkFlick(botColor, ns);
+      if (best) {
+        ns.vx = best.vx; ns.vy = best.vy;
+        alk.awaitingLaunch = false; alk.simulating = true; alk.frameCount = 0;
+        updateStatus();
+        requestAnimationFrame(simulateAlkTick);
+        return;
+      }
+    }
     // 상대 돌들의 무게중심을 대충 겨냥 (없으면 보드 중앙), 약간의 무작위 편차 추가
     let sx = 0, sy = 0, n = 0;
     alk.physStones.forEach(s => {
@@ -4596,6 +4678,30 @@
     alk.frameCount = 0;
     updateStatus();
     requestAnimationFrame(simulateAlkTick);
+  }
+
+  function botBestAlkFlick(botColor, ns) {
+    const opp = other(botColor), idx = alk.physStones.indexOf(ns);
+    const saved = { board, windmillList };
+    let best = null;
+    const t0 = Date.now();
+    for (let a = 0; a < 36; a++) {
+      const ang = -Math.PI * (0.06 + 0.88 * a / 35); // 위쪽 반원
+      for (const sp of [0.5, 0.75, 1.0, 1.3]) {
+        if (Date.now() - t0 > 1500) break;
+        const stones = alk.physStones.map(s => Object.assign({}, s));
+        stones[idx].vx = Math.cos(ang) * CELL * sp; stones[idx].vy = Math.sin(ang) * CELL * sp;
+        for (let f = 0; f <= ALK_MAX_FRAMES; f++) { alkPhysStep(stones); if (alkMaxSpeed(stones) < ALK_MIN_SPEED) break; }
+        const assign = snapPhysStonesToGrid(stones);
+        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY)); windmillList = [];
+        stones.forEach((s, i) => { const p = assign[i]; if (!p) return; board[p.r][p.c] = s.color; if (s.isWindmill) windmillList.push({ r: p.r, c: p.c }); });
+        const f = scanFiveWinner();
+        const v = f === botColor ? WIN_SCORE : f === opp ? -WIN_SCORE : evalBoard(botColor, makeBlocked());
+        if (!best || v > best.v) best = { v, vx: Math.cos(ang) * CELL * sp, vy: Math.sin(ang) * CELL * sp };
+      }
+    }
+    board = saved.board; windmillList = saved.windmillList;
+    return best;
   }
 
   // ================= 메뉴 / 로비 UI =================

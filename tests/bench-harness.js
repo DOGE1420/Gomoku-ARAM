@@ -236,6 +236,44 @@ window.__bench = {
     this.reset();
     return out;
   },
+  // v4 카드 점검: 순간이동·지진·식스센스를 쥔 계획이 오류 없이 돌고, 알까기 조준이 결과 판을 실제로 좋게 만드는지
+  cardTests4(ms) {
+    const set = (bs, ws) => { this.reset(); bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
+    const cfg = Object.assign({}, BOT_LEVELS[50], { book: false });
+    const out = {};
+    set([[7, 5], [7, 6], [7, 7], [7, 8], [8, 4], [3, 4], [5, 5]], [[7, 3], [7, 4], [7, 9], [4, 4], [5, 4], [6, 4], [4, 7]]);
+    hand[WHITE] = ['teleport', 'earthquake', 'sixsense'].map(id => CARD_POOL.find(c => c.id === id));
+    hand[BLACK] = [CARD_POOL.find(c => c.id === 'trade')];
+    const p = planCardsSearch(WHITE, cfg, ms);
+    out.plan = p && { cardId: p.cardId, gain: Math.round(p.gain), win: p.win };
+    // 알까기: 같은 국면에서 예전 조준(무게중심+무작위) 결과 평균 vs 새 조준 결과
+    mode = 'bot'; myColor = BLACK; current = WHITE;
+    set([[7, 5], [7, 6], [8, 8], [6, 9]], [[6, 6], [6, 7], [6, 8], [9, 9], [10, 4]]);
+    const physOf = () => { const l = buildPhysFromBoard(); l.push({ x: GRID_OFFSET_X + GRID_SPAN / 2, y: PAD + GRID_SPAN + EXTRA_BOTTOM / 2, vx: 0, vy: 0, color: WHITE, isNew: true, isWindmill: false }); return l; };
+    const evalAfter = (stones) => {
+      for (let f = 0; f <= ALK_MAX_FRAMES; f++) { alkPhysStep(stones); if (alkMaxSpeed(stones) < ALK_MIN_SPEED) break; }
+      const asg = snapPhysStonesToGrid(stones), keep = board;
+      board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+      stones.forEach((s, i) => { if (asg[i]) board[asg[i].r][asg[i].c] = s.color; });
+      const f = scanFiveWinner(), v = f === WHITE ? WIN_SCORE : f === BLACK ? -WIN_SCORE : evalBoard(WHITE, makeBlocked());
+      board = keep; return v;
+    };
+    alk = { physStones: physOf(), turnOrder: [WHITE, BLACK], turnIndex: 0 }; alk.newIndex = alk.physStones.length - 1;
+    const t0 = Date.now(); const best = botBestAlkFlick(WHITE, alk.physStones[alk.newIndex]); out.alkMs = Date.now() - t0;
+    const st = physOf(); st[st.length - 1].vx = best.vx; st[st.length - 1].vy = best.vy; out.alkNew = Math.round(evalAfter(st));
+    let sum = 0;
+    for (let k = 0; k < 20; k++) {
+      const s2 = physOf(), ns = s2[s2.length - 1]; let sx = 0, sy = 0, n = 0;
+      s2.forEach(q => { if (q !== ns && q.color === BLACK) { sx += q.x; sy += q.y; n++; } });
+      const tx = sx / n + (Math.random() - 0.5) * CELL * 4, ty = sy / n + (Math.random() - 0.5) * CELL * 4;
+      const dx = tx - ns.x, dy = ty - ns.y, d = Math.hypot(dx, dy) || 1, sp = CELL * (0.6 + Math.random() * 0.8);
+      ns.vx = dx / d * sp; ns.vy = dy / d * sp; sum += evalAfter(s2);
+    }
+    out.alkOldAvg = Math.round(sum / 20);
+    alk = null; mode = 'local';
+    this.reset();
+    return out;
+  },
   // 버그 수정 확인: 실제 게임 흐름으로 풍차 돌을 폭파하면 풍차 기록도 사라지는지
   bombMillFix() {
     mode = 'local'; init();
