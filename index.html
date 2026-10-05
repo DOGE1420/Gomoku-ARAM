@@ -1572,7 +1572,7 @@
       while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { end = { r: rr, c: cc }; count++; rr += dr; cc += dc; }
       rr = r - dr; cc = c - dc;
       while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { start = { r: rr, c: cc }; count++; rr -= dr; cc -= dc; }
-      if (count >= winLength) return { start, end };
+      if (count === winLength) return { start, end }; // 정확히 N개만 승리 (장목은 승리 아님)
     }
     return null;
   }
@@ -3247,6 +3247,12 @@
 
   // ---- 패턴 인식: 한 방향으로 winLength 칸짜리 창(window)을 밀면서 모양을 판단 ----
   // board[r][c]에 player 돌이 놓였다고 가정하고 호출
+  // (이미 둔 돌에 더해) idx에 player를 두면 정확히 N개가 되는지 — 장목이 되는 4는 위협이 아님
+  function realFiveAt(idx, player) {
+    const r = (idx / SIZE) | 0, c = idx % SIZE;
+    board[r][c] = player; const ok = !!checkWin(r, c, player); board[r][c] = EMPTY;
+    return ok;
+  }
   function lineShape(r, c, dr, dc, player, blk) {
     const L = winLength;
     let best = 0, winCell = -1, winCells = 0, near = 0;
@@ -3262,7 +3268,7 @@
       }
       if (!ok) continue;
       if (n > best) best = n;
-      if (n === L - 1 && empty !== winCell) { if (winCell === -1 || winCells < 2) winCells++; winCell = empty; }
+      if (n === L - 1 && empty !== winCell && realFiveAt(empty, player)) { if (winCell === -1 || winCells < 2) winCells++; winCell = empty; }
       if (n === L - 2) near++;
     }
     return { best, winCells, near };
@@ -3277,7 +3283,7 @@
     let score = 0, fours = 0, open3 = 0, five = false;
     for (const [dr, dc] of DIRS) {
       const s = lineShape(r, c, dr, dc, player, blk);
-      if (s.best >= L) { five = true; break; }
+      if (s.best >= L) { if (checkWin(r, c, player)) { five = true; break; } continue; } // 장목은 승리 아님
       if (s.winCells >= 2) { score += P_OPEN4; fours += 2; }
       else if (s.winCells === 1) { score += P_FOUR; fours++; }
       else if (s.best === L - 2) { if (s.near >= 2) { score += P_OPEN3; open3++; } else score += P_THREE; }
@@ -3961,7 +3967,7 @@
   function getEngineWorker() {
     if (engineWorker || engineWorkerFailed || typeof Worker === 'undefined') return engineWorker;
     try {
-      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, flipBoard, swapMakesLine, pruneInvalidTraps, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
+      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, flipBoard, swapMakesLine, realFiveAt, e2RealFive, pruneInvalidTraps, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
         lineShape, attackValue, windowWeight, evalBoard, uHashBoard, uKey, uPlace, uOrdered, uSearch, findWinCells, vcf, vct, vctDefend,
         readOppCards, uSetupFor, openingBookMove, ultimateChooseMove, listStones, isOrthoAdjacent, scanFiveWinner, uBestValue, planCardsSearch, engineWorkerMain,
         e2BuildTables, e2Contrib, e2At, e2Init, e2NbAdd, e2Update, e2Place, e2Remove, e2Eval, e2Attack, e2Ordered, e2Search,
@@ -4137,6 +4143,14 @@
   }
 
   // i 칸에 p를 두면 생기는 모양 (attackValue와 같은 판정, 창 개수를 이용해 빠르게)
+  // i와 e에 p를 두면 e에서 정확히 N개가 되는지 (장목이면 승리가 아니므로 진짜 4가 아님)
+  function e2RealFive(i, e, p) {
+    const ri = (i / SIZE) | 0, ci = i % SIZE, re = (e / SIZE) | 0, ce = e % SIZE, ki = board[ri][ci];
+    board[ri][ci] = p; board[re][ce] = p;
+    const ok = !!checkWin(re, ce, p);
+    board[re][ce] = EMPTY; board[ri][ci] = ki;
+    return ok;
+  }
   function e2Attack(i, p) {
     const L = e2L, cP = p === BLACK ? e2CntB : e2CntW, cO = p === BLACK ? e2CntW : e2CntB, blk = p === BLACK ? e2BlkB : e2BlkW;
     let score = 0, fours = 0, open3 = 0;
@@ -4152,11 +4166,17 @@
         if (n === L - 1) {
           let e = -1;
           for (let t = 0; t < L; t++) { const x = e2WCells[w * L + t]; if (x !== i && e2At(x) === EMPTY) { e = x; break; } }
-          if (e !== winCell) { if (winCell === -1 || winCells < 2) winCells++; winCell = e; }
+          if (e !== winCell && e >= 0 && e2RealFive(i, e, p)) { if (winCell === -1 || winCells < 2) winCells++; winCell = e; } // 장목이 되는 4는 위협 아님
         }
         if (n === L - 2) near++;
       }
-      if (best >= L) return { score: P_FIVE, five: true, fours: 0 };
+      if (best >= L) {
+        // 창이 다 차도 이어진 돌이 N개를 넘으면(장목) 승리 아님 — 실제 판정으로 확인
+        const r0 = (i / SIZE) | 0, c0 = i % SIZE, keep = board[r0][c0];
+        board[r0][c0] = p; const ok = checkWin(r0, c0, p); board[r0][c0] = keep;
+        if (ok) return { score: P_FIVE, five: true, fours: 0 };
+        continue;
+      }
       if (winCells >= 2) { score += P_OPEN4; fours += 2; }
       else if (winCells === 1) { score += P_FOUR; fours++; }
       else if (best === L - 2) { if (near >= 2) { score += P_OPEN3; open3++; } else score += P_THREE; }
@@ -4255,7 +4275,16 @@
     const out = [];
     for (let w = 0; w < e2NW; w++) {
       if (cP[w] !== L - 1 || cO[w] || blk[w]) continue;
-      for (let t = 0; t < L; t++) { const x = e2WCells[w * L + t]; if (e2At(x) === EMPTY) { if (!out.includes(x)) out.push(x); break; } }
+      for (let t = 0; t < L; t++) {
+        const x = e2WCells[w * L + t];
+        if (e2At(x) !== EMPTY) continue;
+        if (!out.includes(x)) {
+          const r0 = (x / SIZE) | 0, c0 = x % SIZE;
+          board[r0][c0] = p; const ok = checkWin(r0, c0, p); board[r0][c0] = EMPTY; // 장목이 되는 칸은 이기는 자리가 아님
+          if (ok) out.push(x);
+        }
+        break;
+      }
     }
     return out;
   }
