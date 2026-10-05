@@ -543,11 +543,11 @@
     { id: 'earthquake', name: '지진', icon: '🫨', desc: '보드의 모든 돌이 각자 주변의 무작위 빈 칸으로 흔들려 이동합니다.', type: 'earthquake', weight: 8 },
     { id: 'blockade', name: '봉쇄', icon: '🚫', desc: '상대가 다음에 사용하는 카드 1장을 무효화합니다 (카드는 소모됨). (희귀 카드)', type: 'blockade', weight: 3 },
     { id: 'trap', name: '함정', icon: '🪤', desc: '빈 칸에 함정을 설치합니다. 상대가 그 칸에 두면 돌이 사라지고 나는 카드를 얻습니다. 설치했다는 사실만 상대에게 알려지고, 위치는 나에게만 보입니다.', type: 'trap', weight: 10 },
-    { id: 'shield', name: '보호막', icon: '🛡️', desc: '내 돌 하나를 고르면 그 돌 주변 3×3 안의 내 돌이 상대의 다음 2턴 동안 폭파·맞교환·감염·되감기에서 보호됩니다.', type: 'shield', weight: 7 },
+    { id: 'shield', name: '보호막', icon: '🛡️', desc: '내 돌 하나를 고르면 그 돌 주변 3×3 안의 내 돌이 상대의 다음 2턴 동안 폭파·맞교환·감염·운석에서 보호됩니다.', type: 'shield', weight: 7 },
     { id: 'steal', name: '강탈', icon: '🃏', desc: '상대 패에서 무작위 카드 1장을 빼앗아 내 패에 넣습니다.', type: 'steal', weight: 6 },
     { id: 'timestop', name: '시간 정지', icon: '⏸️', desc: '상대의 다음 턴을 건너뜁니다. (가장 희귀)', type: 'skip_turn', weight: 2 },
     { id: 'wall', name: '장벽', icon: '🧱', desc: '빈 칸 하나에 누구의 돌도 아닌 장벽을 세웁니다. 아무도 둘 수 없고 줄도 끊깁니다 (영구).', type: 'wall', weight: 7 },
-    { id: 'rewind', name: '되감기', icon: '⏪', desc: '상대가 직전에 둔 돌 1개를 판에서 되돌립니다. 사용 즉시 내 턴이 종료됩니다.', type: 'rewind', weight: 5 },
+    { id: 'meteor', name: '운석', icon: '☄️', desc: '판 위의 무작위 돌 1개가 사라집니다. 내 돌일 수도 있어요! (보호막 안의 돌은 안전)', type: 'meteor', weight: 5 },
     { id: 'reroll', name: '리롤', icon: '🎲', desc: '이 카드를 뺀 내 패를 모두 버리고 같은 장수만큼 새로 뽑습니다 (패가 비면 1장).', type: 'reroll', weight: 5 },
     { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다. 오목/육목이 완성되는 돌은 제외되며, 사용 즉시 내 턴이 종료됩니다.', type: 'infection', weight: 8 },
   ];
@@ -570,7 +570,7 @@
     steal: '상대 카드 1장 빼앗기',
     timestop: '상대 다음 턴 건너뛰기',
     wall: '빈 칸에 영구 장벽',
-    rewind: '상대 직전 돌 되돌리기 (턴 종료)',
+    meteor: '무작위 돌 1개 제거 (내 돌일 수도)',
     reroll: '내 패 전부 새로 뽑기',
   };
 
@@ -587,11 +587,11 @@
     earthquake: { name: 'Earthquake', desc: 'Every stone on the board shakes into a random nearby empty cell.', short: 'Shake every stone' },
     blockade: { name: 'Blockade', desc: 'Nullify the next card your opponent uses (the card is still spent).', short: "Nullify opponent's next card" },
     trap: { name: 'Trap', desc: 'Set a trap on an empty cell. If your opponent plays there, their stone vanishes and you get a card. Your opponent is told a trap was set, but only you can see where.', short: 'Set a trap on an empty cell' },
-    shield: { name: 'Shield', desc: "Pick one of your stones: your stones in the 3×3 around it are protected from Bomb, Swap, Infection and Rewind for your opponent's next 2 turns.", short: 'Protect a 3×3 area (2 enemy turns)' },
+    shield: { name: 'Shield', desc: "Pick one of your stones: your stones in the 3×3 around it are protected from Bomb, Swap, Infection and Meteor for your opponent's next 2 turns.", short: 'Protect a 3×3 area (2 enemy turns)' },
     steal: { name: 'Steal', desc: "Take a random card from your opponent's hand into yours.", short: 'Steal 1 enemy card' },
     timestop: { name: 'Time Stop', desc: "Your opponent's next turn is skipped. (Rarest)", short: "Skip opponent's next turn" },
     wall: { name: 'Wall', desc: 'Build a neutral wall on an empty cell. Nobody can play there and it breaks lines (permanent).', short: 'Permanent wall on an empty cell' },
-    rewind: { name: 'Rewind', desc: 'Take back the stone your opponent placed last. Your turn ends immediately.', short: "Undo opponent's last stone (turn ends)" },
+    meteor: { name: 'Meteor', desc: 'A random stone on the board vanishes — it could be yours! (Shielded stones are safe.)', short: 'Remove a random stone (maybe yours)' },
     reroll: { name: 'Reroll', desc: 'Discard the rest of your hand and draw the same number of new cards (1 if empty).', short: 'Redraw your whole hand' },
     infection: { name: 'Infection', desc: 'Convert 2 random enemy stones touching yours (up/down/left/right) to your color. Stones that would complete a winning line are skipped. Your turn ends immediately.', short: 'Convert 2 touching enemies (turn ends)' },
   };
@@ -694,7 +694,7 @@
       'log.stealLost': '🃏 상대가 내 {card} 카드를 빼앗아 갔습니다',
       'log.timestopUsed': '{color}: ⏸️ 시간 정지 발동 — 상대의 다음 턴을 건너뜀',
       'log.wallUsed': '{color}: 🧱 장벽 설치', 'log.wallNeedEmpty': '빈 칸에만 장벽을 세울 수 있습니다',
-      'log.rewindUsed': '{color}: ⏪ 되감기 발동 — 상대 직전 돌을 되돌림 (턴 종료)', 'log.rewindNone': '{color}: 되돌릴 상대 돌이 없음',
+      'log.meteorUsed': '{color}: ☄️ 운석 발동 — {color2}의 돌이 사라짐', 'log.meteorNone': '{color}: 운석이 떨어질 돌이 없음',
       'log.rerollUsed': '{color}: 🎲 리롤 발동 — 패 {n}장을 새로 뽑음',
     },
     en: {
@@ -794,7 +794,7 @@
       'log.stealLost': '🃏 Your opponent stole your {card}',
       'log.timestopUsed': "{color}: ⏸️ Time Stop — the opponent's next turn is skipped",
       'log.wallUsed': '{color}: 🧱 wall built', 'log.wallNeedEmpty': 'A wall can only go on an empty cell',
-      'log.rewindUsed': "{color}: ⏪ Rewind — took back the opponent's last stone (turn ends)", 'log.rewindNone': '{color}: no enemy stone to take back',
+      'log.meteorUsed': "{color}: ☄️ Meteor — a {color2} stone vanished", 'log.meteorNone': '{color}: no stone for the meteor to hit',
       'log.rerollUsed': '{color}: 🎲 Reroll — drew {n} new card(s)',
     },
   };
@@ -815,7 +815,7 @@
     const tpl = (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || key;
     return tpl.replace(/\{(\w+)\}/g, (_, name) => {
       const v = p ? p[name] : undefined;
-      if (name === 'color') return colorName(v);
+      if (name === 'color' || name === 'color2') return colorName(v);
       if (name === 'card') return cardName(v);
       return v === undefined || v === null ? '' : String(v);
     });
@@ -902,8 +902,6 @@
   let craterList = [];
   // 보호막: { r, c, owner, turns, fresh } — 중심 주변 3×3 안의 owner 돌을 보호 (폭파 구멍과 같은 방식으로 턴마다 줄어듦)
   let shieldList = [];
-  // 각 색이 마지막으로 둔 자리 (되감기 대상, 멀티플레이에서도 공유)
-  let lastPlaced = { [BLACK]: null, [WHITE]: null };
   // 강탈 (멀티플레이: 상대 패는 상대 화면에만 있으므로 요청 → 상대 화면이 1장 내줌 → 응답)
   let mpStealReq = null, mpStealRes = null, lastSeenStealReqId = null, lastSeenStealResId = null;
   // 멀티플레이 알까기 관전: 내가 보낸 발사 정보 / 상대 알까기를 내 화면에 재현하는 상태
@@ -1032,7 +1030,7 @@
     pendingTargetCell = null;
     trapList = [];
     craterList = [];
-    shieldList = []; mpStealReq = null; mpStealRes = null; lastPlaced = { [BLACK]: null, [WHITE]: null };
+    shieldList = []; mpStealReq = null; mpStealRes = null;
     alkView = null; mpAlkLaunch = null;
     cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
     skipNextTurn = { [BLACK]: false, [WHITE]: false };
@@ -1495,7 +1493,6 @@
     playPlaceSound();
     moveHistory.push({ r, c, player: current, counted: countsForDraft });
     lastMovePos = { r, c };
-    lastPlaced[current] = { r, c };
     turnPlacedPositions.push({ r, c });
 
     const trapHit = trapList.find(tr => tr.r === r && tr.c === c && tr.owner !== current);
@@ -1771,10 +1768,11 @@
     return result;
   }
 
-  // 되감기 대상: 상대가 마지막으로 둔 돌 (아직 판에 있는 것)
-  function lastOppStone(player) {
-    const opp = other(player), lp = lastPlaced && lastPlaced[opp];
-    return lp && board[lp.r][lp.c] === opp ? { r: lp.r, c: lp.c } : null;
+  // 운석: 보호막 밖의 돌 중 무작위 1개 (색 무관)
+  function meteorTargets() {
+    const out = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c]) && !isProtected(r, c)) out.push({ r, c });
+    return out;
   }
   // 강탈 (로컬·봇): 상대 패에서 무작위 1장을 내 패로
   function stealCard(player) {
@@ -1998,19 +1996,18 @@
         updateStatus(); updateHandUI(); draw();
         return;
 
-      case 'rewind': {
-        const lm = lastOppStone(player);
-        if (!lm) { addLog(L('log.rewindNone', C)); return; }
-        if (isProtected(lm.r, lm.c)) { addLog(L('log.shielded')); return; }
-        board[lm.r][lm.c] = EMPTY;
-        windmillList = windmillList.filter(w => !(w.r === lm.r && w.c === lm.c));
-        moveHistory = moveHistory.filter(m => !(m.r === lm.r && m.c === lm.c));
-        lastMovePos = null; lastPlaced[opp] = null;
+      case 'meteor': {
+        const pool = meteorTargets();
+        if (!pool.length) { addLog(L('log.meteorNone', C)); return; }
+        const hit = pool[Math.floor(Math.random() * pool.length)], victim = board[hit.r][hit.c];
+        board[hit.r][hit.c] = EMPTY;
+        windmillList = windmillList.filter(w => !(w.r === hit.r && w.c === hit.c));
+        moveHistory = moveHistory.filter(m => !(m.r === hit.r && m.c === hit.c));
+        lastMovePos = { r: hit.r, c: hit.c };
         removeFromHand(player, idx);
         markUsed(player);
-        addLog(L('log.rewindUsed', C));
-        updateHandUI(); draw();
-        passTurn(); // 되감기는 사용 즉시 턴 종료
+        addLog(L('log.meteorUsed', { color: player, color2: victim }));
+        updateStatus(); updateHandUI(); draw();
         return;
       }
 
@@ -2538,7 +2535,7 @@
     const alkIndexNow = alk ? alk.turnIndex : (alkHandoff ? alkHandoff.turnIndex : null);
     return {
       board: flattenBoard(), current, winLength, windmillList, craterList, shieldList,
-      stealReq: mpStealReq, stealRes: mpStealRes, lastPlaced,
+      stealReq: mpStealReq, stealRes: mpStealRes,
       turnPlacementsDone, turnPlacementsNeeded,
       usedCardThisTurn, cardLockNextTurn, skipNextTurn, placedCount,
       gameOver, winLine, lastMovePos,
@@ -2596,7 +2593,7 @@
     alkkagi: ['#ff6b6b', '#ffd166', '#4ecdc4'], teleport: ['#fff7a8', '#c9a7ff', '#ffffff'], earthquake: ['#c0894f', '#8a5a2b', '#e8c39e'],
     blockade: ['#ff4d6d', '#ffffff', '#c9184a'], trap: ['#c8a165', '#7f5539', '#ffd6a5'], infection: ['#7cfc00', '#2ecc71', '#b5ff6b'],
     shield: ['#5aa0ff', '#cfe3ff', '#ffffff'], steal: ['#ffd166', '#9b5de5', '#ffffff'], timestop: ['#a0e9ff', '#ffffff', '#5aa0ff'],
-    wall: ['#8d7b68', '#c4b29c', '#5c4b3a'], rewind: ['#c77dff', '#ffffff', '#7b2cbf'], reroll: ['#ff9f1c', '#ffffff', '#2ec4b6'],
+    wall: ['#8d7b68', '#c4b29c', '#5c4b3a'], meteor: ['#ff7b00', '#ffd166', '#6a040f'], reroll: ['#ff9f1c', '#ffffff', '#2ec4b6'],
   };
   const FX_DEFAULT = ['#7cfc00', '#ffd700', '#adff2f']; // 토템 기본색 (초록·노랑)
 
@@ -2752,7 +2749,6 @@
     windmillList = data.windmillList || [];
     craterList = data.craterList || [];
     shieldList = data.shieldList || [];
-    lastPlaced = data.lastPlaced || { [BLACK]: null, [WHITE]: null };
     turnPlacementsDone = data.turnPlacementsDone || 0;
     turnPlacementsNeeded = data.turnPlacementsNeeded || 1;
     usedCardThisTurn = data.usedCardThisTurn || { [BLACK]: false, [WHITE]: false };
@@ -2975,7 +2971,7 @@
     alk = null; alkHandoff = null;
     trapList = [];
     craterList = [];
-    shieldList = []; mpStealReq = null; mpStealRes = null; lastPlaced = { [BLACK]: null, [WHITE]: null };
+    shieldList = []; mpStealReq = null; mpStealRes = null;
     alkView = null; mpAlkLaunch = null;
     hand = { [BLACK]: [], [WHITE]: [] }; // 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
     logLines = [];
@@ -3132,7 +3128,7 @@
       if (c.type === 'six_sense') return winLength !== 6;
       if (c.type === 'shield') return hasStoneOf(botColor);
       if (c.type === 'wall') return hasEmptyCell();
-      if (c.type === 'rewind') return !!lastOppStone(botColor);
+      if (c.type === 'meteor') return meteorTargets().length > 0;
       return true;
     });
     if (usable.length === 0) return false;
@@ -3849,10 +3845,6 @@
           if (board[p.r][p.c] !== EMPTY) continue;
           options.push({ idx, cardId: card.id, targets: [{ r: p.r, c: p.c }], endsTurn: false, apply: () => { board[p.r][p.c] = WALL; } });
         }
-      } else if (v5 && card.type === 'rewind') {
-        const lm = lastOppStone(bot);
-        if (lm && !isProtected(lm.r, lm.c)) options.push({ idx, cardId: card.id, targets: [], endsTurn: true,
-          apply: () => { board[lm.r][lm.c] = EMPTY; windmillList = windmillList.filter(w => !(w.r === lm.r && w.c === lm.c)); } });
       } else if (v5 && card.type === 'skip_turn') {
         options.push({ idx, cardId: card.id, targets: [], endsTurn: false, double: true });
       } else if (v2 && card.type === 'chain_move') {
@@ -3983,7 +3975,7 @@
   function engineWorkerMain(e) {
     const d = e.data;
     try {
-      board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; shieldList = d.shieldList || []; lastPlaced = d.lastPlaced || {}; trapList = d.trapList;
+      board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; shieldList = d.shieldList || []; trapList = d.trapList;
       hand = d.hand; cardLockNextTurn = d.cardLockNextTurn; skipNextTurn = d.skipNextTurn || {}; turnPlacementsDone = d.turnPlacementsDone; turnPlacementsNeeded = d.turnPlacementsNeeded || 1; turnPlacedPositions = d.turnPlacedPositions;
       let result = null;
       if (d.task === 'move') { const m = (d.cfg && d.cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(d.bot, makeBlocked(), d.budget, d.cfg); result = m ? { r: m.r, c: m.c } : null; }
@@ -3996,7 +3988,7 @@
   function getEngineWorker() {
     if (engineWorker || engineWorkerFailed || typeof Worker === 'undefined') return engineWorker;
     try {
-      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, swapMakesLine, lastOppStone, pruneInvalidTraps, e2DoubleRisk, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
+      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, swapMakesLine, pruneInvalidTraps, e2DoubleRisk, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
         lineShape, attackValue, windowWeight, evalBoard, uHashBoard, uKey, uPlace, uOrdered, uSearch, findWinCells, vcf, vct, vctDefend,
         readOppCards, uSetupFor, openingBookMove, ultimateChooseMove, listStones, isOrthoAdjacent, scanFiveWinner, uBestValue, planCardsSearch, engineWorkerMain,
         e2BuildTables, e2Contrib, e2At, e2Init, e2NbAdd, e2Update, e2Place, e2Remove, e2Eval, e2Attack, e2Ordered, e2Search,
@@ -4008,7 +4000,7 @@
         `const P_FIVE = ${P_FIVE}, P_OPEN4 = ${P_OPEN4}, P_FOUR = ${P_FOUR}, P_OPEN3 = ${P_OPEN3}, P_THREE = ${P_THREE}, P_OPEN2 = ${P_OPEN2}, P_TWO = ${P_TWO};`,
         `const WIN_SCORE = ${WIN_SCORE}, U_WIDTHS = ${JSON.stringify(U_WIDTHS)};`,
         `const ZOB = ${JSON.stringify(ZOB)};`,
-        'let board, winLength = 5, windmillList = [], craterList = [], shieldList = [], lastPlaced = {}, moveHistory = [], trapList = [], hand = {}, skipNextTurn = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
+        'let board, winLength = 5, windmillList = [], craterList = [], shieldList = [], moveHistory = [], trapList = [], hand = {}, skipNextTurn = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
         'let searchDeadline = 0, uWidths = U_WIDTHS, uDefense = 0.95, uBot = null, uFlipRisk = false, uStyle = null, uLastDepth = 0, uTT = new Map(), uAborted = false, uNodes = 0;',
         `const E2P = ${JSON.stringify(E2P)}, E2_BOOK = ${JSON.stringify(E2_BOOK)};`,
         `const E2_SYM = [${E2_SYM.map(f => f.toString()).join(', ')}];`,
@@ -4045,7 +4037,7 @@
     engineCallbacks.set(id, (res, err) => { if (err) fallback(); else cb(res); });
     w.postMessage({
       id, task, bot, budget, cfg,
-      board: board.map(r => r.slice()), winLength, windmillList, craterList, shieldList: shieldList || [], lastPlaced, trapList: trapList || [],
+      board: board.map(r => r.slice()), winLength, windmillList, craterList, shieldList: shieldList || [], trapList: trapList || [],
       hand: { [BLACK]: (hand[BLACK] || []).map(c => ({ id: c.id, type: c.type })), [WHITE]: (hand[WHITE] || []).map(c => ({ id: c.id, type: c.type })) },
       cardLockNextTurn, skipNextTurn, turnPlacementsDone, turnPlacementsNeeded, turnPlacedPositions,
     });
@@ -4078,7 +4070,7 @@
       const usePlan = () => activateCard(botColor, plan.idx, () => { applyBotTargets(botColor, plan.targets); place(); });
       if (valid && plan.win && usePlan()) return;                                   // 카드로 이기는 수가 있으면 바로
       if (valid && cfg.cardPlan3 && plan.cardId === 'trap' && plan.gain > 300 && usePlan()) return; // 함정 콤보는 기존 함정 규칙보다 먼저
-      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(cfg.cardPlan4 ? ['infection', 'teleport', 'earthquake'] : ['infection'], cfg.cardPlan5 ? ['wall', 'rewind', 'skip_turn'] : []) : ENGINE_PLANNED_TYPES;
+      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(cfg.cardPlan4 ? ['infection', 'teleport', 'earthquake'] : ['infection'], cfg.cardPlan5 ? ['wall', 'skip_turn'] : []) : ENGINE_PLANNED_TYPES;
       if (botUseCardSmart(botColor, place, { exclude: planned })) return;           // 함정·봉쇄 등은 기존 판단
       const fullHand = cfg.cardPlan2 && hand[botColor].length >= HAND_LIMIT;        // 곧 버려질 상황이면 손해만 아니면 사용
       if (valid && plan.gain > (fullHand ? 0 : 300) && usePlan()) return;          // 수 읽기로 이득이 확인된 카드
@@ -4978,40 +4970,42 @@
           else if (overflowSoon && idx === 0 && cands.length) consider(idx, 300, [cands[0].p]);
           break;
         }
-        case 'rewind': {
-          // 되감기: 상대 직전 돌이 위협의 핵심이면 되돌림
-          const lm = lastOppStone(botColor);
-          if (!lm || isProtected(lm.r, lm.c)) break;
-          board[lm.r][lm.c] = EMPTY;
-          const remain = findWinCells(opp, blocked[opp]).length, gain = evalBoard(botColor, blocked) - base;
-          board[lm.r][lm.c] = opp;
-          // 턴이 끝나므로, 돌 하나로는 못 막는 위협(이기는 자리 2개 이상)을 만든 돌을 되돌릴 때만 사용
-          if (oppWins.length >= 2 && remain < 2) consider(idx, 44000 + gain);
+        case 'meteor': {
+          // 운석: 보호막 밖의 아무 돌이나 무작위로 사라짐 → 모든 경우의 평균 이득으로 판단
+          const pool = meteorTargets();
+          if (!pool.length) break;
+          let sum = 0;
+          for (const t of pool) {
+            const v = board[t.r][t.c];
+            board[t.r][t.c] = EMPTY;
+            let g = evalBoard(botColor, blocked) - base;
+            if (oppWins.length && !findWinCells(opp, blocked[opp]).length) g += 20000;   // 상대 승리 자리가 사라짐
+            if (findWinCells(botColor, blocked[botColor]).length < myWins.length) g -= 20000;
+            board[t.r][t.c] = v;
+            sum += g;
+          }
+          const exp = sum / pool.length;
+          if (exp > 400 * scale) consider(idx, 1000 + exp);
+          else if (overflowSoon && idx === 0 && exp > -200) consider(idx, 150);
           break;
         }
         case 'shield': {
-          // 짱짱맨: 상대가 쥔 맞교환에 지는 쌍, 되감기로 풀리는 내 막는 돌을 실제로 계산해 지킴
-          if (reads && (botCfg().cardPlan5 || botCfg().shieldSmart) && (oppCards.trade || oppCards.rewind)) {
+          // 짱짱맨: 상대가 쥔 맞교환에 지는 쌍을 실제로 계산해 지킴
+          if (reads && (botCfg().cardPlan5 || botCfg().shieldSmart) && oppCards.trade) {
             e2Init(makeBlocked());
             const r0 = oppCards.trade ? e2TradeRisk(botColor) : 0;
-            const lp = lastPlaced[botColor];
-            let lpKey = false;
-            if (oppCards.rewind && lp && board[lp.r][lp.c] === botColor) {
-              board[lp.r][lp.c] = EMPTY; lpKey = findWinCells(opp, makeBlocked()[opp]).length > 0; board[lp.r][lp.c] = botColor;
-            }
             let bestT = null, bestV = 0;
             for (const s2 of listStones(botColor)) {
               shieldList.push({ r: s2.r, c: s2.c, owner: botColor, turns: 3, fresh: true });
               let v = 0;
               if (r0) v += (r0 - e2TradeRisk(botColor)) * 20000;
-              if (lpKey && Math.abs(lp.r - s2.r) <= 1 && Math.abs(lp.c - s2.c) <= 1) v += 30000;
               shieldList.pop();
               if (v > bestV) { bestV = v; bestT = s2; }
             }
             if (bestT) { consider(idx, 3000 + Math.min(bestV, 40000), [bestT]); break; }
           }
           // 보호막: 상대가 쥔 맞교환·폭파·감염으로 무너질 돌을 지킴
-          if (!reads || !(oppCards.trade || oppCards.bomb || oppCards.infection || oppCards.rewind)) {
+          if (!reads || !(oppCards.trade || oppCards.bomb || oppCards.infection || oppCards.meteor)) {
             if (overflowSoon && idx === 0 && hasStoneOf(botColor)) consider(idx, 200);
             break;
           }
@@ -5084,7 +5078,7 @@
   }
 
   // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
-  const BOT_CARD_PRIORITY = ['timestop', 'chain', 'windmill', 'wall', 'bomb', 'shield', 'trap', 'sixsense', 'trade', 'steal', 'rewind', 'blockade', 'infection', 'reversal', 'teleport', 'reroll', 'earthquake', 'alkkagi'];
+  const BOT_CARD_PRIORITY = ['timestop', 'chain', 'windmill', 'wall', 'bomb', 'shield', 'trap', 'sixsense', 'trade', 'steal', 'blockade', 'infection', 'reversal', 'meteor', 'teleport', 'reroll', 'earthquake', 'alkkagi'];
   function botPickDraft(picks, player) {
     if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
     const me = player || other(myColor), opp = other(me);
