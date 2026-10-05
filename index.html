@@ -543,12 +543,10 @@
     { id: 'earthquake', name: '지진', icon: '🫨', desc: '보드의 모든 돌이 각자 주변의 무작위 빈 칸으로 흔들려 이동합니다.', type: 'earthquake', weight: 8 },
     { id: 'blockade', name: '봉쇄', icon: '🚫', desc: '상대가 다음에 사용하는 카드 1장을 무효화합니다 (카드는 소모됨). (희귀 카드)', type: 'blockade', weight: 3 },
     { id: 'trap', name: '함정', icon: '🪤', desc: '빈 칸에 함정을 설치합니다. 상대가 그 칸에 두면 돌이 사라지고 나는 카드를 얻습니다. 설치했다는 사실만 상대에게 알려지고, 위치는 나에게만 보입니다.', type: 'trap', weight: 10 },
-    { id: 'shield', name: '보호막', icon: '🛡️', desc: '내 돌 하나를 고르면 그 돌 주변 3×3 안의 내 돌이 상대의 다음 2턴 동안 폭파·맞교환·감염·운석에서 보호됩니다.', type: 'shield', weight: 7 },
+    { id: 'shield', name: '보호막', icon: '🛡️', desc: '내 돌 하나를 고르면 그 돌 주변 3×3 안의 내 돌이 상대의 다음 2턴 동안 폭파·맞교환·감염·운석·전세 역전에서 보호됩니다.', type: 'shield', weight: 7 },
     { id: 'steal', name: '강탈', icon: '🃏', desc: '상대 패에서 무작위 카드 1장을 빼앗아 내 패에 넣습니다.', type: 'steal', weight: 6 },
-    { id: 'timestop', name: '시간 정지', icon: '⏸️', desc: '상대의 다음 턴을 건너뜁니다. (가장 희귀)', type: 'skip_turn', weight: 2 },
     { id: 'wall', name: '장벽', icon: '🧱', desc: '빈 칸 하나에 누구의 돌도 아닌 장벽을 세웁니다. 아무도 둘 수 없고 줄도 끊깁니다 (영구).', type: 'wall', weight: 7 },
-    { id: 'meteor', name: '운석', icon: '☄️', desc: '판 위의 무작위 돌 1개가 사라집니다. 내 돌일 수도 있어요! (보호막 안의 돌은 안전)', type: 'meteor', weight: 5 },
-    { id: 'reroll', name: '리롤', icon: '🎲', desc: '이 카드를 뺀 내 패를 모두 버리고 같은 장수만큼 새로 뽑습니다 (패가 비면 1장).', type: 'reroll', weight: 5 },
+    { id: 'meteor', name: '운석', icon: '☄️', desc: '판 위의 무작위 돌 1개가 무작위 빈 칸으로 날아갑니다. 내 돌일 수도 있어요! (보호막 안의 돌은 안전)', type: 'meteor', weight: 5 },
     { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다. 오목/육목이 완성되는 돌은 제외되며, 사용 즉시 내 턴이 종료됩니다.', type: 'infection', weight: 8 },
   ];
 
@@ -568,10 +566,8 @@
     infection: '맞닿은 상대 돌 2개 전향 (턴 종료)',
     shield: '내 돌 주변 3×3 보호 (상대 2턴)',
     steal: '상대 카드 1장 빼앗기',
-    timestop: '상대 다음 턴 건너뛰기',
     wall: '빈 칸에 영구 장벽',
-    meteor: '무작위 돌 1개 제거 (내 돌일 수도)',
-    reroll: '내 패 전부 새로 뽑기',
+    meteor: '무작위 돌 1개를 무작위 칸으로 (내 돌일 수도)',
   };
 
   // ================= 다국어 (한국어 기본 / English) =================
@@ -587,12 +583,10 @@
     earthquake: { name: 'Earthquake', desc: 'Every stone on the board shakes into a random nearby empty cell.', short: 'Shake every stone' },
     blockade: { name: 'Blockade', desc: 'Nullify the next card your opponent uses (the card is still spent).', short: "Nullify opponent's next card" },
     trap: { name: 'Trap', desc: 'Set a trap on an empty cell. If your opponent plays there, their stone vanishes and you get a card. Your opponent is told a trap was set, but only you can see where.', short: 'Set a trap on an empty cell' },
-    shield: { name: 'Shield', desc: "Pick one of your stones: your stones in the 3×3 around it are protected from Bomb, Swap, Infection and Meteor for your opponent's next 2 turns.", short: 'Protect a 3×3 area (2 enemy turns)' },
+    shield: { name: 'Shield', desc: "Pick one of your stones: your stones in the 3×3 around it are protected from Bomb, Swap, Infection, Meteor and Reversal for your opponent's next 2 turns.", short: 'Protect a 3×3 area (2 enemy turns)' },
     steal: { name: 'Steal', desc: "Take a random card from your opponent's hand into yours.", short: 'Steal 1 enemy card' },
-    timestop: { name: 'Time Stop', desc: "Your opponent's next turn is skipped. (Rarest)", short: "Skip opponent's next turn" },
     wall: { name: 'Wall', desc: 'Build a neutral wall on an empty cell. Nobody can play there and it breaks lines (permanent).', short: 'Permanent wall on an empty cell' },
-    meteor: { name: 'Meteor', desc: 'A random stone on the board vanishes — it could be yours! (Shielded stones are safe.)', short: 'Remove a random stone (maybe yours)' },
-    reroll: { name: 'Reroll', desc: 'Discard the rest of your hand and draw the same number of new cards (1 if empty).', short: 'Redraw your whole hand' },
+    meteor: { name: 'Meteor', desc: 'A random stone on the board is flung to a random empty cell — it could be yours! (Shielded stones are safe.)', short: 'Fling a random stone (maybe yours)' },
     infection: { name: 'Infection', desc: 'Convert 2 random enemy stones touching yours (up/down/left/right) to your color. Stones that would complete a winning line are skipped. Your turn ends immediately.', short: 'Convert 2 touching enemies (turn ends)' },
   };
 
@@ -660,7 +654,7 @@
       'log.windmillBlocked': '🎡 풍차 주변이라 둘 수 없는 칸입니다',
       'log.chainTooClose': '⚡ 연속 착수 — 이번 턴에 이미 둔 자리(포함) 2칸 이내에는 놓을 수 없습니다',
       'log.trapHit': '🪤 함정 발동! {color}의 돌이 사라졌습니다',
-      'log.skipTurn': '{color}: ⏸️ 시간 정지 — 이번 턴을 건너뜁니다',
+      'log.skipTurn': '{color}: ⏭️ 이번 턴을 건너뜁니다',
       'log.handOverflow': '{color}: 패 한도 초과로 {card} 소멸',
       'log.cardGained': '{color}: {icon} {card} 획득', 'log.cardGainedHand': '{color}: {icon} {card} 획득 (패에 저장)',
       'log.blockadeHit': '{color}: 🚫 봉쇄 — {icon} {card} 카드가 무효화되었습니다',
@@ -692,10 +686,8 @@
       'log.noShieldTarget': '{color}: 보호할 내 돌 없음',
       'log.stealUsed': '{color}: 🃏 강탈 발동', 'log.stealGot': '{color}: 🃏 상대에게서 {card} 카드를 빼앗음', 'log.stealEmpty': '{color}: 🃏 강탈 — 상대 패가 비어 있음',
       'log.stealLost': '🃏 상대가 내 {card} 카드를 빼앗아 갔습니다',
-      'log.timestopUsed': '{color}: ⏸️ 시간 정지 발동 — 상대의 다음 턴을 건너뜀',
       'log.wallUsed': '{color}: 🧱 장벽 설치', 'log.wallNeedEmpty': '빈 칸에만 장벽을 세울 수 있습니다',
-      'log.meteorUsed': '{color}: ☄️ 운석 발동 — {color2}의 돌이 사라짐', 'log.meteorNone': '{color}: 운석이 떨어질 돌이 없음',
-      'log.rerollUsed': '{color}: 🎲 리롤 발동 — 패 {n}장을 새로 뽑음',
+      'log.meteorUsed': '{color}: ☄️ 운석 발동 — {color2}의 돌이 날아감', 'log.meteorNone': '{color}: 운석이 떨어질 돌이 없음',
     },
     en: {
       'title': 'Gomoku-ARAM',
@@ -760,7 +752,7 @@
       'log.windmillBlocked': "🎡 You can't play next to an enemy windmill",
       'log.chainTooClose': "⚡ Chain Move — can't place within 2 cells of stones placed this turn",
       'log.trapHit': "🪤 Trap sprung! {color}'s stone vanished",
-      'log.skipTurn': '{color}: ⏸️ Time Stop — this turn is skipped',
+      'log.skipTurn': '{color}: ⏭️ this turn is skipped',
       'log.handOverflow': '{color}: hand full — {card} discarded',
       'log.cardGained': '{color}: {icon} got {card}', 'log.cardGainedHand': '{color}: {icon} {card} added to hand',
       'log.blockadeHit': '{color}: 🚫 Blockade — {icon} {card} was nullified',
@@ -792,10 +784,8 @@
       'log.noShieldTarget': '{color}: no stone of yours to shield',
       'log.stealUsed': '{color}: 🃏 Steal!', 'log.stealGot': '{color}: 🃏 stole {card} from the opponent', 'log.stealEmpty': "{color}: 🃏 Steal — the opponent's hand is empty",
       'log.stealLost': '🃏 Your opponent stole your {card}',
-      'log.timestopUsed': "{color}: ⏸️ Time Stop — the opponent's next turn is skipped",
       'log.wallUsed': '{color}: 🧱 wall built', 'log.wallNeedEmpty': 'A wall can only go on an empty cell',
-      'log.meteorUsed': "{color}: ☄️ Meteor — a {color2} stone vanished", 'log.meteorNone': '{color}: no stone for the meteor to hit',
-      'log.rerollUsed': '{color}: 🎲 Reroll — drew {n} new card(s)',
+      'log.meteorUsed': "{color}: ☄️ Meteor — a {color2} stone was flung away", 'log.meteorNone': '{color}: no stone for the meteor to hit',
     },
   };
 
@@ -923,6 +913,15 @@
     if (v !== BLACK && v !== WHITE) return false;
     for (const s of shieldList || []) if (s.owner === v && Math.abs(s.r - r) <= 1 && Math.abs(s.c - c) <= 1) return true;
     return false;
+  }
+  // 전세 역전: user가 쓰면 판의 흑·백이 뒤바뀌되, 상대(user가 아닌 쪽) 보호막 안의 돌은 그대로
+  function flipBoard(user) {
+    const keep = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isStone(board[r][c]) && board[r][c] !== user && isProtected(r, c)) keep.push(r * SIZE + c);
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      if (keep.includes(r * SIZE + c)) continue;
+      if (board[r][c] === BLACK) board[r][c] = WHITE; else if (board[r][c] === WHITE) board[r][c] = BLACK;
+    }
   }
   function tickShields() {
     shieldList = (shieldList || []).filter(s => {
@@ -1898,10 +1897,7 @@
         return;
 
       case 'reversal':
-        for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
-          if (board[r][c] === BLACK) board[r][c] = WHITE;
-          else if (board[r][c] === WHITE) board[r][c] = BLACK;
-        }
+        flipBoard(player);
         removeFromHand(player, idx);
         markUsed(player);
         addLog(L('log.reversalUsed', { color: player, icon: card.icon }));
@@ -1988,37 +1984,24 @@
         enterTargetMode(L('tgt.wall'));
         return;
 
-      case 'skip_turn':
-        skipNextTurn[opp] = true;
-        removeFromHand(player, idx);
-        markUsed(player);
-        addLog(L('log.timestopUsed', { color: player }));
-        updateStatus(); updateHandUI(); draw();
-        return;
-
       case 'meteor': {
         const pool = meteorTargets();
         if (!pool.length) { addLog(L('log.meteorNone', C)); return; }
         const hit = pool[Math.floor(Math.random() * pool.length)], victim = board[hit.r][hit.c];
+        const dest = pickRandomEmptyCell(victim);
+        if (!dest) { addLog(L('log.noEmptyCell')); return; }
         board[hit.r][hit.c] = EMPTY;
-        windmillList = windmillList.filter(w => !(w.r === hit.r && w.c === hit.c));
+        board[dest.r][dest.c] = victim;
+        for (const w of windmillList) if (w.r === hit.r && w.c === hit.c) { w.r = dest.r; w.c = dest.c; }
         moveHistory = moveHistory.filter(m => !(m.r === hit.r && m.c === hit.c));
-        lastMovePos = { r: hit.r, c: hit.c };
+        moveHistory.push({ r: dest.r, c: dest.c, player: victim });
+        lastMovePos = { r: dest.r, c: dest.c };
+        pruneInvalidTraps(); pruneCraters();
         removeFromHand(player, idx);
         markUsed(player);
         addLog(L('log.meteorUsed', { color: player, color2: victim }));
         updateStatus(); updateHandUI(); draw();
-        return;
-      }
-
-      case 'reroll': {
-        removeFromHand(player, idx);
-        markUsed(player);
-        const n = Math.max(1, hand[player].length);
-        hand[player] = weightedSample(getCardPool(), n);
-        addLog(L('log.rerollUsed', { color: player, n }));
-        if (mode === 'multiplayer') savePrivateState();
-        updateStatus(); updateHandUI(); draw();
+        endIfBoardWin(true); // 날아간 돌이 줄을 완성할 수도 있음
         return;
       }
 
@@ -2592,8 +2575,8 @@
     trade: ['#7fc8ff', '#ffffff', '#3f8cff'], bomb: ['#ff5a36', '#ffae42', '#ffd166'], reversal: ['#ffffff', '#222222', '#bbbbbb'],
     alkkagi: ['#ff6b6b', '#ffd166', '#4ecdc4'], teleport: ['#fff7a8', '#c9a7ff', '#ffffff'], earthquake: ['#c0894f', '#8a5a2b', '#e8c39e'],
     blockade: ['#ff4d6d', '#ffffff', '#c9184a'], trap: ['#c8a165', '#7f5539', '#ffd6a5'], infection: ['#7cfc00', '#2ecc71', '#b5ff6b'],
-    shield: ['#5aa0ff', '#cfe3ff', '#ffffff'], steal: ['#ffd166', '#9b5de5', '#ffffff'], timestop: ['#a0e9ff', '#ffffff', '#5aa0ff'],
-    wall: ['#8d7b68', '#c4b29c', '#5c4b3a'], meteor: ['#ff7b00', '#ffd166', '#6a040f'], reroll: ['#ff9f1c', '#ffffff', '#2ec4b6'],
+    shield: ['#5aa0ff', '#cfe3ff', '#ffffff'], steal: ['#ffd166', '#9b5de5', '#ffffff'],
+    wall: ['#8d7b68', '#c4b29c', '#5c4b3a'], meteor: ['#ff7b00', '#ffd166', '#6a040f'],
   };
   const FX_DEFAULT = ['#7cfc00', '#ffd700', '#adff2f']; // 토템 기본색 (초록·노랑)
 
@@ -3078,7 +3061,7 @@
           style: true,  // D. 흑=공격형, 백=수비형 (C. 카드+착수 계획은 worker 경로에서 사용)
           engine2: true, vct2: true, oppCardReplies: true, tradeRisk: true,
           chainPlan: true, chainRisk: true, tradeAttack: true, cardPlan2: true, draft2: true, cardPlan3: true, cardPlan4: true, cardPlan5: false, // cardPlan5(새 카드 수 읽기)는 측정에서 효과가 없어 꺼 둠 (23:25)
-          timestopPlay: true, timestopDef: true, shieldSmart: true, wallSmart: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
+          shieldSmart: true, wallSmart: true },  // v2 엔진: 증분 평가·PVS/LMR, 빠짐없는 VCT, 상대 카드 대응 수 읽기
   };
   const BOT_LEVEL_LIST = [1, 3, 5, 7, 10, 20, 50];
   let botLevel = 5;
@@ -3845,17 +3828,11 @@
           if (board[p.r][p.c] !== EMPTY) continue;
           options.push({ idx, cardId: card.id, targets: [{ r: p.r, c: p.c }], endsTurn: false, apply: () => { board[p.r][p.c] = WALL; } });
         }
-      } else if (v5 && card.type === 'skip_turn') {
-        options.push({ idx, cardId: card.id, targets: [], endsTurn: false, double: true });
       } else if (v2 && card.type === 'chain_move') {
         // 연속 착수는 기존처럼 바로 쓰되(측정 결과 아껴 두면 오히려 약함), 이번 턴에 끝내는 수순이 있으면 계획에 '승리'로 표시
         options.push({ idx, cardId: card.id, targets: [], endsTurn: false, chain: true });
       } else if (card.type === 'reversal') {
-        options.push({ idx, cardId: card.id, targets: [], endsTurn: true, apply: () => {
-          for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
-            if (board[r][c] === BLACK) board[r][c] = WHITE; else if (board[r][c] === WHITE) board[r][c] = BLACK;
-          }
-        } });
+        options.push({ idx, cardId: card.id, targets: [], endsTurn: true, apply: () => { flipBoard(bot); } });
       }
     });
     if (!options.length) return null;
@@ -3890,27 +3867,6 @@
         }
         v = sum / o.quake;
         if (!allWin) v = Math.min(v, WIN_SCORE / 2 - 1);
-      } else if (o.double) {
-        // 시간 정지: 내가 연달아 두 번 두는 가치 (첫 수 후보 몇 개 × 다시 내 차례의 가치)
-        if (baseline >= WIN_SCORE / 2) continue; // 이미 이기는 국면이면 아껴 둠
-        const blk = makeBlocked(); e2Init(withTraps(blk));
-        const root = e2Ordered(bot, 6, null);
-        if (root.win) v = WIN_SCORE;
-        else {
-          v = -Infinity;
-          const each = Math.max(120, Math.floor(per / Math.max(1, root.list.length)));
-          for (const m of root.list) {
-            board[m.r][m.c] = bot;
-            const x = checkWin(m.r, m.c, bot) ? WIN_SCORE : bestValue(bot, makeBlocked(), each);
-            board[m.r][m.c] = EMPTY;
-            if (x > v) v = x;
-            if (v >= WIN_SCORE / 2) break;
-          }
-          v -= riskNow();
-        }
-        // 확실히 이기거나 지는 걸 막을 때만 쓰고(아니면 아껴 둠), 패가 꽉 찼으면 손해만 아니면 사용
-        const full = (hand[bot] || []).length >= HAND_LIMIT;
-        if (!(v >= WIN_SCORE / 2 || (baseline <= -WIN_SCORE / 2 && v > -WIN_SCORE / 2) || v - baseline > 50000 || full)) continue;
       } else if (o.chain) {
         // 연속 착수: 이번 턴 3수를 묶어서 둔 결과의 가치
         const blk = makeBlocked(); e2Init(blk);
@@ -3988,7 +3944,7 @@
   function getEngineWorker() {
     if (engineWorker || engineWorkerFailed || typeof Worker === 'undefined') return engineWorker;
     try {
-      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, swapMakesLine, pruneInvalidTraps, e2DoubleRisk, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
+      const fns = [isStone, other, inBoard, checkWin, isCrater, isProtected, flipBoard, swapMakesLine, pruneInvalidTraps, isBlockedForPlayer, buildBlockedGrid, makeBlocked, collectCandidates,
         lineShape, attackValue, windowWeight, evalBoard, uHashBoard, uKey, uPlace, uOrdered, uSearch, findWinCells, vcf, vct, vctDefend,
         readOppCards, uSetupFor, openingBookMove, ultimateChooseMove, listStones, isOrthoAdjacent, scanFiveWinner, uBestValue, planCardsSearch, engineWorkerMain,
         e2BuildTables, e2Contrib, e2At, e2Init, e2NbAdd, e2Update, e2Place, e2Remove, e2Eval, e2Attack, e2Ordered, e2Search,
@@ -4070,7 +4026,7 @@
       const usePlan = () => activateCard(botColor, plan.idx, () => { applyBotTargets(botColor, plan.targets); place(); });
       if (valid && plan.win && usePlan()) return;                                   // 카드로 이기는 수가 있으면 바로
       if (valid && cfg.cardPlan3 && plan.cardId === 'trap' && plan.gain > 300 && usePlan()) return; // 함정 콤보는 기존 함정 규칙보다 먼저
-      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(cfg.cardPlan4 ? ['infection', 'teleport', 'earthquake'] : ['infection'], cfg.cardPlan5 ? ['wall', 'skip_turn'] : []) : ENGINE_PLANNED_TYPES;
+      const planned = cfg.cardPlan2 ? ENGINE_PLANNED_TYPES.concat(cfg.cardPlan4 ? ['infection', 'teleport', 'earthquake'] : ['infection'], cfg.cardPlan5 ? ['wall'] : []) : ENGINE_PLANNED_TYPES;
       if (botUseCardSmart(botColor, place, { exclude: planned })) return;           // 함정·봉쇄 등은 기존 판단
       const fullHand = cfg.cardPlan2 && hand[botColor].length >= HAND_LIMIT;        // 곧 버려질 상황이면 손해만 아니면 사용
       if (valid && plan.gain > (fullHand ? 0 : 300) && usePlan()) return;          // 수 읽기로 이득이 확인된 카드
@@ -4457,13 +4413,6 @@
     return 0;
   }
 
-  // 시간 정지 위험: 상대가 연달아 두 수를 두면 5목이 되는 줄(상대 돌만 L-2개, 막히지 않음)이 있는지
-  function e2DoubleRisk(me) {
-    const opp = other(me), L = e2L, cO = opp === BLACK ? e2CntB : e2CntW, cM = opp === BLACK ? e2CntW : e2CntB, blk = opp === BLACK ? e2BlkB : e2BlkW;
-    for (let w = 0; w < e2NW; w++) if (cO[w] >= L - 2 && !cM[w] && !blk[w]) return 1;
-    return 0;
-  }
-
   // 연속 착수 계획: 이번 턴에 남은 left수를 한꺼번에 묶어 따져 첫 수를 고름 → { move, value }
   //   (같은 턴 돌끼리 2칸 이내 금지 규칙 반영, 끝난 뒤 상대 차례 가치로 비교)
   function e2ChainPlan(bot, blocked, budgetMs, left) {
@@ -4573,22 +4522,6 @@
     const root = e2Ordered(botColor, 0, legal);
     if (root.win) return root.win;
     if (!root.list.length) return null;
-    if (cfg && cfg.timestopPlay && skipNextTurn && skipNextTurn[opp] && turnPlacementsDone === 0) {
-      // 시간 정지 중: 상대 차례가 건너뛰어지므로 상대의 '바로 이기는 자리'도 지금은 급하지 않음
-      //  → 4를 만들면 다음 내 차례에 5목, 아니면 두 수 연달아 둔 가치가 가장 큰 수
-      const cand = legal.map(p => { const i = p.r * SIZE + p.c; return { i, r: p.r, c: p.c, s: e2Attack(i, botColor).score + e2Attack(i, opp).score }; })
-        .sort((a, b) => b.s - a.s).slice(0, 10);
-      for (const m of cand) { e2Place(m.i, botColor); const w = e2WinCells(botColor).length; e2Remove(m.i, botColor); if (w) return m; }
-      let best = cand[0], bestV = -Infinity;
-      const each = Math.max(150, Math.floor(budgetMs * 0.8 / Math.max(1, cand.length)));
-      for (const m of cand) {
-        e2Place(m.i, botColor);
-        const v = e2BestValue(botColor, each);
-        e2Remove(m.i, botColor);
-        if (v > bestV) { bestV = v; best = m; }
-      }
-      return best;
-    }
     if (root.forced && root.list.length === 1) return root.list[0];
     // 이번 턴에 더 둘 수 있으면(연속 착수) 남은 수를 묶어서 계획
     const left = (turnPlacementsNeeded || 1) - turnPlacementsDone;
@@ -4624,11 +4557,6 @@
         const safe = moves.filter(m => { if (Date.now() > dl) return true; e2Place(m.i, botColor); const th = e2Vct(opp, 6, dl, null); e2Remove(m.i, botColor); return !th; });
         if (safe.length) moves = safe;
       }
-    }
-    if (cfg && (cfg.cardPlan5 || cfg.timestopDef) && oppCards.timestop && moves.length > 1) {
-      // 상대가 시간 정지를 쥐고 있으면 연달아 두 수로 끝나는 모양을 남기지 않는 수만
-      const safe = moves.filter(m => { e2Place(m.i, botColor); const risk = e2DoubleRisk(botColor); e2Remove(m.i, botColor); return !risk; });
-      if (safe.length) moves = safe;
     }
     if (cfg && cfg.chainRisk && oppCards.chain && moves.length > 1) {
       const safe = moves.filter(m => { e2Place(m.i, botColor); const risk = e2ChainRisk(botColor); e2Remove(m.i, botColor); return !risk; });
@@ -4697,7 +4625,7 @@
         if (oppCards.reversal) {
           // 상대가 전세 역전을 쓰면 판이 뒤집히고 내 차례
           const snap = board.map(row => row.slice());
-          for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) { if (board[r][c] === BLACK) board[r][c] = WHITE; else if (board[r][c] === WHITE) board[r][c] = BLACK; }
+          flipBoard(opp);
           e2Init(blocked); v = Math.min(v, e2BestValue(botColor, each));
           board = snap; e2Init(blocked);
         }
@@ -4719,10 +4647,9 @@
     const penT = cfg && cfg.tradeRisk ? (oppCards.trade ? WIN_SCORE / 2 : E2P.tr) : 0;
     const penC = cfg && cfg.chainRisk ? (oppCards.chain ? WIN_SCORE / 2 : E2P.cr) : 0;
     const bonT = myTrade ? E2P.ta : 0;
-    const penD = cfg && (cfg.cardPlan5 || cfg.timestopDef) && oppCards.timestop ? WIN_SCORE / 2 : 0;
-    if ((penT || penC || bonT || penD) && lastVals && lastVals.size > 1) {
+    if ((penT || penC || bonT) && lastVals && lastVals.size > 1) {
       const bestV = lastVals.get(bestMove);
-      const span = Math.max(penT, penC, bonT, penD);
+      const span = Math.max(penT, penC, bonT);
       if (bestV !== undefined && bestV < WIN_SCORE / 2) {
         let pick = bestMove, pickVal = -Infinity;
         for (const [m, v] of lastVals) {
@@ -4732,7 +4659,6 @@
           if (penT && e2TradeRisk(botColor)) adj -= penT;
           if (penC && e2ChainRisk(botColor)) adj -= penC;
           if (bonT && e2TradeRisk(opp)) adj += bonT;
-          if (penD && e2DoubleRisk(botColor)) adj -= penD;
           e2Remove(m.i, botColor);
           if (adj > pickVal) { pickVal = adj; pick = m; }
         }
@@ -4948,16 +4874,6 @@
           if (expected > 450 * scale) consider(idx, expected);
           break;
         }
-        case 'skip_turn': {
-          // 시간 정지 = 두 번 연달아 두기: 내 3이 있으면 4→5로 끝냄, 상대 위협이 둘 이상이면 둘 다 막음
-          const L = winLength;
-          let my3 = false;
-          for (const p of collectCandidates(botColor, 2, blocked, false)) { if (attackValue(p.r, p.c, botColor, blocked[botColor]).fours >= 1) { my3 = true; break; } }
-          if (my3) consider(idx, 50000);
-          else if (oppWins.length >= 2 || hasOpenFourThreat(opp, blocked)) consider(idx, 45000);
-          else if (overflowSoon && idx === 0) consider(idx, 500);
-          break;
-        }
         case 'wall': {
           // 장벽: 상대가 바로 이기는 자리를 내 돌 없이 막음 (둘이면 장벽 하나 + 착수 하나로 둘 다 막음), 아니면 상대 급소를 영구 봉쇄
           const wallSmart = botCfg().wallSmart;
@@ -4971,7 +4887,7 @@
           break;
         }
         case 'meteor': {
-          // 운석: 보호막 밖의 아무 돌이나 무작위로 사라짐 → 모든 경우의 평균 이득으로 판단
+          // 운석: 보호막 밖의 아무 돌이 무작위 빈 칸으로 날아감 → 원래 자리에서 빠지는 효과의 평균으로 판단 (떨어지는 곳은 무작위라 대부분 영향이 작음)
           const pool = meteorTargets();
           if (!pool.length) break;
           let sum = 0;
@@ -5025,12 +4941,7 @@
         }
         case 'steal':
           // 강탈: 상대 패가 있으면 사용 (위험한 카드를 쥐고 있으면 더 급함)
-          if (hand[opp].length) consider(idx, reads && (oppCards.chain || oppCards.trade || oppCards.reversal || oppCards.timestop || oppCards.bomb) ? 5000 : 1300);
-          break;
-        case 'reroll':
-          // 리롤: 남은 패가 약한 카드뿐이면 새로 뽑음
-          if (hand[botColor].length >= 2 && hand[botColor].every((c, i) => i === idx || ['teleport', 'earthquake', 'alkkagi', 'reroll'].includes(c.id))) consider(idx, 900);
-          else if (overflowSoon && idx === 0) consider(idx, 150);
+          if (hand[opp].length) consider(idx, reads && (oppCards.chain || oppCards.trade || oppCards.reversal || oppCards.bomb) ? 5000 : 1300);
           break;
         case 'earthquake':
         case 'alkkagi':
@@ -5078,7 +4989,7 @@
   }
 
   // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
-  const BOT_CARD_PRIORITY = ['timestop', 'chain', 'windmill', 'wall', 'bomb', 'shield', 'trap', 'sixsense', 'trade', 'steal', 'blockade', 'infection', 'reversal', 'meteor', 'teleport', 'reroll', 'earthquake', 'alkkagi'];
+  const BOT_CARD_PRIORITY = ['chain', 'windmill', 'wall', 'bomb', 'shield', 'trap', 'sixsense', 'trade', 'steal', 'blockade', 'infection', 'reversal', 'meteor', 'teleport', 'earthquake', 'alkkagi'];
   function botPickDraft(picks, player) {
     if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
     const me = player || other(myColor), opp = other(me);
