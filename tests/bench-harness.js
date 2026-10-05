@@ -1,5 +1,6 @@
 // 벤치마크용 훅: index.html의 게임 코드 안쪽에 삽입되어 내부 함수에 접근한다 (게임 동작에는 영향 없음)
 window.__bench = {
+  ev(code) { return eval(code); }, // 테스트용: 게임 내부 값 확인
   // 결정적인 난수 (재현 가능한 대국)
   rng(seed) { let x = seed >>> 0 || 1; return () => { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; }; },
   reset() {
@@ -209,7 +210,7 @@ window.__bench = {
     board[m.r][m.c] = WHITE; e2Init(makeBlocked());
     out.defendChain = { move: [m.r, m.c], riskAfter: e2ChainRisk(WHITE) };
     // 카드 뽑기: 맞교환 한 번으로 이기는 쌍이 있으면 맞교환을 고름
-    set([[7, 6], [2, 2], [12, 12], [11, 3]], [[7, 4], [7, 5], [7, 7], [7, 8], [8, 6]]);
+    set([[7, 6], [2, 2], [12, 12], [11, 3]], [[7, 4], [7, 5], [7, 7], [8, 6]]); // 교환하면 백 열린 4
     hand[WHITE] = []; hand[BLACK] = [];
     const saved = botLevel; botLevel = 50;
     out.draft = botPickDraft(['windmill', 'trade', 'earthquake'].map(id => CARD_POOL.find(c => c.id === id)), WHITE).id;
@@ -272,6 +273,58 @@ window.__bench = {
     out.alkOldAvg = Math.round(sum / 20);
     alk = null; mode = 'local';
     this.reset();
+    return out;
+  },
+  // 새 카드 규칙 확인: 실제 게임 흐름(activateCard → 대상 클릭)으로 각 카드를 써 봄
+  newCardTests() {
+    const out = {};
+    const fresh = (cur) => {
+      mode = 'local'; init(); draftOpen = false; pendingTarget = null; cardAnimInstant = true;
+      current = cur; usedCardThisTurn = { [BLACK]: false, [WHITE]: false };
+    };
+    const give = (p, id) => { hand[p] = [CARD_POOL.find(c => c.id === id)]; };
+    const use = (p, target) => { activateCard(p, 0, null); if (target && pendingTarget) handleTargetClick(target); };
+    // 보호막: 흑이 (7,7)에 보호막 → 백의 폭파가 (7,8) 흑 돌을 못 터뜨림
+    fresh(BLACK); board[7][7] = BLACK; board[7][8] = BLACK; board[3][3] = WHITE;
+    give(BLACK, 'shield'); use(BLACK, { r: 7, c: 7 });
+    out.shieldSet = shieldList.length;
+    passTurn(); give(WHITE, 'bomb'); use(WHITE, { r: 7, c: 8 });
+    out.shieldBlocksBomb = board[7][8] === BLACK && !!pendingTarget;
+    cancelTarget();
+    // 장벽: 빈 칸에 세우면 둘 수 없고 줄이 끊김
+    fresh(BLACK); [[5, 3], [5, 4], [5, 6], [5, 7]].forEach(([r, c]) => { board[r][c] = BLACK; });
+    give(WHITE, 'wall'); current = WHITE; use(WHITE, { r: 5, c: 5 });
+    current = BLACK; handlePlace({ r: 5, c: 5 });
+    out.wall = { cell: board[5][5], blocked: makeBlocked()[BLACK][5 * SIZE + 5], noWin: !gameOver };
+    runEarthquake(); let walls = 0; for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === WALL) walls++;
+    out.wallSurvivesQuake = walls;
+    // 시간 정지: 흑이 쓰고 한 수 두면 다시 흑 차례
+    fresh(BLACK); give(BLACK, 'timestop'); use(BLACK); handlePlace({ r: 7, c: 7 });
+    out.timestopNext = current === BLACK ? 'black again' : 'white';
+    // 되감기: 백이 둔 돌을 흑이 되돌림
+    fresh(BLACK); handlePlace({ r: 7, c: 7 }); handlePlace({ r: 8, c: 8 });
+    give(BLACK, 'rewind'); use(BLACK);
+    out.rewind = board[8][8] === EMPTY && board[7][7] === BLACK;
+    // 리롤: 장수 유지
+    fresh(BLACK); hand[BLACK] = ['reroll', 'teleport', 'earthquake'].map(id => CARD_POOL.find(c => c.id === id)); activateCard(BLACK, 0, null);
+    out.rerollCount = hand[BLACK].length;
+    // 강탈: 백의 카드 1장을 가져옴
+    fresh(BLACK); give(BLACK, 'steal'); hand[WHITE] = [CARD_POOL.find(c => c.id === 'chain')]; use(BLACK);
+    out.steal = { black: hand[BLACK].map(c => c.id), white: hand[WHITE].length };
+    // 자석: (7,7) 쪽으로 2칸 안의 돌이 한 칸씩
+    fresh(BLACK); board[7][9] = BLACK; board[5][5] = WHITE; give(BLACK, 'magnet'); use(BLACK, { r: 7, c: 7 });
+    out.magnet = { b: board[7][8] === BLACK, w: board[6][6] === WHITE };
+    // 맞교환 제한: 교환하면 흑 5목이 되는 쌍은 거부
+    fresh(BLACK); [[7, 3], [7, 4], [7, 6], [7, 7]].forEach(([r, c]) => { board[r][c] = BLACK; }); board[7][5] = WHITE; board[8][5] = BLACK;
+    give(BLACK, 'trade'); activateCard(BLACK, 0, null); handleTargetClick({ r: 8, c: 5 }); handleTargetClick({ r: 7, c: 5 });
+    out.tradeNoFive = board[7][5] === WHITE && !gameOver;
+    cancelTarget();
+    // 엔진: 스크린샷 국면(교환하면 흑 5목)은 이제 위험이 아님
+    fresh(BLACK);
+    [[7, 5], [7, 6], [7, 7], [7, 8], [8, 4], [3, 4], [5, 5]].forEach(([r, c]) => { board[r][c] = BLACK; });
+    [[7, 3], [7, 4], [7, 9], [4, 4], [5, 4], [6, 4], [4, 7]].forEach(([r, c]) => { board[r][c] = WHITE; });
+    e2Init(makeBlocked()); out.screenshotRisk = e2TradeRisk(WHITE);
+    this.reset(); mode = 'local';
     return out;
   },
   // 버그 수정 확인: 실제 게임 흐름으로 풍차 돌을 폭파하면 풍차 기록도 사라지는지
