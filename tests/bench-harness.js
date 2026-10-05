@@ -348,6 +348,30 @@ window.__bench = {
     this.reset(); mode = 'local';
     return out;
   },
+  // 장목 규칙: 정확히 N개만 승리 (오목 규칙에서 6개 이상은 승리 아님, 육목 규칙에서는 6개가 승리·7개 이상은 아님)
+  overlineTests() {
+    const out = {};
+    const set = (bs, ws) => { this.reset(); bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
+    // 흑 ●●●●_● : 빈칸에 두면 6개 → 승리 아님
+    set([[7, 3], [7, 4], [7, 5], [7, 6], [7, 8]], []);
+    board[7][7] = BLACK; out.sixInFiveRule = !!checkWin(7, 7, BLACK); board[7][7] = EMPTY;
+    // 흑 ●●●●_ : 정확히 5개 → 승리
+    set([[7, 3], [7, 4], [7, 5], [7, 6]], []);
+    board[7][7] = BLACK; out.exactFive = !!checkWin(7, 7, BLACK); board[7][7] = EMPTY;
+    // 육목 규칙: 6개 승리, 7개는 아님
+    set([[7, 2], [7, 3], [7, 4], [7, 5], [7, 6]], []); winLength = 6; board[7][7] = BLACK; out.sixRuleSix = !!checkWin(7, 7, BLACK);
+    set([[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6], [7, 8]], []); winLength = 6; board[7][7] = BLACK; out.sixRuleSeven = !!checkWin(7, 7, BLACK);
+    winLength = 5;
+    // 엔진: ●●●●_● 의 빈칸은 흑의 '이기는 자리'가 아님 → 백은 막을 필요 없음
+    set([[7, 3], [7, 4], [7, 5], [7, 6], [7, 8], [2, 2]], [[7, 2], [9, 9], [10, 10]]);
+    e2Init(makeBlocked()); out.e2WinCells = e2WinCells(BLACK).map(i => [(i / SIZE) | 0, i % SIZE]);
+    out.oldWinCells = findWinCells(BLACK, makeBlocked()[BLACK]).map(p => [p.r, p.c]);
+    const cfg = Object.assign({}, BOT_LEVELS[50], { book: false });
+    const m = e2ChooseMove(WHITE, makeBlocked(), 1000, cfg);
+    out.botMove = [m.r, m.c];
+    this.reset();
+    return out;
+  },
   // 버그 수정 확인: 실제 게임 흐름으로 풍차 돌을 폭파하면 풍차 기록도 사라지는지
   bombMillFix() {
     mode = 'local'; init();
