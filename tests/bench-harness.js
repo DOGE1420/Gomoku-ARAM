@@ -275,7 +275,7 @@ window.__bench = {
     this.reset();
     return out;
   },
-  // 짱짱맨 새 카드 판단: 시간 정지로 끝내기 / 장벽으로 열린 4 막기 / 되감기 / 상대 시간 정지 대비 / 자석
+  // 짱짱맨 새 카드 판단: 시간 정지로 끝내기 / 장벽으로 열린 4 막기 / 되감기 / 상대 시간 정지 대비
   cardTests5(ms) {
     const set = (bs, ws) => { this.reset(); shieldList = []; lastPlaced = { [BLACK]: null, [WHITE]: null }; bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
     const cfg = Object.assign({}, BOT_LEVELS[50], { book: false });
@@ -301,9 +301,6 @@ window.__bench = {
     const m = e2ChooseMove(WHITE, makeBlocked(), ms, cfg);
     board[m.r][m.c] = WHITE; e2Init(makeBlocked());
     out.oppTimestop = { move: [m.r, m.c], riskAfter: e2DoubleRisk(WHITE) };
-    // 자석: 계획이 오류 없이 후보를 만드는지
-    set([[2, 2], [12, 12]], [[7, 4], [7, 5], [7, 9], [9, 9]]); give(WHITE, ['magnet']); give(BLACK, []);
-    out.magnet = plan();
     hand = { [BLACK]: [], [WHITE]: [] };
     this.reset();
     return out;
@@ -344,9 +341,6 @@ window.__bench = {
     // 강탈: 백의 카드 1장을 가져옴
     fresh(BLACK); give(BLACK, 'steal'); hand[WHITE] = [CARD_POOL.find(c => c.id === 'chain')]; use(BLACK);
     out.steal = { black: hand[BLACK].map(c => c.id), white: hand[WHITE].length };
-    // 자석: (7,7) 쪽으로 2칸 안의 돌이 한 칸씩
-    fresh(BLACK); board[7][9] = BLACK; board[5][5] = WHITE; give(BLACK, 'magnet'); use(BLACK, { r: 7, c: 7 });
-    out.magnet = { b: board[7][8] === BLACK, w: board[6][6] === WHITE };
     // 맞교환 제한: 교환하면 흑 5목이 되는 쌍은 거부
     fresh(BLACK); [[7, 3], [7, 4], [7, 6], [7, 7]].forEach(([r, c]) => { board[r][c] = BLACK; }); board[7][5] = WHITE; board[8][5] = BLACK;
     give(BLACK, 'trade'); activateCard(BLACK, 0, null); handleTargetClick({ r: 8, c: 5 }); handleTargetClick({ r: 7, c: 5 });
