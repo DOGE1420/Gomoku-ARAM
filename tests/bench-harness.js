@@ -277,7 +277,7 @@ window.__bench = {
   },
   // 짱짱맨 새 카드 판단: 시간 정지로 끝내기 / 장벽으로 열린 4 막기 / 되감기 / 상대 시간 정지 대비
   cardTests5(ms) {
-    const set = (bs, ws) => { this.reset(); shieldList = []; lastPlaced = { [BLACK]: null, [WHITE]: null }; bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
+    const set = (bs, ws) => { this.reset(); shieldList = []; bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
     const cfg = Object.assign({}, BOT_LEVELS[50], { book: false });
     const give = (p, ids) => { hand[p] = ids.map(id => CARD_POOL.find(c => c.id === id)); };
     const plan = () => { const p = planCardsSearch(WHITE, cfg, ms); return p && { cardId: p.cardId, target: p.targets && p.targets[0] ? [p.targets[0].r, p.targets[0].c] : null, win: p.win, gain: Math.round(p.gain) }; };
@@ -293,14 +293,19 @@ window.__bench = {
     // 흑 열린 4 + 장벽 → 장벽으로 한쪽, 돌로 다른 쪽
     set([[6, 5], [6, 6], [6, 7], [6, 8], [9, 9]], [[7, 6], [7, 7], [5, 7], [10, 2]]); give(WHITE, ['wall']);
     out.wallSave = plan();
-    // 흑이 방금 둔 돌로 열린 4 → 되감기
-    set([[6, 5], [6, 6], [6, 7], [6, 8], [9, 9]], [[7, 6], [7, 7], [5, 7], [10, 2]]); lastPlaced[BLACK] = { r: 6, c: 8 }; give(WHITE, ['rewind']);
-    out.rewindSave = plan();
     // 상대(흑)가 시간 정지를 쥐고 한쪽 막힌 3 → 백은 3을 끊어야 함
     set([[3, 3], [3, 4], [3, 5], [9, 9]], [[3, 2], [7, 7], [8, 6]]); give(BLACK, ['timestop']); give(WHITE, []);
     const m = e2ChooseMove(WHITE, makeBlocked(), ms, cfg);
     board[m.r][m.c] = WHITE; e2Init(makeBlocked());
     out.oppTimestop = { move: [m.r, m.c], riskAfter: e2DoubleRisk(WHITE) };
+    // 시간 정지를 쓴 뒤: 흑에게 바로 이기는 자리가 있어도(흑 턴은 건너뜀) 백은 4를 만들어 다음 차례에 이김
+    set([[3, 3], [3, 4], [3, 5], [3, 6], [12, 12], [5, 4]], [[3, 2], [5, 5], [5, 6], [5, 7], [11, 3]]);
+    give(BLACK, []); give(WHITE, []);
+    const keepSkip = skipNextTurn; skipNextTurn = { [BLACK]: true, [WHITE]: false };
+    const m2 = e2ChooseMove(WHITE, makeBlocked(), ms, Object.assign({}, cfg, { timestopPlay: true }));
+    const m3 = e2ChooseMove(WHITE, makeBlocked(), ms, Object.assign({}, cfg, { timestopPlay: false }));
+    skipNextTurn = keepSkip;
+    out.timestopFollowUp = { withFix: [m2.r, m2.c], withoutFix: [m3.r, m3.c] };
     hand = { [BLACK]: [], [WHITE]: [] };
     this.reset();
     return out;
@@ -331,10 +336,12 @@ window.__bench = {
     // 시간 정지: 흑이 쓰고 한 수 두면 다시 흑 차례
     fresh(BLACK); give(BLACK, 'timestop'); use(BLACK); handlePlace({ r: 7, c: 7 });
     out.timestopNext = current === BLACK ? 'black again' : 'white';
-    // 되감기: 백이 둔 돌을 흑이 되돌림
-    fresh(BLACK); handlePlace({ r: 7, c: 7 }); handlePlace({ r: 8, c: 8 });
-    give(BLACK, 'rewind'); use(BLACK);
-    out.rewind = board[8][8] === EMPTY && board[7][7] === BLACK;
+    // 운석: 보호막 밖의 무작위 돌 1개가 사라지고, 턴은 그대로
+    fresh(BLACK); board[7][7] = BLACK; board[8][8] = WHITE; board[2][2] = WHITE;
+    shieldList = [{ r: 2, c: 2, owner: WHITE, turns: 3, fresh: true }];
+    give(BLACK, 'meteor'); use(BLACK);
+    let left = 0; for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === BLACK || board[r][c] === WHITE) left++;
+    out.meteor = { stonesLeft: left, shieldedSafe: board[2][2] === WHITE, stillMyTurn: current === BLACK };
     // 리롤: 장수 유지
     fresh(BLACK); hand[BLACK] = ['reroll', 'teleport', 'earthquake'].map(id => CARD_POOL.find(c => c.id === id)); activateCard(BLACK, 0, null);
     out.rerollCount = hand[BLACK].length;
