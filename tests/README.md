@@ -1,6 +1,19 @@
 # 봇 엔진 측정 도구
 
-`index.html`의 게임 코드 안쪽에 `bench-harness.js`를 끼운 임시 페이지를 만들어(`load.js`) Playwright로 돌린다.
+게임은 `index.html`(화면 구조) + `css/style.css` + `js/*.js`(순서대로 불러오는 일반 스크립트, 전역 변수·함수를 함께 씀)로 나뉘어 있다.
+| 파일 | 내용 |
+|---|---|
+| `js/assets.js` | 착수 효과음, 짱짱맨 정석 데이터 |
+| `js/cards.js` | 기본 상수, 카드·전설 카드 데이터, 한국어/영어 문구 |
+| `js/game.js` | 화면 요소·상태, 초기화, 그리기, 착수·턴, 카드 뽑기·사용 |
+| `js/legend.js` | 전설 카드 |
+| `js/alkkagi.js` | 알까기 모드 |
+| `js/multiplayer.js` | 멀티플레이 동기화·채팅·방 |
+| `js/bot.js` | 봇 AI (난이도 1~20) |
+| `js/engine.js` | 슈퍼 울트라 짱짱맨 (카드 계획·백그라운드 계산·엔진 v2) |
+| `js/ui.js` | 튜토리얼, 메뉴/로비 UI |
+
+`index.html` 뒤에 `bench-harness.js`를 붙인 임시 페이지를 만들어(`load.js`) Playwright로 돌린다.
 게임 파일 자체에는 영향이 없다. 실행 전 `NODE_PATH=$(npm root -g)` 필요.
 
 | 스크립트 | 하는 일 |
