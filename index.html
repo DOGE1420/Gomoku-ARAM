@@ -5285,7 +5285,8 @@
     rerenderAll();
   });
   modeLocalBtn.addEventListener('click', () => { endTutorial(); mode = 'local'; myColor = BLACK; awaitingSide = false; init(); showScreen('game'); });
-  tutBtn.addEventListener('click', () => { endTutorial(); startBotGameWithSidePick(); });
+  // 튜토리얼 뒤 첫 봇전은 무조건 1레벨 (저장된 난이도는 바꾸지 않음)
+  tutBtn.addEventListener('click', () => { endTutorial(); botLevel = 1; renderBotLevel(); startBotGameWithSidePick(); });
   document.getElementById('mode-tut-btn').addEventListener('click', startTutorial);
   function startBotGameWithSidePick() {
     mode = 'bot'; myColor = BLACK; awaitingSide = true;
