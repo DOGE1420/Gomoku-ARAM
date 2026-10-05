@@ -275,6 +275,36 @@ window.__bench = {
     this.reset();
     return out;
   },
+  // 짱짱맨 새 카드 판단: 시간 정지로 끝내기 / 장벽으로 열린 4 막기 / 되감기 / 상대 시간 정지 대비
+  cardTests5(ms) {
+    const set = (bs, ws) => { this.reset(); shieldList = []; lastPlaced = { [BLACK]: null, [WHITE]: null }; bs.forEach(([r, c]) => { board[r][c] = BLACK; }); ws.forEach(([r, c]) => { board[r][c] = WHITE; }); };
+    const cfg = Object.assign({}, BOT_LEVELS[50], { book: false });
+    const give = (p, ids) => { hand[p] = ids.map(id => CARD_POOL.find(c => c.id === id)); };
+    const plan = () => { const p = planCardsSearch(WHITE, cfg, ms); return p && { cardId: p.cardId, target: p.targets && p.targets[0] ? [p.targets[0].r, p.targets[0].c] : null, win: p.win, gain: Math.round(p.gain) }; };
+    const out = {};
+    // 백 열린 3 + 시간 정지 → 연달아 두 수로 승리
+    set([[2, 2], [12, 12], [9, 3], [5, 4]], [[5, 5], [5, 6], [5, 7]]); give(WHITE, ['timestop']); give(BLACK, []); // 한쪽 막힌 3: 평소엔 못 이김
+    out.timestopWin = plan();
+    set([[2, 2], [12, 12], [9, 3]], [[5, 5], [5, 6], [5, 7]]); give(WHITE, ['timestop']);                 // 열린 3: 이미 이김 → 아껴 둠
+    out.timestopSaveWhenWinning = plan();
+    // 평범한 국면이면 시간 정지는 아껴 둠
+    set([[7, 7], [8, 8]], [[7, 8], [6, 6]]); give(WHITE, ['timestop']);
+    out.timestopHold = plan();
+    // 흑 열린 4 + 장벽 → 장벽으로 한쪽, 돌로 다른 쪽
+    set([[6, 5], [6, 6], [6, 7], [6, 8], [9, 9]], [[7, 6], [7, 7], [5, 7], [10, 2]]); give(WHITE, ['wall']);
+    out.wallSave = plan();
+    // 흑이 방금 둔 돌로 열린 4 → 되감기
+    set([[6, 5], [6, 6], [6, 7], [6, 8], [9, 9]], [[7, 6], [7, 7], [5, 7], [10, 2]]); lastPlaced[BLACK] = { r: 6, c: 8 }; give(WHITE, ['rewind']);
+    out.rewindSave = plan();
+    // 상대(흑)가 시간 정지를 쥐고 한쪽 막힌 3 → 백은 3을 끊어야 함
+    set([[3, 3], [3, 4], [3, 5], [9, 9]], [[3, 2], [7, 7], [8, 6]]); give(BLACK, ['timestop']); give(WHITE, []);
+    const m = e2ChooseMove(WHITE, makeBlocked(), ms, cfg);
+    board[m.r][m.c] = WHITE; e2Init(makeBlocked());
+    out.oppTimestop = { move: [m.r, m.c], riskAfter: e2DoubleRisk(WHITE) };
+    hand = { [BLACK]: [], [WHITE]: [] };
+    this.reset();
+    return out;
+  },
   // 새 카드 규칙 확인: 실제 게임 흐름(activateCard → 대상 클릭)으로 각 카드를 써 봄
   newCardTests() {
     const out = {};
@@ -311,9 +341,6 @@ window.__bench = {
     // 강탈: 백의 카드 1장을 가져옴
     fresh(BLACK); give(BLACK, 'steal'); hand[WHITE] = [CARD_POOL.find(c => c.id === 'chain')]; use(BLACK);
     out.steal = { black: hand[BLACK].map(c => c.id), white: hand[WHITE].length };
-    // 자석: (7,7) 쪽으로 2칸 안의 돌이 한 칸씩
-    fresh(BLACK); board[7][9] = BLACK; board[5][5] = WHITE; give(BLACK, 'magnet'); use(BLACK, { r: 7, c: 7 });
-    out.magnet = { b: board[7][8] === BLACK, w: board[6][6] === WHITE };
     // 맞교환 제한: 교환하면 흑 5목이 되는 쌍은 거부
     fresh(BLACK); [[7, 3], [7, 4], [7, 6], [7, 7]].forEach(([r, c]) => { board[r][c] = BLACK; }); board[7][5] = WHITE; board[8][5] = BLACK;
     give(BLACK, 'trade'); activateCard(BLACK, 0, null); handleTargetClick({ r: 8, c: 5 }); handleTargetClick({ r: 7, c: 5 });
