@@ -10,7 +10,7 @@ const TIERS = {
   bomb: { t: 'S', ko: '쓴 쪽 승률 61.0% — 원하는 돌 제거 + 2턴 구멍', en: 'Used-side win 61.0% — remove any stone plus a 2-turn crater' },
   windmill: { t: 'A', ko: '쓴 쪽 승률 59.7%, 픽률 84% — 주변 8칸 봉쇄로 공격 거점', en: 'Used-side win 59.7%, pick 84% — locks 8 cells around your stone' },
   infection: { t: 'A', ko: '쓴 쪽 승률 58.3% (표본 적음) — 2개 전향은 크지만 턴 종료', en: 'Used-side win 58.3% (small sample) — 2 conversions, ends your turn' },
-  snipe: { t: 'A', est: true, ko: '예상 — 상대 돌 2개를 비용 없이 제거, 대상은 무작위', en: 'Estimate — removes 2 enemy stones for free, targets are random' },
+  snipe: { t: 'A', est: true, ko: '예상 — 상대 돌 2개 제거, 대신 그 턴에 돌을 못 둠', en: 'Estimate — removes 2 enemy stones, but you skip placing that turn' },
   giant: { t: 'A', est: true, ko: '예상 — 한 번에 최대 4칸 확보 (덤 칸은 승리 불가)', en: 'Estimate — up to 4 cells at once (extra cells cannot win)' },
   trap: { t: 'B', ko: '쓴 쪽 승률 52.2% — 4를 만들 자리와 묶으면 강함', en: 'Used-side win 52.2% — strong when paired with a four' },
   blockade: { t: 'B', ko: '쓴 쪽 승률 50.0% — 상대가 결정타를 쥐었을 때만 가치', en: 'Used-side win 50.0% — only shines against a key card' },

@@ -55,7 +55,7 @@ Object.assign(I18N.ko, {
   'ab.draftTitle': '{color} — 시작 능력 선택', 'ab.draftSub': '판 내내 자동으로 적용되는 능력 1개를 고르세요', 'ab.badge': '시작 능력',
   'ab.picked': '{color}: 시작 능력 {icon} {card} 선택', 'log.pickpocket': '{color}: 🖐️ 손버릇 — 상대의 첫 카드 {card}를 똑같이 받음',
   'draft.refresh': '🔄 다시 뽑기 ({n}회 남음)', 'log.refresh': '{color}: 🔄 카드 다시 뽑기',
-  'log.snipeDone': '{color}: 🎯 저격 — 상대 돌 {n}개 제거', 'log.doubleDone': '{color}: 🎁 1+1 — 카드 2장 획득',
+  'log.snipeDone': '{color}: 🎯 저격 — 상대 돌 {n}개 제거 (턴 종료)', 'log.doubleDone': '{color}: 🎁 1+1 — 카드 2장 획득',
   'log.peekShow': '{color}: 🔍 상대 패 — {list}', 'log.peekEmpty': '{color}: 🔍 상대 패가 비어 있음', 'log.peeked': '🔍 상대가 내 패를 엿봤습니다',
   'log.giantOn': '{color}: 🪨 거대한 돌 — 이번 턴 다음 착수가 2×2로 놓임', 'log.giantDone': '{color}: 🪨 거대한 돌이 {n}칸을 차지',
   'log.ghostOn': '{color}: 👻 투명한 돌 — 이번 턴 다음 착수는 상대에게 3라운드 동안 안 보임', 'log.ghostFound': '👻 숨어 있던 투명한 돌을 찾았습니다!', 'log.ghostGone': '👻 투명한 돌이 모습을 드러냄',
@@ -71,7 +71,7 @@ Object.assign(I18N.en, {
   'ab.draftTitle': '{color} — Pick a starting ability', 'ab.draftSub': 'One passive ability that lasts the whole game', 'ab.badge': 'Ability',
   'ab.picked': '{color}: picked ability {icon} {card}', 'log.pickpocket': "{color}: 🖐️ Pickpocket — copied the opponent's first card, {card}",
   'draft.refresh': '🔄 Reroll ({n} left)', 'log.refresh': '{color}: 🔄 rerolled the cards',
-  'log.snipeDone': '{color}: 🎯 Snipe — removed {n} enemy stone(s)', 'log.doubleDone': '{color}: 🎁 1+1 — got 2 cards',
+  'log.snipeDone': '{color}: 🎯 Snipe — removed {n} enemy stone(s) (turn ends)', 'log.doubleDone': '{color}: 🎁 1+1 — got 2 cards',
   'log.peekShow': "{color}: 🔍 opponent's hand — {list}", 'log.peekEmpty': "{color}: 🔍 the opponent's hand is empty", 'log.peeked': '🔍 Your opponent peeked at your hand',
   'log.giantOn': '{color}: 🪨 Giant Stone — your next stone this turn covers 2×2', 'log.giantDone': '{color}: 🪨 the giant stone covers {n} cells',
   'log.ghostOn': '{color}: 👻 Ghost Stone — your next stone this turn is invisible to the opponent for 3 rounds', 'log.ghostFound': '👻 You found a hidden ghost stone!', 'log.ghostGone': '👻 A ghost stone became visible',
@@ -293,7 +293,7 @@ function useWorldCard(player, idx, card) {
       pruneInvalidTraps();
       addLog(L('log.snipeDone', { color: player, n: hit.length }));
       updateStatus(); updateHandUI(); draw();
-      endIfBoardWin(true);
+      if (!endIfBoardWin(true)) passTurn(); // 사용 즉시 턴 종료 (돌은 두지 않음)
       return true;
     }
     case 'double':
