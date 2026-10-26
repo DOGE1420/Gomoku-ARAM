@@ -144,6 +144,8 @@ let mpLgReq = null, mpLgRes = null, lastSeenLgReqId = null, lastSeenLgResId = nu
 
 // ---- 모드 / 멀티플레이 상태 ----
 let mode = 'local'; // 'local' | 'bot' | 'multiplayer'
+let spectator = false; // 멀티플레이 관전 중 (자리가 찬 방에 들어옴) — 공유 상태에 아무것도 쓰지 않음
+let specHandN = { [BLACK]: 0, [WHITE]: 0 }, spectatorCount = 0;
 let myColor = BLACK; // bot·멀티플레이에서 내가 조작하는 색
 let dbApi = null, myUserId = null;
 let roomCode = null;
@@ -267,6 +269,7 @@ function renderRematchBar() {
 
 function turnText() {
   let s = t('status.turn', { color: current });
+  if (spectator) return s + t('spec.tag');
   if (mode === 'multiplayer') s += current === myColor ? t('status.mine') : t('status.opp');
   return s;
 }
@@ -274,7 +277,7 @@ function turnText() {
 function updateStatus() {
   if (mode === 'bot') scheduleMaybeBotTurn();
   undoBtn.style.display = mode === 'multiplayer' ? 'none' : 'inline-block';
-  resetBtn.style.display = ((mode === 'multiplayer' && !gameOver) || loserPicksSide()) ? 'none' : 'inline-block';
+  resetBtn.style.display = ((mode === 'multiplayer' && (!gameOver || spectator)) || loserPicksSide()) ? 'none' : 'inline-block';
   renderRematchBar();
   if (gameOver) return;
   if (awaitingSide) { statusText.textContent = t('side.prompt'); return; }
@@ -470,10 +473,11 @@ function renderHand(player, container) {
     });
     return;
   }
-  // 멀티플레이: 상대 패는 장수만 (내용은 비공개)
+  // 멀티플레이: 상대 패는 장수만 (내용은 비공개, 관전자는 양쪽 다)
   if (hideContents) {
-    if (!lgOppHandN) { const span = document.createElement('span'); span.className = 'hand-empty'; span.textContent = t('hand.none'); container.appendChild(span); return; }
-    for (let i = 0; i < lgOppHandN; i++) {
+    const handN = spectator ? (specHandN[player] || 0) : lgOppHandN;
+    if (!handN) { const span = document.createElement('span'); span.className = 'hand-empty'; span.textContent = t('hand.none'); container.appendChild(span); return; }
+    for (let i = 0; i < handN; i++) {
       const btn = document.createElement('button');
       btn.className = 'hand-card disabled';
       btn.innerHTML = `<div class="hc-icon">🂠</div><div class="hc-name">${t('hand.hidden')}</div>`;
@@ -953,7 +957,7 @@ function bannerWinner(msg) {
 // 진 사람이 선후공을 고르는 상황인지: 멀티플레이는 양쪽 모두, 봇전은 사람이 졌을 때만
 function loserPicksSide() {
   const w = bannerWinner(lastBannerMsg);
-  if (!gameOver || w === null || w === undefined) return false;
+  if (!gameOver || w === null || w === undefined || spectator) return false;
   if (mode === 'multiplayer') return true;
   if (mode === 'bot') return w !== myColor;
   return false;
@@ -961,14 +965,14 @@ function loserPicksSide() {
 let lastBannerMsg = null;
 function renderBannerOnly(msg) {
   lastBannerMsg = msg;
-  let suffix = t('banner.suffix');
+  let suffix = spectator ? t('spec.bannerSuffix') : t('banner.suffix');
   if (loserPicksSide()) suffix = bannerWinner(msg) === myColor ? t('banner.suffixWinner') : t('banner.suffixLoser');
   banner.textContent = fmt(msg) + suffix;
   banner.classList.add('show');
   // 상태 줄에도 결과 표시 (봇의 '생각 중' 등 이전 문구가 남지 않게)
   statusText.classList.remove('targeting', 'alkkagi');
   statusText.textContent = fmt(msg);
-  resetBtn.style.display = ((mode === 'multiplayer' && !gameOver) || loserPicksSide()) ? 'none' : 'inline-block';
+  resetBtn.style.display = ((mode === 'multiplayer' && (!gameOver || spectator)) || loserPicksSide()) ? 'none' : 'inline-block';
   renderRematchBar();
 }
 function showBanner(text, skipSync) {

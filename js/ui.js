@@ -213,7 +213,7 @@ modeMpBtn.addEventListener('click', () => {
 lobbyBackBtn.addEventListener('click', () => {
   showRoomCode(null);
   if (unsubPublic) { unsubPublic(); unsubPublic = null; }
-  unsubscribeChat();
+  unsubscribeChat(); unsubscribeSpectators();
   showScreen('menu');
 });
 gameBackBtn.addEventListener('click', () => {
@@ -222,12 +222,13 @@ gameBackBtn.addEventListener('click', () => {
   engineToken++; engineBusy = false;
   awaitingSide = false;
   sideOverlay.classList.remove('show');
-  if (mode === 'multiplayer' && roomCode && dbApi && !gameOver) {
+  if (spectator) stopSpectate(); // 관전자가 나가는 건 경기에 영향 없음
+  else if (mode === 'multiplayer' && roomCode && dbApi && !gameOver) {
     gameOver = true;
     showBanner(L('banner.left', { color: myColor }));
   }
   if (unsubPublic) { unsubPublic(); unsubPublic = null; }
-  unsubscribeChat();
+  unsubscribeChat(); unsubscribeSpectators();
   mode = 'local';
   showScreen('menu');
 });

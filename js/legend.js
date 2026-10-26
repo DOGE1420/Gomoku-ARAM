@@ -121,7 +121,7 @@ function lgProgress(p) {
     case 'nap': return { ok: false, text: t('lg.p.nap') };
     case 'allin': {
       const hidden = mode === 'multiplayer' && p !== myColor;
-      const n = hidden ? lgOppHandN : hand[p].length;
+      const n = hidden ? (spectator ? specHandN[p] || 0 : lgOppHandN) : hand[p].length;
       return { ok: !hidden && n >= handLimit(p), text: t('lg.p.allin', { n, max: handLimit(p) }) };
     }
     case 'turtle': { const d = countStones(opp) - countStones(p); return { ok: d >= 5 && !winOver[p], text: t('lg.p.turtle', { n: Math.max(0, Math.min(d, 5)) }) }; }
