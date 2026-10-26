@@ -106,6 +106,22 @@ const openBench = require('./load');
     fresh(1, 'summer'); i = give(1, 'weather'); activateCard(1, i); out.weather = mapId;
     return out;
   })()`);
+  // 둘 곳이 없을 때: 연속 착수 남은 수는 턴 종료, 한쪽만 못 두면 턴 넘김, 양쪽 다 못 두면 무승부
+  res.stuck = await ev(`(() => { ${setup}
+    const walls = () => { for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) board[r][c] = WALL; windmillList = []; };
+    fresh(1); walls(); board[7][7] = EMPTY; board[7][8] = EMPTY;
+    turnPlacementsNeeded = 3; handlePlace({ r: 7, c: 7 });
+    const chainEnd = { cur: current, log: fmt(logLines[0]) };
+    // 흑은 백 풍차 때문에 못 둠, 백은 둘 수 있음 → 백 턴이 끝나면 흑을 건너뛰고 다시 백
+    fresh(2); walls(); board[5][5] = EMPTY; board[9][9] = EMPTY; board[4][4] = 2; windmillList = [{ r: 4, c: 4 }]; board[10][10] = 2; windmillList.push({ r: 10, c: 10 });
+    turnPlacementsDone = 1; passTurn();
+    const skip = { cur: current, over: gameOver, log: fmt(logLines[0]) };
+    // 양쪽 다 못 둠 → 무승부
+    fresh(2); walls(); board[5][5] = EMPTY; board[4][4] = 1; board[6][6] = 2; windmillList = [{ r: 4, c: 4 }, { r: 6, c: 6 }];
+    turnPlacementsDone = 1; passTurn();
+    const bothStuck = { over: gameOver, banner: lastBannerMsg && fmt(lastBannerMsg) };
+    return { chainEnd, skip, bothStuck };
+  })()`);
   res.errors = errors;
   console.log(JSON.stringify(res, null, 1));
   await cleanup();

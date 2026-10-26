@@ -10,17 +10,17 @@ const TIERS = {
   bomb: { t: 'S', ko: '쓴 쪽 승률 61.0% — 원하는 돌 제거 + 2턴 구멍', en: 'Used-side win 61.0% — remove any stone plus a 2-turn crater' },
   windmill: { t: 'A', ko: '쓴 쪽 승률 59.7%, 픽률 84% — 주변 8칸 봉쇄로 공격 거점', en: 'Used-side win 59.7%, pick 84% — locks 8 cells around your stone' },
   infection: { t: 'A', ko: '쓴 쪽 승률 58.3% (표본 적음) — 2개 전향은 크지만 턴 종료', en: 'Used-side win 58.3% (small sample) — 2 conversions, ends your turn' },
-  snipe: { t: 'A', est: true, ko: '예상 — 상대 돌 2개 제거, 대신 그 턴에 돌을 못 둠', en: 'Estimate — removes 2 enemy stones, but you skip placing that turn' },
-  giant: { t: 'A', est: true, ko: '예상 — 한 번에 최대 4칸 확보 (덤 칸은 승리 불가)', en: 'Estimate — up to 4 cells at once (extra cells cannot win)' },
+  snipe: { t: 'D', ko: '든 쪽 승률 40.7% — 쓰면 턴이 끝나 봇이 30판 중 3번만 사용 (표본 적음)', en: "Holder win 40.7% — ends the turn, bots used it only 3 times in 30 games (small sample)" },
+  giant: { t: 'S', ko: '든 쪽 승률 96.7% (29승 1패) — 한 번에 4칸, 현재 가장 강한 카드', en: "Holder win 96.7% (29–1) — 4 cells at once, the strongest card right now" },
   trap: { t: 'B', ko: '쓴 쪽 승률 52.2% — 4를 만들 자리와 묶으면 강함', en: 'Used-side win 52.2% — strong when paired with a four' },
   blockade: { t: 'B', ko: '쓴 쪽 승률 50.0% — 상대가 결정타를 쥐었을 때만 가치', en: 'Used-side win 50.0% — only shines against a key card' },
   reversal: { t: 'B', ko: '쓴 쪽 승률 50.0% — 지고 있을 때 판을 뒤집는 한 방', en: 'Used-side win 50.0% — a comeback swing' },
-  double: { t: 'B', est: true, ko: '예상 — 카드 1장을 2장으로, 무엇이 올지 모름', en: 'Estimate — turns 1 card into 2 random ones' },
+  double: { t: 'A', ko: '든 쪽 승률 68.0% — 1장이 2장으로', en: "Holder win 68.0% — one card becomes two" },
   wall: { t: 'B', ko: '쓴 쪽 승률 45.1% — 수비용, 열린 4를 막을 때 결정적', en: 'Used-side win 45.1% — defensive, decisive against an open four' },
   sixsense: { t: 'B', ko: '쓴 쪽 승률 44.4% — 상대의 5목 위협을 무력화', en: 'Used-side win 44.4% — defuses the opponent’s fives' },
-  weather: { t: 'C', est: true, ko: '예상 — 맵 규칙을 바꾸지만 이득은 상황에 달림', en: 'Estimate — changes the map; value depends on the board' },
-  ghost: { t: 'C', est: true, ko: '예상 — 사람 상대로는 함정이 되지만 판에는 그대로 영향', en: 'Estimate — tricks humans, but the stone is still just a stone' },
-  peek: { t: 'C', est: true, ko: '예상 — 정보만 얻고 판은 그대로', en: 'Estimate — information only' },
+  weather: { t: 'C', ko: '든 쪽 승률 45.8% — 맵이 바뀌어도 이득은 운', en: "Holder win 45.8% — changing the map is a gamble" },
+  ghost: { t: 'B', ko: '든 쪽 승률 59.3% — 봇은 숨은 돌도 보므로 사람 상대로는 더 셀 수 있음', en: "Holder win 59.3% — bots see hidden stones, so it may be stronger against people" },
+  peek: { t: 'B', ko: '든 쪽 승률 73.1%지만 봇은 엿본 정보를 쓰지 않아 운의 영향이 큼 — 정보만 얻는 카드', en: "Holder win 73.1%, but bots don't use the information, so luck is likely — information only" },
   shield: { t: 'C', ko: '쓴 쪽 승률 31.8% — 지키는 동안 판을 못 움직임', en: 'Used-side win 31.8% — protection without progress' },
   teleport: { t: 'C', ko: '무작위 이동이라 이득이 적음 (표본 적음)', en: 'Random move, little gain (small sample)' },
   meteor: { t: 'D', ko: '쓴 쪽 승률 16.7% — 내 돌이 날아갈 수도 있음', en: 'Used-side win 16.7% — may hit your own stone' },
@@ -40,12 +40,12 @@ const TIERS = {
   allin: { t: 'C', ko: '발동 0% — 패 4장을 모아 동전 던지기', en: 'Fired 0% — full hand for a coin flip' },
   sloth: { t: 'D', ko: '발동 0% — 가장자리에 5턴은 사실상 판 포기', en: 'Fired 0% — 5 turns on the edge is nearly giving up' },
   // 시작 능력
-  sturdy: { t: 'A', est: true, ko: '예상 — 중앙 첫 3돌이 판 내내 안전', en: 'Estimate — your first 3 central stones stay safe all game' },
-  pouch: { t: 'A', est: true, ko: '예상 — 카드가 넘쳐 버려지는 일이 줄어듦', en: 'Estimate — fewer cards lost to a full hand' },
-  clover: { t: 'A', est: true, ko: '예상 — 매 카드 선택에서 1장 더 보고 고름', en: 'Estimate — one extra option every pick' },
-  umbrella: { t: 'B', est: true, ko: '예상 — 자연재해 맵에서만 효과 (평원·우주에선 무용)', en: 'Estimate — only matters on disaster maps' },
-  pickpocket: { t: 'B', est: true, ko: '예상 — 카드 1장 공짜, 한 번뿐', en: 'Estimate — one free card, once' },
-  retry: { t: 'C', est: true, ko: '예상 — 다시 뽑기 2번 추가', en: 'Estimate — two extra rerolls' },
+  sturdy: { t: 'B', ko: '든 쪽 승률 55.6% — 첫 3돌이 판 내내 안전', en: "Holder win 55.6% — your first 3 stones stay safe" },
+  pouch: { t: 'C', ko: '든 쪽 승률 51.9% — 기준선(46.4%)과 비슷', en: "Holder win 51.9% — close to the baseline (46.4%)" },
+  clover: { t: 'B', ko: '든 쪽 승률 57.1% — 매 선택에서 1장 더 보고 고름', en: "Holder win 57.1% — one extra option every pick" },
+  umbrella: { t: 'B', ko: '든 쪽 승률 60.7% — 자연재해 맵에서만 효과', en: "Holder win 60.7% — only matters on disaster maps" },
+  pickpocket: { t: 'A', ko: '든 쪽 승률 65.2% — 상대 첫 카드를 공짜로', en: "Holder win 65.2% — a free copy of the opponent's first card" },
+  retry: { t: 'C', ko: '든 쪽 승률 50.0% — 봇은 다시 뽑기를 쓰지 않아 기준선과 비슷', en: "Holder win 50.0% — bots don't reroll, so it matches the baseline" },
 };
 const TIER_ORDER = ['S', 'A', 'B', 'C', 'D'];
 
@@ -54,7 +54,7 @@ Object.assign(I18N.ko, {
   'codex.title': '카드 도감', 'codex.close': '닫기',
   'codex.tab.cards': '일반 카드', 'codex.tab.legends': '전설 카드', 'codex.tab.abilities': '시작 능력', 'codex.tab.maps': '맵', 'codex.tab.tiers': '티어표',
   'codex.chance': '출현 {p}%', 'codex.auto': '자동 발동', 'codex.manual': '조건 충족 시 사용', 'codex.mpOnly': '멀티 전용', 'codex.est': '예상',
-  'codex.tierNote': '일반 카드: 짱짱맨끼리 200판에서 그 카드를 쓴 쪽의 승률·픽률 기준 · 전설 카드: 한쪽만 들고 둔 측정(카드당 10판, 레벨 5) 기준 · "예상"은 아직 측정 전이라 효과를 보고 매긴 티어입니다.',
+  'codex.tierNote': '기존 카드: 짱짱맨끼리 200판에서 그 카드를 쓴 쪽의 승률·픽률 · 새 카드: 한쪽만 시작 패에 2장 쥐고 30판 · 시작 능력: 한쪽만 갖고 30판 · 전설 카드: 한쪽만 들고 10판 (모두 레벨 5, 아무것도 없는 기준선 46.4%, 판 수가 적어 ±15%p 정도 흔들림) · "예상"은 아직 측정 전이라 효과를 보고 매긴 티어입니다.',
   'codex.sec.cards': '일반 카드', 'codex.sec.legends': '전설 카드', 'codex.sec.abilities': '시작 능력',
 });
 Object.assign(I18N.en, {
@@ -62,7 +62,7 @@ Object.assign(I18N.en, {
   'codex.title': 'Card Codex', 'codex.close': 'Close',
   'codex.tab.cards': 'Cards', 'codex.tab.legends': 'Legends', 'codex.tab.abilities': 'Abilities', 'codex.tab.maps': 'Maps', 'codex.tab.tiers': 'Tier List',
   'codex.chance': '{p}% to appear', 'codex.auto': 'Automatic', 'codex.manual': 'Use when ready', 'codex.mpOnly': 'Multiplayer only', 'codex.est': 'estimate',
-  'codex.tierNote': 'Cards: win rate and pick rate of the side that used the card over 200 Super-bot games · Legends: one side holding it (10 games each, level 5) · "estimate" = not measured yet, rated from the effect.',
+  'codex.tierNote': 'Original cards: win and pick rate of the side that used them over 200 Super-bot games · New cards: one side starts with 2 copies, 30 games · Abilities: one side has it, 30 games · Legends: one side holds it, 10 games (all level 5; baseline with nothing 46.4%; small samples swing about ±15 points) · "estimate" = not measured yet.',
   'codex.sec.cards': 'Cards', 'codex.sec.legends': 'Legends', 'codex.sec.abilities': 'Abilities',
 });
 

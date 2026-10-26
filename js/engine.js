@@ -1318,7 +1318,7 @@ function botUseCardSmart(botColor, after, opts) {
           sum += g;
         }
         const exp = sum / pool.length * Math.min(2, pool.length);
-        if (exp > 2500 * scale) consider(idx, 800 + exp / 2);
+        if (exp > 1000 * scale) consider(idx, 800 + exp / 2);
         break;
       }
       case 'double':
