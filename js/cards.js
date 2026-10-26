@@ -31,6 +31,12 @@ const CARD_POOL = [
   { id: 'shield', name: '보호막', icon: '🛡️', desc: '내 돌 하나를 고르면 그 돌 주변 3×3 안의 내 돌이 상대의 다음 2턴 동안 폭파·맞교환·감염·운석·전세 역전에서 보호됩니다.', type: 'shield', weight: 7 },
   { id: 'wall', name: '장벽', icon: '🧱', desc: '빈 칸 하나에 누구의 돌도 아닌 장벽을 세웁니다. 아무도 둘 수 없고 줄도 끊깁니다 (영구).', type: 'wall', weight: 7 },
   { id: 'meteor', name: '운석', icon: '☄️', desc: '판 위의 무작위 돌 1개가 무작위 빈 칸으로 날아갑니다. 내 돌일 수도 있어요! (보호막 안의 돌은 안전)', type: 'meteor', weight: 5 },
+  { id: 'snipe', name: '저격', icon: '🎯', desc: '상대 돌 중 무작위 2개를 제거합니다. (보호받는 돌은 제외)', type: 'snipe', weight: 4 },
+  { id: 'double', name: '1+1', icon: '🎁', desc: '무작위 카드 2장을 받습니다. 어떤 카드가 올지는 고를 수 없습니다.', type: 'double', weight: 6 },
+  { id: 'peek', name: '엿보기', icon: '🔍', desc: '상대가 쥔 카드를 모두 확인합니다 (내 턴이 끝날 때까지 상대 패가 보임).', type: 'peek', weight: 6 },
+  { id: 'giant', name: '거대한 돌', icon: '🪨', desc: '이번 턴의 다음 착수가 2×2 거대한 돌이 됩니다: 놓은 칸과 그 오른쪽·아래·오른쪽 아래 빈 칸까지 내 돌로 채워집니다. (덤으로 붙는 칸으로는 승리 줄을 완성할 수 없음)', type: 'giant', weight: 3 },
+  { id: 'ghost', name: '투명한 돌', icon: '👻', desc: '이번 턴의 다음 착수가 상대에게 3라운드 동안 보이지 않습니다. 상대가 그 칸을 누르면 들킵니다.', type: 'ghost', weight: 5 },
+  { id: 'weather', name: '기상 이변', icon: '🌦️', desc: '이번 판의 맵이 다른 무작위 맵으로 바뀝니다. (얼어 있던 돌은 모두 녹음)', type: 'weather', weight: 4 },
   { id: 'infection', name: '감염', icon: '🦠', desc: '내 돌과 상하좌우로 맞닿은 상대 돌 중 무작위 2개를 내 돌로 전향시킵니다. 오목/육목이 완성되는 돌은 제외되며, 사용 즉시 내 턴이 종료됩니다.', type: 'infection', weight: 8 },
 ];
 
@@ -51,6 +57,12 @@ const CARD_SHORT_DESC = {
   shield: '내 돌 주변 3×3 보호 (상대 2턴)',
   wall: '빈 칸에 영구 장벽',
   meteor: '무작위 돌 1개를 무작위 칸으로 (내 돌일 수도)',
+  snipe: '상대 돌 무작위 2개 제거',
+  double: '무작위 카드 2장 받기',
+  peek: '상대 패 확인',
+  giant: '다음 착수가 2×2 돌',
+  ghost: '다음 착수가 상대에게 안 보임',
+  weather: '맵을 다른 맵으로 바꾸기',
 };
 
 // ================= 다국어 (한국어 기본 / English) =================
@@ -69,6 +81,12 @@ const CARD_EN = {
   shield: { name: 'Shield', desc: "Pick one of your stones: your stones in the 3×3 around it are protected from Bomb, Swap, Infection, Meteor and Reversal for your opponent's next 2 turns.", short: 'Protect a 3×3 area (2 enemy turns)' },
   wall: { name: 'Wall', desc: 'Build a neutral wall on an empty cell. Nobody can play there and it breaks lines (permanent).', short: 'Permanent wall on an empty cell' },
   meteor: { name: 'Meteor', desc: 'A random stone on the board is flung to a random empty cell — it could be yours! (Shielded stones are safe.)', short: 'Fling a random stone (maybe yours)' },
+  snipe: { name: 'Snipe', desc: 'Remove 2 random enemy stones. (Protected stones are skipped.)', short: 'Remove 2 random enemy stones' },
+  double: { name: '1+1', desc: "Get 2 random cards. You don't get to choose them.", short: 'Get 2 random cards' },
+  peek: { name: 'Peek', desc: "See every card in your opponent's hand (shown until your turn ends).", short: "See the opponent's hand" },
+  giant: { name: 'Giant Stone', desc: 'Your next stone this turn becomes a 2×2 giant: it also fills the empty cells to its right, below, and below-right. (The extra cells cannot complete a winning line.)', short: 'Next stone covers 2×2' },
+  ghost: { name: 'Ghost Stone', desc: 'Your next stone this turn is invisible to your opponent for 3 rounds. If they tap that cell, it is found.', short: 'Next stone is invisible' },
+  weather: { name: 'Weather Shift', desc: "Change this game's map to another random map. (Frozen stones thaw.)", short: 'Change the map' },
   infection: { name: 'Infection', desc: 'Convert 2 random enemy stones touching yours (up/down/left/right) to your color. Stones that would complete a winning line are skipped. Your turn ends immediately.', short: 'Convert 2 touching enemies (turn ends)' },
 };
 
@@ -127,7 +145,7 @@ const LEGEND_EN = {
   king: { name: 'Return of the King', short: 'First stone alive + 20 moves → fill its 8 neighbors',
     desc: 'Usable when your very first stone is still in place and 20+ moves have been played. Every empty cell around it becomes your stone. (Cells that would complete a winning line are skipped.)' },
 };
-function findAnyCard(id) { return CARD_POOL.find(c => c.id === id) || LEGEND_POOL.find(c => c.id === id) || null; }
+function findAnyCard(id) { return CARD_POOL.find(c => c.id === id) || LEGEND_POOL.find(c => c.id === id) || ABILITY_POOL.find(c => c.id === id) || null; }
 
 const I18N = {
   ko: {
@@ -239,7 +257,7 @@ const I18N = {
     'lg.p.obelisk': '내 돌 {n}/3', 'lg.p.nothing': '빈 손 {n}/3턴', 'lg.p.latebloom': '{n}/40수', 'lg.p.blind': '멀리 두기 {n}/3',
     'lg.p.clown': '잃은 돌 {n}/3', 'lg.p.chicken': '긴 줄 나 {a} · 상대 {b} (둘 다 3 이상)', 'lg.p.sloth': '가장자리 {n}/5턴',
     'lg.p.mirror': '대칭 {n}/3', 'lg.p.mirrorCard': '대칭 {n}/3 · 복사할 카드 {card}', 'lg.p.nap': '내 턴에 10초 가만히',
-    'lg.p.allin': '패 {n}/4', 'lg.p.turtle': '돌 차이 {n}/5', 'lg.p.king': '{n}/20수 · 첫 돌 {s}', 'lg.alive': '살아 있음', 'lg.dead': '사라짐',
+    'lg.p.allin': '패 {n}/{max}', 'lg.p.turtle': '돌 차이 {n}/5', 'lg.p.king': '{n}/20수 · 첫 돌 {s}', 'lg.alive': '살아 있음', 'lg.dead': '사라짐',
     'tgt.obelisk': '희생할 내 돌 3개를 고르세요 ({n}/3)',
     'lg.obeliskDone': '{color}: 🗿 거신병이 상대 돌 {n}개가 있던 줄을 분쇄!', 'lg.obeliskNone': '{color}: 🗿 부술 상대 돌이 없음',
     'lg.nothingDone': '{color}: 🧘 무소유 — 상대가 패 {n}장을 모두 버리고, 그만큼 카드를 받음', 'lg.nothingLost': '🧘 상대의 무소유! 내 패 {n}장을 모두 버림',
@@ -362,7 +380,7 @@ const I18N = {
     'lg.p.obelisk': 'Your stones {n}/3', 'lg.p.nothing': 'Empty hand {n}/3 turns', 'lg.p.latebloom': '{n}/40 moves', 'lg.p.blind': 'Far moves {n}/3',
     'lg.p.clown': 'Stones lost {n}/3', 'lg.p.chicken': 'Longest line you {a} · them {b} (both 3+)', 'lg.p.sloth': 'Edge turns {n}/5',
     'lg.p.mirror': 'Mirrors {n}/3', 'lg.p.mirrorCard': 'Mirrors {n}/3 · card to copy: {card}', 'lg.p.nap': 'Stay idle 10s on your turn',
-    'lg.p.allin': 'Hand {n}/4', 'lg.p.turtle': 'Stone gap {n}/5', 'lg.p.king': '{n}/20 moves · first stone {s}', 'lg.alive': 'alive', 'lg.dead': 'gone',
+    'lg.p.allin': 'Hand {n}/{max}', 'lg.p.turtle': 'Stone gap {n}/5', 'lg.p.king': '{n}/20 moves · first stone {s}', 'lg.alive': 'alive', 'lg.dead': 'gone',
     'tgt.obelisk': 'Pick 3 of your stones to sacrifice ({n}/3)',
     'lg.obeliskDone': '{color}: 🗿 The Colossus smashed a line holding {n} enemy stones!', 'lg.obeliskNone': '{color}: 🗿 no enemy stones to smash',
     'lg.nothingDone': '{color}: 🧘 Nothing Owned — the opponent discarded {n} card(s) and you drew as many', 'lg.nothingLost': "🧘 Opponent's Nothing Owned! You discarded all {n} card(s)",
@@ -383,7 +401,7 @@ let lang = 'ko';
 try { if (localStorage.getItem('omok_lang') === 'en') lang = 'en'; } catch (e) {}
 
 function colorName(c) { return c === BLACK ? t('black') : t('white'); }
-function cardEn(id) { return CARD_EN[id] || LEGEND_EN[id]; }
+function cardEn(id) { return CARD_EN[id] || LEGEND_EN[id] || ABILITY_EN[id]; }
 function cardName(card) { const id = typeof card === 'string' ? card : card && card.id; const en = cardEn(id); return lang === 'en' && en ? en.name : (findAnyCard(id) || card || {}).name || ''; }
 function cardDesc(card) {
   if (lang === 'en' && cardEn(card.id)) return cardEn(card.id).desc;
@@ -391,7 +409,7 @@ function cardDesc(card) {
 }
 function cardShort(card) {
   if (lang === 'en' && cardEn(card.id)) return cardEn(card.id).short;
-  const lgc = LEGEND_POOL.find(c => c.id === card.id);
+  const lgc = LEGEND_POOL.find(c => c.id === card.id) || ABILITY_POOL.find(c => c.id === card.id);
   return lgc ? lgc.short : (CARD_SHORT_DESC[card.id] || '');
 }
 
@@ -402,6 +420,8 @@ function t(key, p) {
     const v = p ? p[name] : undefined;
     if (name === 'color' || name === 'color2') return colorName(v);
     if (name === 'card') return cardName(v);
+    if (name === 'map') return mapName(v);
+    if (name === 'mapShort') return mapShort(v);
     return v === undefined || v === null ? '' : String(v);
   });
 }

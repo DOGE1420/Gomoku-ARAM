@@ -26,6 +26,8 @@ function buildPublicState() {
     cardFx: mpCardFx,
     lg, winOver, immune: immuneList,
     lgPick: lg ? { [BLACK]: lg.card[BLACK], [WHITE]: lg.card[WHITE] } : null,
+    world, abPick: world ? { [BLACK]: world.ab[BLACK], [WHITE]: world.ab[WHITE] } : null,
+    peekReq: mpPeekReq, peekRes: mpPeekRes, gift: mpGift,
     lgReq: mpLgReq, lgRes: mpLgRes,
     handN: { [myColor]: (hand[myColor] || []).length, [other(myColor)]: lgOppHandN },
   };
@@ -194,7 +196,7 @@ function handleStealSync(data) {
     const card = rs.card && CARD_POOL.find(c => c.id === rs.card);
     if (card) {
       hand[myColor].push(card);
-      if (hand[myColor].length > HAND_LIMIT) { const dropped = hand[myColor].shift(); addLog(L('log.handOverflow', { color: myColor, card: dropped.id })); }
+      trimHand(myColor);
       addLog(L('log.stealGot', { color: myColor, card: card.id }));
     } else addLog(L('log.stealEmpty', { color: myColor }));
     savePrivateState();
@@ -262,6 +264,7 @@ function applyPublicSnapshot(data) {
     alk = null; alkHandoff = null; alkView = null; mpAlkLaunch = null; turnPlacedPositions = [];
     mpNoticeSeq = 0; mpShakeSeq = 0;
     lgReset();
+    world = null; // 새 판의 맵·시작 능력은 공개 상태에서 받음
     draftOverlay.classList.remove('show');
   }
   // 번호는 양쪽 화면이 같은 값을 이어 써야 함 — 상대가 올린 번호를 내 쪽에도 맞춰 둠
@@ -281,7 +284,7 @@ function applyPublicSnapshot(data) {
 
   if (restarted) {
     addLog(L('log.youAre', { color: restartedColor }));
-    startupQueue = [myColor];
+    startupQueue = makeStartupQueue([myColor]);
     runStartupDraft();
   }
 
@@ -298,8 +301,25 @@ function applyPublicSnapshot(data) {
     immuneList = Array.isArray(data.immune) ? data.immune.slice() : (data.immune ? Object.values(data.immune) : []);
     if (data.handN && typeof data.handN[other(myColor)] === 'number') lgOppHandN = data.handN[other(myColor)];
   }
+  // 맵·시작 능력: 공개 상태를 따르되, 내 시작 능력과 다시 뽑기 횟수는 내 화면이 기준
+  if (data.world) {
+    const opp = other(myColor);
+    const prevMap = world ? world.map : null, myAb = world ? world.ab[myColor] : null, oppAbPrev = world ? world.ab[opp] : null;
+    const myRefresh = world ? world.refresh[myColor] : null;
+    world = worldNorm(data.world);
+    const ap = data.abPick || {};
+    world.ab[myColor] = myAb;
+    world.ab[opp] = ap[opp] || world.ab[opp] || oppAbPrev;
+    if (myRefresh !== null) world.refresh[myColor] = myRefresh;
+    if (myAb && ap[myColor] !== myAb && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/abPick', { [myColor]: myAb }).catch(() => {});
+    mapId = world.map;
+    if (prevMap !== world.map) logMapStart();
+    if (prevMap === null) lastSeenWorldEv = world.evSeq; // 들어오기 전 기록은 다시 보여주지 않음
+    catchUpWorldLog();
+  }
   handleStealSync(data);
   handleLegendSync(data);
+  handleWorldSync(data);
   lastPublicData = data;
   updateAlkSpectate(data); // 상대 발사가 새로 왔으면 먼저 재생을 시작
   syncAlkFromPublic(data);
@@ -481,6 +501,7 @@ function startRematch(newColor, viaRandom) {
   alkView = null; mpAlkLaunch = null;
   hand = { [BLACK]: [], [WHITE]: [] }; // 상대 손패는 상대 쪽에서 restartSeq를 보고 알아서 초기화함
   lgReset();
+  worldReset();
   logLines = [];
   mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null; lastBannerMsg = null;
   mpShakeSeq = 0; lastSeenShakeSeq = 0;
@@ -492,8 +513,9 @@ function startRematch(newColor, viaRandom) {
   }
   mpRestartSeq = Math.max(mpRestartSeq, lastSeenRestartSeq) + 1; lastSeenRestartSeq = mpRestartSeq; // 내 화면은 스스로 에코 처리하지 않도록
   banner.classList.remove('show'); draftOverlay.classList.remove('show'); updateLog();
+  logMapStart();
   syncPublicState();
-  startupQueue = [myColor];
+  startupQueue = makeStartupQueue([myColor]);
   runStartupDraft();
 }
 
@@ -521,6 +543,7 @@ async function joinRoom(codeRaw) {
     mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, players);
     mpPlayers[assignedColor] = myUserId;
     hand = { [BLACK]: [], [WHITE]: [] };
+    lgReset(); world = null; // 이전 판의 전설 카드·맵이 남지 않게 (방의 공개 상태에서 받음)
     trapList = []; pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null; alkHandoff = null;
     pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null;
     moveHistory = [];
@@ -553,7 +576,7 @@ async function joinRoom(codeRaw) {
       updateStatus(); updatePips(); updateHandUI(); draw();
       setLobbyStatus(L('lobby.reconnected'));
     } else {
-      startupQueue = [myColor];
+      startupQueue = makeStartupQueue([myColor]);
       runStartupDraft();
     }
     showScreen('game');

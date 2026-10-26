@@ -76,6 +76,7 @@ function botUseCard(botColor, after) {
     if (c.type === 'shield') return hasStoneOf(botColor);
     if (c.type === 'wall') return hasEmptyCell();
     if (c.type === 'meteor') return meteorTargets().length > 0;
+    if (c.type === 'snipe') return hasStoneOf(opp);
     return true;
   });
   if (usable.length === 0) return false;

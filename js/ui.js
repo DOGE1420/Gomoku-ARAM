@@ -134,6 +134,7 @@ function rerenderAll() {
   }
   if (confirmBar.classList.contains('show') && confirmMsg) confirmText.textContent = fmt(confirmMsg);
   if (banner.classList.contains('show') && lastBannerMsg) renderBannerOnly(lastBannerMsg);
+  if (!codexEl.hidden) renderCodex();
   if (draftOverlay.classList.contains('show') && lastDraft) renderDraftCards(lastDraft.player, lastDraft.picks);
   if (!chatPanel.hidden) renderChat(lastChatMessages);
 }

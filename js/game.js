@@ -154,7 +154,9 @@ let mpShakeSeq = 0, lastSeenShakeSeq = 0;
 let mpRestartSeq = 0, lastSeenRestartSeq = 0;
 
 function getCardPool() {
-  return CARD_POOL; // 모든 모드에서 알까기 포함
+  // 장마 맵: 지진 카드가 두 배로 자주 나옴
+  if (mapId === 'rain') return CARD_POOL.map(c => c.id === 'earthquake' ? Object.assign({}, c, { weight: c.weight * 2 }) : c);
+  return CARD_POOL;
 }
 
 function waitForFb(timeoutMs) {
@@ -231,6 +233,7 @@ function init() {
   cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
   skipNextTurn = { [BLACK]: false, [WHITE]: false };
   lgReset();
+  worldReset(tut ? 'classic' : undefined);
   mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
   mpShakeSeq = 0; lastSeenShakeSeq = 0;
   mpRestartSeq = 0; lastSeenRestartSeq = 0;
@@ -247,7 +250,8 @@ function init() {
     return;
   }
   if (tut) { startupQueue = null; updateStatus(); updatePips(); updateHandUI(); draw(); return; } // 튜토리얼은 시작 카드 없음
-  startupQueue = mode === 'multiplayer' ? [myColor] : [BLACK, WHITE];
+  logMapStart();
+  startupQueue = makeStartupQueue(mode === 'multiplayer' ? [myColor] : [BLACK, WHITE]);
   runStartupDraft();
 }
 
@@ -291,6 +295,7 @@ function updateStatus() {
   const turtles = [BLACK, WHITE].filter(p => winOver[p]).map(p => t('rule.turtle', { color: p }));
   winLenBadge.textContent = (winLength !== 5 ? [t('rule.len', { n: winLength })] : []).concat(turtles).join(' · ');
   winLenBadge.classList.toggle('show', winLength !== 5 || turtles.length > 0);
+  renderMapBadge();
 }
 
 function updateAlkStatus() {
@@ -355,7 +360,7 @@ const cdIcon = document.getElementById('cd-icon'), cdName = document.getElementB
 const cdDesc = document.getElementById('cd-desc'), cdNote = document.getElementById('cd-note'), cdUse = document.getElementById('cd-use'), cdClose = document.getElementById('cd-close');
 let cardDetailFor = null; // { player, idx, id } (전설 카드는 idx = 'legend')
 function openCardDetail(player, idx) {
-  const card = idx === 'legend' ? lgCard(player) : hand[player] && hand[player][idx];
+  const card = idx === 'map' ? mapInfo() : idx === 'ability' ? abCard(player) : idx === 'legend' ? lgCard(player) : hand[player] && hand[player][idx];
   if (!card) return;
   cardDetailFor = { player, idx, id: card.id };
   renderCardDetail();
@@ -365,6 +370,8 @@ function openCardDetail(player, idx) {
 function renderCardDetail() {
   const f = cardDetailFor;
   if (f && f.idx === 'legend') { renderLegendDetail(f); return; }
+  if (f && f.idx === 'ability') { renderAbilityDetail(f); return; }
+  if (f && f.idx === 'map') { renderMapDetail(); return; }
   const card = f && hand[f.player] && hand[f.player][f.idx];
   if (!card || card.id !== f.id) { closeCardDetail(); return; } // 패가 바뀌었으면 닫음
   cdIcon.textContent = card.icon; cdName.textContent = cardName(card);
@@ -420,8 +427,19 @@ function renderLegendDetail(f) {
 function renderLegend(player, container) {
   if (!container) return;
   container.innerHTML = '';
+  const appendChip = () => {
+    const ab = abCard(player);
+    if (ab) {
+      // 시작 능력 (양쪽 공개)
+      const chip = document.createElement('button');
+      chip.type = 'button'; chip.className = 'ability-chip'; chip.title = cardDesc(ab);
+      chip.textContent = ab.icon + ' ' + cardName(ab);
+      chip.addEventListener('click', () => openCardDetail(player, 'ability'));
+      container.appendChild(chip);
+    }
+  };
   const card = lgCard(player);
-  if (!card) return;
+  if (!card) { appendChip(); return; }
   const done = lg.done[player], pr = lgProgress(player);
   const ready = !done && !card.auto && pr.ok;
   const btn = document.createElement('button');
@@ -433,11 +451,36 @@ function renderLegend(player, container) {
   btn.title = cardDesc(card);
   btn.addEventListener('click', () => openCardDetail(player, 'legend'));
   container.appendChild(btn);
+  appendChip();
 }
 
 function renderHand(player, container) {
   container.innerHTML = '';
   const hideContents = mode === 'multiplayer' && player !== myColor;
+  // 엿보기로 본 상대 패 (내 턴이 끝날 때까지)
+  const peek = peekView && peekView.by !== player && (mode === 'local' || peekView.by === myColor) ? peekView.cards : null;
+  if (peek && hideContents) {
+    if (!peek.length) { const span = document.createElement('span'); span.className = 'hand-empty'; span.textContent = t('hand.none'); container.appendChild(span); return; }
+    peek.forEach(id => {
+      const card = findAnyCard(id); if (!card) return;
+      const btn = document.createElement('button');
+      btn.className = 'hand-card peeked'; btn.title = cardDesc(card);
+      btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${cardName(card)}</div><div class="hc-desc">${cardShort(card)}</div>`;
+      container.appendChild(btn);
+    });
+    return;
+  }
+  // 멀티플레이: 상대 패는 장수만 (내용은 비공개)
+  if (hideContents) {
+    if (!lgOppHandN) { const span = document.createElement('span'); span.className = 'hand-empty'; span.textContent = t('hand.none'); container.appendChild(span); return; }
+    for (let i = 0; i < lgOppHandN; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'hand-card disabled';
+      btn.innerHTML = `<div class="hc-icon">🂠</div><div class="hc-name">${t('hand.hidden')}</div>`;
+      container.appendChild(btn);
+    }
+    return;
+  }
   if (hand[player].length === 0) {
     const span = document.createElement('span');
     span.className = 'hand-empty';
@@ -502,6 +545,7 @@ function drawWalls() {
   for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
     if (board[r][c] !== WALL) continue;
     const p = cellCenter(r, c), h = CELL * 0.44;
+    if (drawWorldCell(r, c, p)) continue; // 자기장 칸 · 얼음
     ctx.fillStyle = '#6b5a4a'; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.rect(p.x - h, p.y - h, h * 2, h * 2); ctx.fill(); ctx.stroke();
     ctx.font = Math.round(CELL * 0.5) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -579,7 +623,7 @@ function draw() {
 
   for (let r = 0; r < SIZE; r++) {
     for (let c = 0; c < SIZE; c++) {
-      if (isStone(board[r][c])) { const p = cellCenter(r, c); drawStoneAt(p.x, p.y, board[r][c]); }
+      if (isStone(board[r][c]) && !isHiddenFor(r, c, viewerColor())) { const p = cellCenter(r, c); drawStoneAt(p.x, p.y, board[r][c]); }
     }
   }
 
@@ -626,13 +670,22 @@ function draw() {
     ctx.restore();
   }
 
-  if (lastMovePos) {
+  if (lastMovePos && !isHiddenFor(lastMovePos.r, lastMovePos.c, viewerColor())) {
     const p = cellCenter(lastMovePos.r, lastMovePos.c);
     ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.stroke();
   }
 
-  if (winLine) {
+  drawWorldOverlay();
+  if (winLine && winLine[2]) {
+    // 웜홀을 넘어 이어진 승리 줄: 칸마다 표시
+    const w = winLine[2];
+    for (let k = 0; k < w.n; k++) {
+      const p = cellCenter(((winLine[0].r + w.dr * k) % SIZE + SIZE) % SIZE, ((winLine[0].c + w.dc * k) % SIZE + SIZE) % SIZE);
+      ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, R + 2, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else if (winLine) {
     const a = cellCenter(winLine[0].r, winLine[0].c);
     const b = cellCenter(winLine[1].r, winLine[1].c);
     ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 4; ctx.lineCap = 'round';
@@ -709,6 +762,14 @@ function handleCanvasClick(evt) {
   }
 
   const { r, c } = pos;
+  if (isHiddenFor(r, c, current)) {
+    // 투명한 돌을 눌러 찾아냄 (차례는 그대로)
+    world.hidden = world.hidden.filter(h => !(h.r === r && h.c === c));
+    worldLog(L('log.ghostFound'));
+    draw();
+    if (mode === 'multiplayer') syncPublicState();
+    return;
+  }
   if (board[r][c] !== EMPTY) return;
   if (placeBlocked(r, c, current)) {
     addLog(L(isCrater(r, c) ? 'log.craterBlocked' : 'log.windmillBlocked'));
@@ -789,11 +850,12 @@ function handlePlace(pos) {
   }
   // 자기 자신의 함정 위에 두면 그 함정은 조용히 소멸
   trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
+  worldOnPlace(r, c, current); // 거대한 돌 · 투명한 돌 · 단단한 시작
 
   const win = checkWin(r, c, current);
   if (tut && tutAfterPlace(!!win)) return;
   if (win) {
-    gameOver = true; winLine = [win.start, win.end];
+    gameOver = true; winLine = winLineOf(win);
     draw(); showBanner(L('banner.win', { color: current }), true);
     return;
   }
@@ -822,10 +884,12 @@ function handlePlace(pos) {
 
 function passTurn() {
   legendTurnEnd(current);
+  worldTurnEnd(current);
   draftAfterTurn = null;
   tickCraters();
   tickShields();
   current = other(current);
+  worldRoundTick(); // 라운드가 끝났으면 맵 자연재해 · 자기장
   turnPlacementsDone = 0;
   turnPlacementsNeeded = 1;
   turnPlacedPositions = [];
@@ -841,16 +905,27 @@ function passTurn() {
 
 function checkWin(r, c, player) {
   const dirs = [{ dr: 0, dc: 1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }, { dr: 1, dc: -1 }];
+  const wrap = mapId === 'space'; // 우주 맵: 웜홀로 판의 양 끝이 이어짐
   for (const { dr, dc } of dirs) {
-    let count = 1, start = { r, c }, end = { r, c };
+    let count = 1, start = { r, c }, end = { r, c }, crossed = false;
     let rr = r + dr, cc = c + dc;
-    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { end = { r: rr, c: cc }; count++; rr += dr; cc += dc; }
+    for (;;) {
+      if (wrap) { const wr = (rr + SIZE) % SIZE, wc = (cc + SIZE) % SIZE; if (wr !== rr || wc !== cc) crossed = true; rr = wr; cc = wc; }
+      if (!(rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE) || board[rr][cc] !== player || count >= SIZE) break;
+      end = { r: rr, c: cc }; count++; rr += dr; cc += dc;
+    }
     rr = r - dr; cc = c - dc;
-    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) { start = { r: rr, c: cc }; count++; rr -= dr; cc -= dc; }
-    if (count === winLength || (winOver && winOver[player] && count === winOver[player])) return { start, end }; // 정확히 N개만 승리 (장목은 승리 아님), 토끼와 거북이는 4개도
+    for (;;) {
+      if (wrap) { const wr = (rr + SIZE) % SIZE, wc = (cc + SIZE) % SIZE; if (wr !== rr || wc !== cc) crossed = true; rr = wr; cc = wc; }
+      if (!(rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE) || board[rr][cc] !== player || count >= SIZE) break;
+      start = { r: rr, c: cc }; count++; rr -= dr; cc -= dc;
+    }
+    if (count === winLength || (winOver && winOver[player] && count === winOver[player])) return { start, end, dr, dc, n: count, wrap: wrap && crossed }; // 정확히 N개만 승리 (장목은 승리 아님), 토끼와 거북이는 4개도
   }
   return null;
 }
+// 승리 줄 표시용 (웜홀을 넘은 줄은 방향·길이도 함께)
+function winLineOf(win) { return win.wrap ? [win.start, win.end, { dr: win.dr, dc: win.dc, n: win.n }] : [win.start, win.end]; }
 
 function scanBoardForWin() {
   for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
@@ -863,7 +938,7 @@ function endIfBoardWin(skipSync) {
   const found = scanBoardForWin();
   if (found) {
     gameOver = true;
-    winLine = [found.win.start, found.win.end];
+    winLine = winLineOf(found.win);
     draw();
     showBanner(L('banner.win', { color: found.player }), skipSync);
     return true;
@@ -919,11 +994,9 @@ function weightedSample(pool, k) {
 function grantRandomCard(player) {
   const card = weightedSample(getCardPool(), 1)[0];
   hand[player].push(card);
-  if (hand[player].length > HAND_LIMIT) {
-    const dropped = hand[player].shift();
-    addLog(L('log.handOverflow', { color: player, card: dropped.id }));
-  }
+  trimHand(player);
   addLog(L('log.cardGained', { color: player, icon: card.icon, card: card.id }));
+  onCardGained(player, card);
 }
 
 let lastDraft = null;
@@ -931,8 +1004,23 @@ let lastDraft = null;
 function legendPicks() {
   return shuffle(LEGEND_POOL.filter(c => !c.mpOnly || mode === 'multiplayer')).slice(0, 3);
 }
+// 판 시작: 이번 판 맵 알림
+function logMapStart() {
+  const m = mapInfo();
+  addLog(L('log.mapIs', { icon: m.icon, map: m.id, mapShort: m.id }));
+}
+// 게임 시작: 각자 전설 카드 → 시작 능력 순서로 고름
+function makeStartupQueue(players) {
+  return players.flatMap(p => [{ p, kind: 'legend' }, { p, kind: 'ability' }]);
+}
+function draftPicksFor(player, kind) {
+  if (kind === 'legend') return legendPicks();
+  if (kind === 'ability') return abilityPicks();
+  return weightedSample(getCardPool(), draftSize(player));
+}
 function openDraft(player) {
-  const picks = startupQueue ? legendPicks() : weightedSample(getCardPool(), 3);
+  const kind = startupQueue && startupQueue.length ? startupQueue[0].kind : 'card';
+  const picks = draftPicksFor(player, kind);
   if (mode === 'bot' && player !== myColor) {
     // 봇은 UI 없이 선택 (저난이도는 무작위, 고난이도는 강한 카드 우선)
     draftPlayer = player;
@@ -942,23 +1030,25 @@ function openDraft(player) {
   }
   draftOpen = true;
   draftPlayer = player;
-  renderDraftCards(player, picks);
+  renderDraftCards(player, picks, kind);
   draftOverlay.classList.add('show');
   updateHandUI();
 }
 
-function renderDraftCards(player, picks) {
-  const legend = picks.length && picks[0].legend;
-  draftTitle.textContent = t(legend ? 'lg.draftTitle' : 'draft.title', { color: player });
-  draftSubEl.textContent = t(legend ? 'lg.draftSub' : 'draft.sub');
-  lastDraft = { player, picks };
+function renderDraftCards(player, picks, kind) {
+  kind = kind || (picks.length && picks[0].legend ? 'legend' : picks.length && picks[0].ability ? 'ability' : 'card');
+  const legend = kind === 'legend', ability = kind === 'ability';
+  draftTitle.textContent = t(legend ? 'lg.draftTitle' : ability ? 'ab.draftTitle' : 'draft.title', { color: player });
+  draftSubEl.textContent = t(legend ? 'lg.draftSub' : ability ? 'ab.draftSub' : 'draft.sub');
+  lastDraft = { player, picks, kind };
+  renderDraftRefresh(player);
   draftCardsEl.innerHTML = '';
   picks.forEach(card => {
     const btn = document.createElement('button');
     const rare = (card.weight || 10) <= 3;
     const desc = cardDesc(card).replace(/\s*\((가장 희귀|희귀 카드)\)/g, ''); // 희귀 표시는 배지로 대신함
-    btn.className = 'aug-card' + (card.legend ? ' legend' : rare ? ' rare' : '');
-    btn.innerHTML = (card.legend ? `<span class="aug-rarity">${t('lg.badge')}</span>` : rare ? `<span class="aug-rarity">${t('rare')}</span>` : '') +
+    btn.className = 'aug-card' + (card.legend ? ' legend' : card.ability ? ' ability' : rare ? ' rare' : '');
+    btn.innerHTML = (card.legend ? `<span class="aug-rarity">${t('lg.badge')}</span>` : card.ability ? `<span class="aug-rarity">${t('ab.badge')}</span>` : rare ? `<span class="aug-rarity">${t('rare')}</span>` : '') +
       `<div class="aug-icon">${card.icon}</div><div class="aug-name">${cardName(card)}</div>` +
       (card.legend ? `<div class="aug-mode">${t(card.auto ? 'lg.auto' : 'lg.manual')}</div>` : '') +
       `<div class="aug-short">${cardShort(card)}</div><div class="aug-desc">${desc}</div>`;
@@ -973,11 +1063,24 @@ function runStartupDraft() {
     updateStatus(); updatePips(); updateHandUI(); draw();
     return;
   }
-  openDraft(startupQueue[0]);
+  openDraft(startupQueue[0].p);
 }
 
 function pickCardIntoHand(card) {
   const p = draftPlayer;
+  if (card.ability) {
+    // 시작 능력 (판 내내 자동 적용)
+    if (!world) worldReset(mapId);
+    world.ab[p] = card.id;
+    if (card.id === 'retry') world.refresh[p] += 2;
+    addLog(L('ab.picked', { color: p, icon: card.icon, card: card.id }));
+    draftOverlay.classList.remove('show');
+    draftOpen = false;
+    if (mode === 'multiplayer' && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/abPick', { [p]: card.id }).catch(() => {});
+    if (startupQueue) { startupQueue.shift(); runStartupDraft(); }
+    else { updateStatus(); updatePips(); updateHandUI(); draw(); }
+    return;
+  }
   if (card.legend) {
     // 전설 카드는 패가 아니라 전설 칸에 (판마다 1장)
     lg.card[p] = card.id;
@@ -990,11 +1093,9 @@ function pickCardIntoHand(card) {
     return;
   }
   hand[p].push(card);
-  if (hand[p].length > HAND_LIMIT) {
-    const dropped = hand[p].shift();
-    addLog(L('log.handOverflow', { color: p, card: dropped.id }));
-  }
+  trimHand(p);
   addLog(L('log.cardGainedHand', { color: p, icon: card.icon, card: card.id }));
+  onCardGained(p, card);
   draftOverlay.classList.remove('show');
   draftOpen = false;
   if (mode === 'multiplayer') savePrivateState();
@@ -1168,6 +1269,7 @@ function useCard(player, idx) {
     return;
   }
 
+  if (useWorldCard(player, idx, card)) return; // 저격 · 1+1 · 엿보기 · 거대한 돌 · 투명한 돌 · 기상 이변
   switch (card.type) {
     case 'chain_move':
       removeFromHand(player, idx);
@@ -1239,6 +1341,8 @@ function useCard(player, idx) {
       removeFromHand(player, idx);
       markUsed(player);
       addLog(L('log.quakeUsed', { color: player, icon: card.icon }));
+      if (world) world.hidden = []; // 흔들린 돌은 모두 드러남
+      if (mapId === 'rain') mapTsunami(); // 장마: 지진 뒤 쓰나미
       mpShakeSeq++;
       lastSeenShakeSeq = mpShakeSeq;
       triggerBoardShake();

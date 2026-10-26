@@ -169,7 +169,7 @@ function alkMaxSpeed(stones) { return stones.reduce((m, s) => Math.max(m, Math.h
 
 // 알까기 물리 한 프레임 (무작위 요소 없음 — 같은 입력이면 어느 화면에서나 같은 움직임)
 function alkPhysStep(stones) {
-  const FRICTION = 0.965;
+  const FRICTION = mapId === 'rain' ? 0.978 : 0.965; // 장마 맵: 더 미끄러움
 
   for (const s of stones) { s.x += s.vx; s.y += s.vy; s.vx *= FRICTION; s.vy *= FRICTION; }
 
