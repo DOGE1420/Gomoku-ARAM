@@ -402,3 +402,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .codex-grid { grid-template-columns: 1fr; }
   .tier-items { grid-template-columns: 1fr; }
 }
+
+.spec-badge { font-size: 12.5px; padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(60,140,90,0.6); color: #2f7a4b; background: rgba(60,140,90,0.08); white-space: nowrap; }
+.spec-badge[hidden] { display: none; }

@@ -35,7 +35,7 @@ function buildPublicState() {
 
 let publicSyncBusy = false, publicSyncQueued = false;
 async function syncPublicState() {
-  if (mode !== 'multiplayer' || !dbApi || !roomCode) return;
+  if (mode !== 'multiplayer' || !dbApi || !roomCode || spectator) return; // 관전자는 공유 상태에 쓰지 않음
   if (publicSyncBusy) { publicSyncQueued = true; return; }
   publicSyncBusy = true;
   try { await dbApi.setPath('games/' + roomCode, buildPublicState()); } catch (e) {}
@@ -45,7 +45,7 @@ async function syncPublicState() {
 
 let privateSyncBusy = false, privateSyncQueued = false;
 async function savePrivateState() {
-  if (mode !== 'multiplayer' || !dbApi || !roomCode) return;
+  if (mode !== 'multiplayer' || !dbApi || !roomCode || spectator) return;
   if (privateSyncBusy) { privateSyncQueued = true; return; }
   privateSyncBusy = true;
   try { await dbApi.setPath('private/' + myUserId + '/games_' + roomCode, { hand: hand[myColor], traps: trapList }); } catch (e) {}
@@ -282,14 +282,17 @@ function applyPublicSnapshot(data) {
     triggerBoardShake();
   }
 
-  if (restarted) {
+  if (restarted && spectator) {
+    addLog(L('spec.joined'));
+  } else if (restarted) {
     addLog(L('log.youAre', { color: restartedColor }));
     startupQueue = makeStartupQueue([myColor]);
     runStartupDraft();
   }
 
+  if (spectator) applySpectatorState(data);
   // 전설 카드: 진행 상황은 공개 상태를 따르되, 내 전설 카드는 내 화면이 기준 (시작 때 양쪽이 동시에 골라 덮어쓸 수 있음)
-  {
+  else {
     const myCard = lg ? lg.card[myColor] : null, oppPrev = lg ? lg.card[other(myColor)] : null;
     lg = lgNorm(data.lg);
     const pick = data.lgPick || {};
@@ -302,7 +305,7 @@ function applyPublicSnapshot(data) {
     if (data.handN && typeof data.handN[other(myColor)] === 'number') lgOppHandN = data.handN[other(myColor)];
   }
   // 맵·시작 능력: 공개 상태를 따르되, 내 시작 능력과 다시 뽑기 횟수는 내 화면이 기준
-  if (data.world) {
+  if (data.world && !spectator) {
     const opp = other(myColor);
     const prevMap = world ? world.map : null, myAb = world ? world.ab[myColor] : null, oppAbPrev = world ? world.ab[opp] : null;
     const myRefresh = world ? world.refresh[myColor] : null;
@@ -317,13 +320,16 @@ function applyPublicSnapshot(data) {
     if (prevMap === null) lastSeenWorldEv = world.evSeq; // 들어오기 전 기록은 다시 보여주지 않음
     catchUpWorldLog();
   }
-  handleStealSync(data);
-  handleLegendSync(data);
-  handleWorldSync(data);
+  if (!spectator) { // 관전자는 요청에 응답하지 않음 (패·함정이 없음)
+    handleStealSync(data);
+    handleLegendSync(data);
+    handleWorldSync(data);
+  }
   lastPublicData = data;
   updateAlkSpectate(data); // 상대 발사가 새로 왔으면 먼저 재생을 시작
   syncAlkFromPublic(data);
-  checkMyTrapsAgainstBoard();
+  if (!spectator) checkMyTrapsAgainstBoard();
+  renderSpectatorBadge();
 
   if (gameOver && data.bannerText) {
     if (!banner.classList.contains('show')) renderBannerOnly(data.bannerText);
@@ -392,7 +398,7 @@ function renderChat(messages) {
     li.className = 'chat-msg' + (m.uid === myUserId ? ' mine' : '');
     const who = document.createElement('div');
     who.className = 'chat-who';
-    who.textContent = m.uid === myUserId ? t('chat.me') : (m.color === BLACK || m.color === WHITE ? colorName(m.color) : t('chat.opp'));
+    who.textContent = m.uid === myUserId ? t('chat.me') : m.spec ? t('chat.spec') : (m.color === BLACK || m.color === WHITE ? colorName(m.color) : t('chat.opp'));
     const text = document.createElement('div');
     text.textContent = m.text.slice(0, CHAT_MAX_LEN);
     li.appendChild(who); li.appendChild(text);
@@ -406,7 +412,7 @@ async function sendChat() {
   if (!text || mode !== 'multiplayer' || !dbApi || !roomCode) return;
   chatInput.value = '';
   try {
-    await dbApi.pushPath('chats/' + roomCode, { uid: myUserId, color: myColor, text, ts: Date.now() });
+    await dbApi.pushPath('chats/' + roomCode, spectator ? { uid: myUserId, spec: true, text, ts: Date.now() } : { uid: myUserId, color: myColor, text, ts: Date.now() });
   } catch (e) {
     chatInput.value = text;
     addLog(L('chat.sendFail'));
@@ -417,6 +423,7 @@ chatForm.addEventListener('submit', function (e) { e.preventDefault(); sendChat(
 
 function subscribePublic() {
   subscribeChat();
+  subscribeSpectators();
   if (unsubPublic) { unsubPublic(); unsubPublic = null; }
   unsubPublic = dbApi.onPath('games/' + roomCode, function (snap) {
     if (!snap.exists) return;
@@ -431,6 +438,76 @@ function subscribePublic() {
   });
 }
 
+// ================= 관전 =================
+// 관전자: 공개 상태만 받아서 보여 줌 (양쪽 패 내용·함정·투명한 돌은 안 보임, 장수와 전설 카드·시작 능력·맵은 보임)
+function applySpectatorState(data) {
+  lg = lgNorm(data.lg);
+  const pick = data.lgPick || {};
+  for (const p of [BLACK, WHITE]) lg.card[p] = pick[p] || lg.card[p] || null;
+  winOver = {};
+  if (data.winOver) for (const k of [BLACK, WHITE]) if (data.winOver[k]) winOver[k] = data.winOver[k];
+  immuneList = Array.isArray(data.immune) ? data.immune.slice() : (data.immune ? Object.values(data.immune) : []);
+  if (data.handN) for (const p of [BLACK, WHITE]) if (typeof data.handN[p] === 'number') specHandN[p] = data.handN[p];
+  if (data.world) {
+    const prevMap = world ? world.map : null;
+    world = worldNorm(data.world);
+    const ap = data.abPick || {};
+    for (const p of [BLACK, WHITE]) world.ab[p] = ap[p] || world.ab[p] || null;
+    mapId = world.map;
+    if (prevMap !== world.map) logMapStart();
+    if (prevMap === null) lastSeenWorldEv = world.evSeq;
+    catchUpWorldLog();
+  }
+}
+let specBeatTimer = null, unsubSpectators = null, spectatorsSnap = null;
+function startSpectate(code, data) {
+  mode = 'multiplayer'; spectator = true; myColor = 0; roomCode = code;
+  mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, data.players || {});
+  hand = { [BLACK]: [], [WHITE]: [] }; specHandN = { [BLACK]: 0, [WHITE]: 0 };
+  lgReset(); world = null; trapList = []; startupQueue = null;
+  pendingTarget = null; draftOpen = false; draftPlayer = null; alk = null; alkHandoff = null; alkView = null;
+  pendingPlacement = null; pendingCardUse = null; pendingTargetCell = null; moveHistory = [];
+  logLines = []; mpNotice = null; mpNoticeSeq = data.noticeSeq || 0; lastSeenNoticeSeq = mpNoticeSeq; mpBannerText = null;
+  mpShakeSeq = data.shakeSeq || 0; lastSeenShakeSeq = mpShakeSeq;
+  mpRestartSeq = data.restartSeq || 0; lastSeenRestartSeq = mpRestartSeq;
+  lastSeenCardFxId = data.cardFx ? data.cardFx.id : null; // 들어오기 전에 쓴 카드 연출은 다시 보여주지 않음
+  if (data.alkLaunch) lastSeenLaunchId = data.alkLaunch.id;
+  draftOverlay.classList.remove('show'); sideOverlay.classList.remove('show');
+  addLog(L('spec.joined'));
+  subscribePublic();
+  showScreen('game');
+  // 관전자 수: 25초마다 '아직 보는 중' 표시 (창을 닫으면 70초 뒤 수에서 빠짐)
+  const beat = () => { if (spectator && dbApi && roomCode) dbApi.setPath('spectators/' + roomCode + '/' + myUserId, Date.now()).catch(() => {}); };
+  beat();
+  if (specBeatTimer) clearInterval(specBeatTimer);
+  specBeatTimer = setInterval(beat, 25000);
+}
+function stopSpectate() {
+  if (specBeatTimer) { clearInterval(specBeatTimer); specBeatTimer = null; }
+  if (spectator && dbApi && roomCode) dbApi.setPath('spectators/' + roomCode + '/' + myUserId, null).catch(() => {});
+  spectator = false;
+}
+// 선수·관전자 모두: 지금 보고 있는 관전자 수
+function subscribeSpectators() {
+  if (unsubSpectators) { unsubSpectators(); unsubSpectators = null; }
+  spectatorsSnap = null; spectatorCount = 0;
+  if (!dbApi || !roomCode || !dbApi.onPath) return;
+  unsubSpectators = dbApi.onPath('spectators/' + roomCode, (snap) => {
+    spectatorsSnap = snap && snap.exists ? snap.data() : null;
+    renderSpectatorBadge();
+  }, () => {});
+}
+function unsubscribeSpectators() { if (unsubSpectators) { unsubSpectators(); unsubSpectators = null; } spectatorsSnap = null; spectatorCount = 0; renderSpectatorBadge(); }
+const specBadge = document.getElementById('spec-badge');
+function renderSpectatorBadge() {
+  const now = Date.now();
+  spectatorCount = spectatorsSnap ? Object.values(spectatorsSnap).filter(ts => typeof ts === 'number' && now - ts < 70000).length : 0;
+  if (!specBadge) return;
+  specBadge.hidden = !(mode === 'multiplayer' && spectatorCount > 0);
+  specBadge.textContent = t('spec.count', { n: spectatorCount });
+}
+setInterval(() => { if (mode === 'multiplayer') renderSpectatorBadge(); }, 15000);
+
 function randomRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -440,7 +517,7 @@ function randomRoomCode() {
 
 async function createRoom() {
   if (!dbApi || !myUserId) { setLobbyStatus(L('lobby.connecting')); return; }
-  mode = 'multiplayer';
+  mode = 'multiplayer'; spectator = false;
   // 선공(흑) 결정: 랜덤 / 방장 / 참가자
   const iGoFirst = firstPickMode === 'me' ? true : firstPickMode === 'opp' ? false : Math.random() < 0.5;
   myColor = iGoFirst ? BLACK : WHITE;
@@ -535,9 +612,9 @@ async function joinRoom(codeRaw) {
     else if (players[WHITE] === myUserId) { assignedColor = WHITE; isReconnect = true; }
     else if (!players[WHITE]) { assignedColor = WHITE; }
     else if (!players[BLACK]) { assignedColor = BLACK; }
-    else { setLobbyStatus(L('lobby.full')); return; }
+    else { startSpectate(code, data); return; } // 자리가 다 찼으면 관전
 
-    mode = 'multiplayer';
+    mode = 'multiplayer'; spectator = false;
     myColor = assignedColor;
     roomCode = code;
     mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, players);
