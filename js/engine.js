@@ -1305,9 +1305,10 @@ function botUseCardSmart(botColor, after, opts) {
         break;
       }
       case 'snipe': {
-        // 저격: 상대 돌 무작위 2개 → 한 개씩 뺐을 때 이득의 평균 × 2
+        // 저격: 상대 돌 무작위 2개 → 한 개씩 뺐을 때 이득의 평균 × 2. 쓰면 턴이 끝나 이번 착수를 잃으므로 기준을 높게,
+        // 상대가 바로 이기는 자리가 있으면 무작위 제거에 기대지 않고 막는 수를 둠
         const pool = listStones(opp).filter(q => !isProtected(q.r, q.c));
-        if (!pool.length) break;
+        if (!pool.length || oppCritical) break;
         let sum = 0;
         for (const q of pool) {
           board[q.r][q.c] = EMPTY;
@@ -1317,8 +1318,7 @@ function botUseCardSmart(botColor, after, opts) {
           sum += g;
         }
         const exp = sum / pool.length * Math.min(2, pool.length);
-        if (exp > 150 * scale) consider(idx, 1200 + exp);
-        else if (overflowSoon && idx === 0) consider(idx, 200);
+        if (exp > 2500 * scale) consider(idx, 800 + exp / 2);
         break;
       }
       case 'double':

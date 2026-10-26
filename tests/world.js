@@ -91,7 +91,7 @@ const openBench = require('./load');
   // 새 카드
   res.cards = await ev(`(() => { ${setup}
     const out = {};
-    fresh(1); put([[3,3],[3,5],[3,7],[3,9]], 2); let i = give(1, 'snipe'); activateCard(1, i); out.snipe = countStones(2);
+    fresh(1); put([[3,3],[3,5],[3,7],[3,9]], 2); let i = give(1, 'snipe'); activateCard(1, i); out.snipe = { white: countStones(2), turnPassedTo: current, blackStones: countStones(1) };
     fresh(1); i = give(1, 'double'); activateCard(1, i); out.double = hand[1].length;
     fresh(1); hand[2] = [CARD_POOL[0], CARD_POOL[1]]; i = give(1, 'peek'); activateCard(1, i); out.peek = { view: peekView && peekView.cards, log: logLines[0] && fmt(logLines[0]) };
     current = 1; turnPlacementsDone = 1; passTurn(); out.peekCleared = peekView === null;
