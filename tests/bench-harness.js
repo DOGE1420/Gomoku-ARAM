@@ -7,6 +7,7 @@ window.__bench = {
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
     winLength = 5; windmillList = []; craterList = []; trapList = []; turnPlacementsDone = 0; turnPlacedPositions = [];
     hand = { [BLACK]: [], [WHITE]: [] }; cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
+    mapId = 'classic'; if (world) { world.map = 'classic'; world.round = 0; world.zone = 0; world.frozen = []; world.hidden = []; } // 측정은 기본 맵에서
   },
   load(pz) { this.reset(); pz.board.forEach((row, r) => row.forEach((v, c) => { board[r][c] = v; })); },
   snapshot() { return board.map(row => row.slice()); },
@@ -293,7 +294,7 @@ window.__bench = {
   newCardTests() {
     const out = {};
     const fresh = (cur) => {
-      mode = 'local'; init(); draftOpen = false; startupQueue = null; pendingTarget = null; cardAnimInstant = true;
+      mode = 'local'; init(); draftOpen = false; startupQueue = null; pendingTarget = null; cardAnimInstant = true; setMap('classic');
       current = cur; usedCardThisTurn = { [BLACK]: false, [WHITE]: false };
     };
     const give = (p, id) => { hand[p] = [CARD_POOL.find(c => c.id === id)]; };
@@ -371,7 +372,7 @@ window.__bench = {
   },
   // 버그 수정 확인: 실제 게임 흐름으로 풍차 돌을 폭파하면 풍차 기록도 사라지는지
   bombMillFix() {
-    mode = 'local'; init();
+    mode = 'local'; init(); setMap('classic');
     draftOpen = false; pendingTarget = null; usedCardThisTurn[BLACK] = false; // 시작 카드 선택 창은 닫고 시험
     board[7][7] = WHITE; windmillList = [{ r: 7, c: 7 }]; current = BLACK;
     hand[BLACK] = [CARD_POOL.find(c => c.id === 'bomb')];

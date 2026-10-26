@@ -122,7 +122,7 @@ function lgProgress(p) {
     case 'allin': {
       const hidden = mode === 'multiplayer' && p !== myColor;
       const n = hidden ? lgOppHandN : hand[p].length;
-      return { ok: !hidden && n >= HAND_LIMIT, text: t('lg.p.allin', { n }) };
+      return { ok: !hidden && n >= handLimit(p), text: t('lg.p.allin', { n, max: handLimit(p) }) };
     }
     case 'turtle': { const d = countStones(opp) - countStones(p); return { ok: d >= 5 && !winOver[p], text: t('lg.p.turtle', { n: Math.max(0, Math.min(d, 5)) }) }; }
     case 'king': { const alive = lgFirstAlive(p); return { ok: alive && lg.plies >= 20, text: t('lg.p.king', { n: Math.min(lg.plies, 20), s: t(alive ? 'lg.alive' : 'lg.dead') }) }; }
@@ -367,7 +367,7 @@ function legendTurnEnd(p) {
     lg.empty[p] = n === 0 ? lg.empty[p] + 1 : 0;
     const edgeTurn = !usedCardThisTurn[p] && !lgUsedThisTurn && turnPlacedPositions.length > 0 && turnPlacedPositions.every(q => isEdgeCell(q.r, q.c));
     lg.edge[p] = edgeTurn ? lg.edge[p] + 1 : 0;
-    while (hand[p].length > HAND_LIMIT) { const dropped = hand[p].shift(); addLog(L('log.handOverflow', { color: p, card: dropped.id })); }
+    trimHand(p);
     const id = lg.card[p];
     if (id === 'nothing' && !lg.done[p] && lg.empty[p] >= 3 && oppHandCount(p) > 0) lgFireAuto(p);
     if (id === 'sloth' && !lg.done[p] && lg.edge[p] >= 5) lgFireAuto(p);

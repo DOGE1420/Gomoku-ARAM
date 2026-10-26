@@ -8,14 +8,14 @@ const openBench = require('./load');
   res.startDraft = await ev(`(() => {
     mode = 'local'; init();
     const a = { open: draftOpen, player: draftPlayer, picks: lastDraft.picks.map(c => c.id), legend: lastDraft.picks.every(c => c.legend), title: draftTitle.textContent };
-    pickCardIntoHand(lastDraft.picks[0]);
+    pickCardIntoHand(lastDraft.picks[0]); pickCardIntoHand(lastDraft.picks[0]); // 흑 전설 → 흑 시작 능력
     const b = { open: draftOpen, player: draftPlayer, picks: lastDraft.picks.map(c => c.id) };
-    pickCardIntoHand(lastDraft.picks[1]);
+    pickCardIntoHand(lastDraft.picks[1]); pickCardIntoHand(lastDraft.picks[0]);
     return { a, b, cards: lg.card, hands: [hand[1].length, hand[2].length], q: startupQueue, slot: document.getElementById('legend-slot-1').textContent };
   })()`);
   // 이후 카드 선택에는 전설 카드가 안 나옴 (300번)
   res.laterDraft = await ev(`(() => { let leg = 0; for (let i = 0; i < 300; i++) { startupQueue = null; const p = weightedSample(getCardPool(), 3); if (p.some(c => c.legend)) leg++; } return { leg, napInLocal: (() => { let n = 0; for (let i = 0; i < 200; i++) if (legendPicks().some(c => c.id === 'nap')) n++; return n; })() }; })()`);
-  const setup = `const fresh = (cur) => { mode = 'local'; init(); draftOpen = false; startupQueue = null; pendingTarget = null; cardAnimInstant = true; draftOverlay.classList.remove('show'); current = cur || 1; };
+  const setup = `const fresh = (cur) => { mode = 'local'; init(); draftOpen = false; startupQueue = null; pendingTarget = null; cardAnimInstant = true; draftOverlay.classList.remove('show'); current = cur || 1; setMap('classic'); };
     const put = (list, v) => list.forEach(([r, c]) => { board[r][c] = v; });`;
   // 거신병
   res.obelisk = await ev(`(() => { ${setup}

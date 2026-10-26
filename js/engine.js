@@ -310,7 +310,7 @@ function engineWorkerMain(e) {
   const d = e.data;
   try {
     board = d.board; winLength = d.winLength; windmillList = d.windmillList; craterList = d.craterList; shieldList = d.shieldList || []; trapList = d.trapList;
-    winOver = d.winOver || {}; immuneList = d.immuneList || [];
+    winOver = d.winOver || {}; immuneList = d.immuneList || []; mapId = d.mapId || 'classic';
     hand = d.hand; cardLockNextTurn = d.cardLockNextTurn; skipNextTurn = d.skipNextTurn || {}; turnPlacementsDone = d.turnPlacementsDone; turnPlacementsNeeded = d.turnPlacementsNeeded || 1; turnPlacedPositions = d.turnPlacedPositions;
     let result = null;
     if (d.task === 'move') { const m = (d.cfg && d.cfg.engine2 ? e2ChooseMove : ultimateChooseMove)(d.bot, makeBlocked(), d.budget, d.cfg); result = m ? { r: m.r, c: m.c } : null; }
@@ -335,7 +335,7 @@ function getEngineWorker() {
       `const P_FIVE = ${P_FIVE}, P_OPEN4 = ${P_OPEN4}, P_FOUR = ${P_FOUR}, P_OPEN3 = ${P_OPEN3}, P_THREE = ${P_THREE}, P_OPEN2 = ${P_OPEN2}, P_TWO = ${P_TWO};`,
       `const WIN_SCORE = ${WIN_SCORE}, U_WIDTHS = ${JSON.stringify(U_WIDTHS)};`,
       `const ZOB = ${JSON.stringify(ZOB)};`,
-      'let winOver = {}, immuneList = [];',
+      "let winOver = {}, immuneList = [], mapId = 'classic';",
       'let board, winLength = 5, windmillList = [], craterList = [], shieldList = [], moveHistory = [], trapList = [], hand = {}, skipNextTurn = {}, cardLockNextTurn = {}, turnPlacementsDone = 0, turnPlacementsNeeded = 1, turnPlacedPositions = [];',
       'let searchDeadline = 0, uWidths = U_WIDTHS, uDefense = 0.95, uBot = null, uFlipRisk = false, uStyle = null, uLastDepth = 0, uTT = new Map(), uAborted = false, uNodes = 0;',
       `const E2P = ${JSON.stringify(E2P)}, E2_BOOK = ${JSON.stringify(E2_BOOK)};`,
@@ -376,7 +376,7 @@ function requestEngine(task, bot, budget, cb) {
     board: board.map(r => r.slice()), winLength, windmillList, craterList, shieldList: shieldList || [], trapList: trapList || [],
     hand: { [BLACK]: (hand[BLACK] || []).map(c => ({ id: c.id, type: c.type })), [WHITE]: (hand[WHITE] || []).map(c => ({ id: c.id, type: c.type })) },
     cardLockNextTurn, skipNextTurn, turnPlacementsDone, turnPlacementsNeeded, turnPlacedPositions,
-    winOver, immuneList,
+    winOver, immuneList, mapId,
   });
 }
 
@@ -1121,7 +1121,7 @@ function botPlaceStone(botColor) {
 }
 // 토끼와 거북이(4목 승리)가 걸려 있으면: 내가 바로 이기는 칸 → 상대가 바로 이기는 칸 막기 (엔진은 4목 승리를 모름)
 function lgUrgentMove(botColor) {
-  if (!winOver[BLACK] && !winOver[WHITE]) return null;
+  if (!winOver[BLACK] && !winOver[WHITE] && mapId !== 'space') return null; // 4목 승리 · 웜홀 줄은 엔진 평가가 모름
   if (lg && lg.big === botColor) return null;
   const blk = makeBlocked();
   const mine = findWinCells(botColor, blk[botColor]);
@@ -1304,6 +1304,39 @@ function botUseCardSmart(botColor, after, opts) {
         else if (overflowSoon && idx === 0 && cands.length) consider(idx, 300, [cands[0].p]);
         break;
       }
+      case 'snipe': {
+        // 저격: 상대 돌 무작위 2개 → 한 개씩 뺐을 때 이득의 평균 × 2
+        const pool = listStones(opp).filter(q => !isProtected(q.r, q.c));
+        if (!pool.length) break;
+        let sum = 0;
+        for (const q of pool) {
+          board[q.r][q.c] = EMPTY;
+          let g = evalBoard(botColor, blocked) - base;
+          if (oppWins.length && !findWinCells(opp, blocked[opp]).length) g += 20000;
+          board[q.r][q.c] = opp;
+          sum += g;
+        }
+        const exp = sum / pool.length * Math.min(2, pool.length);
+        if (exp > 150 * scale) consider(idx, 1200 + exp);
+        else if (overflowSoon && idx === 0) consider(idx, 200);
+        break;
+      }
+      case 'double':
+        // 1+1: 한 장 쓰고 두 장 받음 — 패 자리가 있으면 사용
+        if (hand[botColor].length <= handLimit(botColor) - 1) consider(idx, 900);
+        break;
+      case 'giant':
+        // 거대한 돌: 다음 착수 옆 3칸이 덤으로 붙음
+        consider(idx, oppCritical ? 600 : 1800);
+        break;
+      case 'ghost':
+        consider(idx, 300);
+        break;
+      case 'peek':
+      case 'weather':
+        if (overflowSoon && idx === 0) consider(idx, 150);
+        else consider(idx, 40);
+        break;
       case 'meteor': {
         // 운석: 보호막 밖의 아무 돌이 무작위 빈 칸으로 날아감 → 원래 자리에서 빠지는 효과의 평균으로 판단 (떨어지는 곳은 무작위라 대부분 영향이 작음)
         const pool = meteorTargets();
@@ -1403,7 +1436,7 @@ function applyBotTargets(botColor, targets) {
 }
 
 // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
-const BOT_CARD_PRIORITY = ['chain', 'windmill', 'wall', 'bomb', 'shield', 'trap', 'sixsense', 'trade', 'blockade', 'infection', 'reversal', 'meteor', 'teleport', 'earthquake', 'alkkagi'];
+const BOT_CARD_PRIORITY = ['chain', 'windmill', 'giant', 'wall', 'bomb', 'snipe', 'double', 'shield', 'trap', 'sixsense', 'trade', 'blockade', 'ghost', 'peek', 'weather', 'infection', 'reversal', 'meteor', 'teleport', 'earthquake', 'alkkagi'];
 // 봇의 전설 카드 사용: 턴 시작에 조건이 맞고 쓸 만하면 발동 (발동이 끝나면 이어서 착수)
 const BOT_MIRROR_OK = ['chain', 'windmill', 'bomb', 'shield', 'trap', 'wall', 'blockade', 'infection', 'sixsense'];
 function botLegendTry(botColor) {
@@ -1454,7 +1487,13 @@ function botLegendTry(botColor) {
 
 // 봇의 전설 카드 선택: 봇이 스스로 조건을 채우기 쉬운 카드 우선
 const BOT_LEGEND_PRIORITY = ['king', 'latebloom', 'obelisk', 'clown', 'turtle', 'blind', 'chicken', 'allin', 'nothing', 'mirror', 'sloth', 'nap'];
+// 봇의 시작 능력 선택
+const BOT_ABILITY_PRIORITY = ['sturdy', 'pouch', 'clover', 'umbrella', 'pickpocket', 'retry'];
 function botPickDraft(picks, player) {
+  if (picks.length && picks[0].ability) {
+    if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
+    return picks.slice().sort((a, b) => BOT_ABILITY_PRIORITY.indexOf(a.id) - BOT_ABILITY_PRIORITY.indexOf(b.id))[0];
+  }
   if (picks.length && picks[0].legend) {
     if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];
     return picks.slice().sort((a, b) => BOT_LEGEND_PRIORITY.indexOf(a.id) - BOT_LEGEND_PRIORITY.indexOf(b.id))[0];

@@ -48,6 +48,10 @@
       <div class="mode-name" data-i18n="mode.mp">멀티플레이</div>
       <div class="mode-desc" data-i18n="mode.mp.desc">온라인 대결</div>
     </button>
+    <button class="mode-btn codex-btn" id="codex-menu-btn" type="button">
+      <div class="mode-name" data-i18n="codex.open">📚 카드 도감 · 티어표</div>
+      <div class="mode-desc" data-i18n="codex.desc">모든 카드·전설·시작 능력·맵 보기</div>
+    </button>
     <p class="menu-note" id="menu-note"></p>
   </div>
 
@@ -82,6 +86,7 @@
       <span class="turn-dot black" id="turn-dot"></span>
       <span id="status-text">흑 차례</span>
       <span id="win-length-badge">6목 규칙</span>
+      <span class="map-badge" id="map-badge" role="button" tabindex="0" hidden></span>
       <button class="cancel-btn" id="cancel-btn" data-i18n="cancel">취소</button>
     </div>
     <div class="tut-box" id="tut-box" hidden>
@@ -128,12 +133,14 @@
         <div class="draft-title" id="draft-title">카드 획득</div>
         <div class="draft-sub">한 장을 골라 패에 넣으세요</div>
         <div class="draft-cards" id="draft-cards"></div>
+        <button class="plain draft-refresh" type="button" id="draft-refresh" hidden></button>
       </div>
     </div>
 
     <div class="controls">
       <button class="plain" id="undo-btn" data-i18n="undo">한 수 무르기</button>
       <button class="plain" id="reset-btn" data-i18n="reset">새 게임</button>
+      <button class="plain" id="codex-game-btn" type="button" data-i18n="codex.openShort">📚 도감</button>
     </div>
     <div class="rematch-bar" id="rematch-bar" hidden>
       <span class="rematch-text" id="rematch-text"></span>
@@ -176,6 +183,14 @@
     </aside>
     </div>
   </div>
+
+<div class="codex" id="codex" hidden>
+  <div class="codex-panel" role="dialog" aria-modal="true" aria-labelledby="codex-title">
+    <div class="codex-top"><span class="codex-title" id="codex-title">카드 도감</span><button class="plain" type="button" id="codex-close">닫기</button></div>
+    <div class="codex-tabs" id="codex-tabs" role="tablist"></div>
+    <div class="codex-body" id="codex-body"></div>
+  </div>
+</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -225,10 +240,12 @@
 <script src="js/cards.js"></script>
 <script src="js/game.js"></script>
 <script src="js/legend.js"></script>
+<script src="js/world.js"></script>
 <script src="js/alkkagi.js"></script>
 <script src="js/multiplayer.js"></script>
 <script src="js/bot.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/codex.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>
