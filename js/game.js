@@ -840,6 +840,7 @@ function handlePlace(pos) {
     if (lg.first[current] && lg.first[current].r === r && lg.first[current].c === c) lg.first[current] = null;
     grantRandomCard(trapHit.owner);
     turnPlacementsDone++;
+    endTurnIfStuck();
     if (turnPlacementsDone >= turnPlacementsNeeded) lgHandAtPlace = hand[current].length;
     draw();
     if (turnPlacementsDone >= turnPlacementsNeeded && draftAfterTurn === current) {
@@ -874,6 +875,7 @@ function handlePlace(pos) {
   const milestone = countsForDraft && placedCount[current] % INTERVAL === 0;
   draw();
 
+  if (endTurnIfStuck()) lgHandAtPlace = hand[current].length;
   // 연속 착수로 아직 더 둘 수 있으면 카드 선택은 이번 턴의 마지막 수 뒤로 미룸
   if (milestone && turnPlacementsDone < turnPlacementsNeeded) draftAfterTurn = current;
   if (turnPlacementsDone >= turnPlacementsNeeded && (milestone || draftAfterTurn === current)) {
@@ -904,7 +906,37 @@ function passTurn() {
     passTurn();
     return;
   }
+  // 둘 수 있는 자리가 하나도 없으면 (자기장·풍차·구멍 등) 턴을 넘기고, 양쪽 다 없으면 무승부
+  if (!gameOver && !tut && !alkPhaseActive() && !canPlaceAnywhere(current)) {
+    if (!hasEmptyCell() || noMoveStreak >= 1) { noMoveStreak = 0; gameOver = true; draw(); showBanner(L('banner.draw'), true); return; }
+    noMoveStreak++;
+    addLog(L('log.noMove', { color: current }));
+    passTurn();
+    return;
+  }
+  noMoveStreak = 0;
   updateStatus(); updatePips(); updateHandUI(); draw();
+}
+
+// player가 지금 돌을 놓을 수 있는 칸이 있는지 (연속 착수 간격·대기만성의 승리 금지까지 반영)
+let noMoveStreak = 0;
+function canPlaceAnywhere(player) {
+  const big = lg && lg.big === player;
+  const chain = !big && turnPlacementsDone > 0 && turnPlacedPositions.length > 0;
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    if (board[r][c] !== EMPTY || placeBlocked(r, c, player)) continue;
+    if (chain && turnPlacedPositions.some(q => Math.max(Math.abs(r - q.r), Math.abs(c - q.c)) <= 2)) continue;
+    if (big && lgWouldWin(r, c, player)) continue;
+    return true;
+  }
+  return false;
+}
+// 연속 착수 등으로 더 둘 차례가 남았는데 둘 곳이 없으면 이번 턴의 착수를 여기서 끝냄
+function endTurnIfStuck() {
+  if (turnPlacementsDone >= turnPlacementsNeeded || canPlaceAnywhere(current)) return false;
+  addLog(L('log.noMoreMoves', { color: current }));
+  turnPlacementsNeeded = turnPlacementsDone;
+  return true;
 }
 
 function checkWin(r, c, player) {
